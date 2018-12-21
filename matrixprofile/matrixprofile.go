@@ -7,7 +7,8 @@ import (
 	"math"
 )
 
-// zNormalize computes a z-normalized version of a slice of floats in place
+// zNormalize computes a z-normalized version of a slice of floats. This is represented by
+// y[i] = x[i] - mean(x)/std(x)
 func zNormalize(ts []float64) ([]float64, error) {
 	var i int
 
@@ -39,7 +40,8 @@ func zNormalize(ts []float64) ([]float64, error) {
 	return out, nil
 }
 
-// movstd computes the standard deviation of each sliding window of m over a slice of floats
+// movstd computes the standard deviation of each sliding window of m over a slice of floats.
+// This is done by one pass through the data and keeping track of the cumulative sum and cumulative sum squared. Diffs between these at intervals of m provide a total of O(n) calculations for the standard deviation of each window of size m for the time series ts.
 func movstd(ts []float64, m int) ([]float64, error) {
 	if m <= 1 {
 		return nil, fmt.Errorf("length of slice must be greater than 1")
@@ -80,8 +82,8 @@ func slidingDotProduct(q, t []float64) ([]float64, error) {
 		return nil, fmt.Errorf("length of query must be less than half the timeseries")
 	}
 
-	if m == 0 {
-		return nil, fmt.Errorf("query must have a length greater than 0")
+	if m < 2 {
+		return nil, fmt.Errorf("query must be at least length 2")
 	}
 
 	qpad := make([]float64, len(t))
@@ -119,8 +121,8 @@ func Mass(q, t []float64) ([]float64, error) {
 	m := len(q)
 	n := len(t)
 
-	if m <= 1 {
-		return nil, fmt.Errorf("need more than 1 sample for the query")
+	if m < 2 {
+		return nil, fmt.Errorf("need at least 2 samples for the query")
 	}
 
 	if m*2 >= n {
@@ -235,54 +237,4 @@ func Stmp(a, b []float64, m int) ([]float64, []int, error) {
 		}
 	}
 	return mp, mpIdx, nil
-}
-
-// Segment finds the the index where there may be a potential timeseries change
-func Segment(mpIdx []int) (int, float64, []float64) {
-	histo := arcCurve(mpIdx)
-
-	for i := 0; i < len(histo); i++ {
-		if i == 0 || i == len(histo)-1 {
-			histo[i] = math.Min(1.0, float64(len(histo)))
-		} else {
-			histo[i] = math.Min(1.0, histo[i]/iac(float64(i), len(histo)))
-		}
-	}
-
-	minIdx := math.MaxInt64
-	minVal := math.Inf(1)
-	for i := 0; i < len(histo); i++ {
-		if histo[i] < minVal {
-			minIdx = i
-			minVal = histo[i]
-		}
-	}
-
-	return minIdx, float64(minVal), histo
-}
-
-// arcCurve computes the arc curve (histogram) which is uncorrected for
-func arcCurve(mpIdx []int) []float64 {
-	histo := make([]float64, len(mpIdx))
-	for i, idx := range mpIdx {
-		switch {
-		case idx >= len(mpIdx):
-		case idx < 0:
-			continue
-		case idx > i+1:
-			for j := i + 1; j < idx; j++ {
-				histo[j]++
-			}
-		case idx < i-1:
-			for j := i - 1; j > idx; j-- {
-				histo[j]++
-			}
-		}
-	}
-	return histo
-}
-
-// iac represents the ideal arc curve with a maximum of n/2 and 0 values at 0 and n-1
-func iac(x float64, n int) float64 {
-	return -math.Pow(math.Sqrt(2/float64(n))*(x-float64(n)/2.0), 2.0) + float64(n)/2.0
 }
