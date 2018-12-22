@@ -260,6 +260,59 @@ func TestStmp(t *testing.T) {
 				break
 			}
 		}
+	}
+}
+
+func TestStamp(t *testing.T) {
+	var err error
+	var mp []float64
+	var mpIdx []int
+
+	testdata := []struct {
+		q             []float64
+		t             []float64
+		m             int
+		sample        float64
+		expectedMP    []float64
+		expectedMPIdx []int
+	}{
+		{[]float64{}, []float64{}, 2, 1.0, nil, nil},
+		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 1.0, nil, nil},
+		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 1.0, nil, nil},
+		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1.0, nil, nil},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 1.0,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 0.0, nil, nil},
+	}
+
+	for _, d := range testdata {
+		mp, mpIdx, err = Stamp(d.q, d.t, d.m, d.sample)
+		if err != nil && d.expectedMP == nil {
+			// Got an error while z normalizing and expected an error
+			continue
+		}
+		if d.expectedMP == nil {
+			t.Errorf("Expected an invalid STMP calculation, %+v", d)
+		}
+		if err != nil {
+			t.Errorf("Did not expect error, %v, %+v", err, d)
+		}
+		if len(mp) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp), d)
+		}
+		for i := 0; i < len(mp); i++ {
+			if math.Abs(mp[i]-d.expectedMP[i]) > 1e-7 {
+				t.Errorf("Expected\n%v, but got\n%v for\n%+v", d.expectedMP, mp, d)
+				break
+			}
+		}
+		for i := 0; i < len(mpIdx); i++ {
+			if math.Abs(float64(mpIdx[i]-d.expectedMPIdx[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedMPIdx, mpIdx, d)
+				break
+			}
+		}
 
 	}
 }

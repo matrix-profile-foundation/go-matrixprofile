@@ -5,10 +5,10 @@ import (
 	"github.com/mjibson/go-dsp/fft"
 	"gonum.org/v1/gonum/stat"
 	"math"
+	"math/rand"
 )
 
-// zNormalize computes a z-normalized version of a slice of floats. This is represented by
-// y[i] = x[i] - mean(x)/std(x)
+// zNormalize computes a z-normalized version of a slice of floats. This is represented by y[i] = x[i] - mean(x)/std(x)
 func zNormalize(ts []float64) ([]float64, error) {
 	var i int
 
@@ -40,8 +40,7 @@ func zNormalize(ts []float64) ([]float64, error) {
 	return out, nil
 }
 
-// movstd computes the standard deviation of each sliding window of m over a slice of floats.
-// This is done by one pass through the data and keeping track of the cumulative sum and cumulative sum squared. Diffs between these at intervals of m provide a total of O(n) calculations for the standard deviation of each window of size m for the time series ts.
+// movstd computes the standard deviation of each sliding window of m over a slice of floats. This is done by one pass through the data and keeping track of the cumulative sum and cumulative sum squared. Diffs between these at intervals of m provide a total of O(n) calculations for the standard deviation of each window of size m for the time series ts.
 func movstd(ts []float64, m int) ([]float64, error) {
 	if m <= 1 {
 		return nil, fmt.Errorf("length of slice must be greater than 1")
@@ -192,6 +191,7 @@ func distanceProfile(a, b []float64, m, idx int) ([]float64, error) {
 	return profile, nil
 }
 
+// Stmp computes the full matrix profile given two time series as inputs. If the second time series is set to nil then a self join on the first will be performed.
 func Stmp(a, b []float64, m int) ([]float64, []int, error) {
 	if a == nil || len(a) == 0 {
 		return nil, nil, fmt.Errorf("first slice is nil or has a length of 0")
@@ -233,6 +233,59 @@ func Stmp(a, b []float64, m int) ([]float64, []int, error) {
 			if profile[j] <= mp[j] {
 				mp[j] = profile[j]
 				mpIdx[j] = i
+			}
+		}
+	}
+	return mp, mpIdx, nil
+}
+
+// Stamp uses random ordering to compute the matrix profile. User can the sample to anything between 0 and 1 so that the computation early terminates and provides the current computed matrix profile. This should compute far faster at the cost of an approximation of the matrix profile
+func Stamp(a, b []float64, m int, sample float64) ([]float64, []int, error) {
+	if sample == 0.0 {
+		return nil, nil, fmt.Errorf("must provide a non zero sampling")
+	}
+	if a == nil || len(a) == 0 {
+		return nil, nil, fmt.Errorf("first slice is nil or has a length of 0")
+	}
+
+	if b != nil && len(b) == 0 {
+		return nil, nil, fmt.Errorf("second slice must be nil for self-join operation or have a length greater than 0")
+	}
+
+	n := len(b)
+	var mp []float64
+	var mpIdx []int
+	if b == nil {
+		mp = make([]float64, len(a)-m+1)
+		mpIdx = make([]int, len(a)-m+1)
+		n = len(a)
+	} else {
+		mp = make([]float64, len(b)-m+1)
+		mpIdx = make([]int, len(b)-m+1)
+	}
+
+	for i := 0; i < len(mp); i++ {
+		mp[i] = math.Inf(1)
+		mpIdx[i] = math.MaxInt64
+	}
+
+	var profile []float64
+	var err error
+	var i, j int
+
+	randIdx := rand.Perm(n - m + 1)
+	for i = 0; i < int(float64(n-m+1)*sample); i++ {
+		profile, err = distanceProfile(a, b, m, randIdx[i])
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(profile) != len(mp) {
+			return nil, nil, fmt.Errorf("distance profile length, %d, and initialized matrix profile length, %d, do not match", len(profile), len(mp))
+		}
+		for j = 0; j < len(profile); j++ {
+			if profile[j] <= mp[j] {
+				mp[j] = profile[j]
+				mpIdx[j] = randIdx[i]
 			}
 		}
 	}
