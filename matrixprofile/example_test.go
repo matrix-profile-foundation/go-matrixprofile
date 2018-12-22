@@ -1,12 +1,7 @@
 package matrixprofile
 
-/*
 import (
-	"bufio"
-	"encoding/csv"
-	"io"
 	"os"
-	"strconv"
 
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -16,71 +11,53 @@ import (
 	"gonum.org/v1/plot/vg/vgimg"
 )
 
-func readPoints(numRecords int) (plotter.XYs, plotter.XYs) {
-	var val float64
-
-	csvFile, _ := os.Open("testdata/id-1003_heartrate_seconds_20171001_20171007.csv")
-	r := csv.NewReader(bufio.NewReader(csvFile))
-
-	var records []float64
-	var numRec int
-	for {
-		if numRec >= numRecords {
-			break
-		}
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			panic(err)
-		}
-
-		val, err = strconv.ParseFloat(record[1], 64)
-		if err != nil {
-			continue
-		}
-		records = append(records, val)
-		numRec++
-	}
-
-	rawPts := make(plotter.XYs, len(records))
-	for i, val := range records {
+func createPoints(sig []float64) (plotter.XYs, plotter.XYs, plotter.XYs, error) {
+	rawPts := make(plotter.XYs, len(sig))
+	for i, val := range sig {
 		rawPts[i].X = float64(i)
 		rawPts[i].Y = val
 	}
 
-	mp, mpIdx, err := Stmp(records, nil, 20)
+	mp, mpIdx, err := Stmp(sig, nil, 32)
 	if err != nil {
-		panic(err)
+		return nil, nil, nil, err
 	}
 
-	mpPts := make(plotter.XYs, len(records))
-	for i := range records {
+	_, _, cac := Segment(mpIdx)
+
+	mpPts := make(plotter.XYs, len(sig))
+	for i := range sig {
 		mpPts[i].X = float64(i)
 		if i < len(mp) {
 			mpPts[i].Y = mp[i]
 		}
 	}
 
-	return rawPts, mpPts
+	cacPts := make(plotter.XYs, len(sig))
+	for i := range sig {
+		cacPts[i].X = float64(i)
+		if i < len(cac) {
+			cacPts[i].Y = cac[i]
+		}
+	}
+
+	return rawPts, mpPts, cacPts, err
 }
 
-func Example() {
-	raw, mp := readPoints(500)
-
-	rows, cols := 2, 1
+func plotMP(raw, mp, cac plotter.XYs, filename string) error {
+	rows, cols := 3, 1
 	plots := make([][]*plot.Plot, rows)
+
 	plots[0] = make([]*plot.Plot, cols)
 	p, err := plot.New()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	err = plotutil.AddLines(p,
 		"data", raw,
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	plots[0][0] = p
@@ -88,18 +65,32 @@ func Example() {
 	plots[1] = make([]*plot.Plot, cols)
 	p, err = plot.New()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	err = plotutil.AddLines(p,
 		"matrix profile", mp,
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	plots[1][0] = p
 
-	img := vgimg.New(vg.Points(1200), vg.Points(600))
+	plots[2] = make([]*plot.Plot, cols)
+	p, err = plot.New()
+	if err != nil {
+		return err
+	}
+	err = plotutil.AddLines(p,
+		"cac", cac,
+	)
+	if err != nil {
+		return err
+	}
+
+	plots[2][0] = p
+
+	img := vgimg.New(vg.Points(1200), vg.Points(1200))
 	dc := draw.New(img)
 
 	t := draw.Tiles{
@@ -116,15 +107,44 @@ func Example() {
 		}
 	}
 
-	w, err := os.Create("mp.png")
+	w, err := os.Create(filename)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	png := vgimg.PngCanvas{Canvas: img}
-	if _, err := png.WriteTo(w); err != nil {
+	_, err = png.WriteTo(w)
+	return err
+}
+
+func Example() {
+	sin := generateSin(1, 5, 0, 0, 100, 2)
+	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sig := append(sin, sin2...)
+	noise := generateNoise(0.1, len(sig))
+	sig = sigAdd(sig, noise)
+
+	raw, mp, cac, err := createPoints(sig)
+	if err != nil {
 		panic(err)
 	}
-	// Output: something
+	if err = plotMP(raw, mp, cac, "mp_sine.png"); err != nil {
+		panic(err)
+	}
+
+	saw := generateSawtooth(1, 5, 0, 0, 100, 2)
+	ext := generateLine(0.08, -1, len(saw)/2)
+	sig = append(saw, ext...)
+	noise = generateNoise(0.1, len(sig))
+	sig = sigAdd(sig, noise)
+
+	raw, mp, cac, err = createPoints(sig)
+	if err != nil {
+		panic(err)
+	}
+	if err = plotMP(raw, mp, cac, "mp_sawtooth.png"); err != nil {
+		panic(err)
+	}
+
+	// Output:
 }
-*/
