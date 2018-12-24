@@ -1,5 +1,5 @@
 language: go
-
+script: go test -v -bench=. ./...
 go:
   - "1.10"
   - "1.11"

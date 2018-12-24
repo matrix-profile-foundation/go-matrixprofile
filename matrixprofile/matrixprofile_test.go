@@ -81,7 +81,7 @@ func TestMovstd(t *testing.T) {
 	}
 }
 
-func TestSlidingDotProducts(t *testing.T) {
+func TestSlidingDotProduct(t *testing.T) {
 	var err error
 	var out []float64
 

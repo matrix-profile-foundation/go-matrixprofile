@@ -146,5 +146,21 @@ func Example() {
 		panic(err)
 	}
 
+	line := generateLine(0, 0, 120)
+	ext = generateLine(0, 100, len(line)/2)
+	ext2 := generateLine(0, 600, len(line)/2)
+	sig = append(line, ext...)
+	sig = append(sig, ext2...)
+	noise = generateNoise(10, len(sig))
+	sig = sigAdd(sig, noise)
+
+	raw, mp, cac, err = createPoints(sig)
+	if err != nil {
+		panic(err)
+	}
+	if err = plotMP(raw, mp, cac, "mp_rect.png"); err != nil {
+		panic(err)
+	}
+
 	// Output:
 }

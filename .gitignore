@@ -10,3 +10,9 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Generated images from example file
+*.png
+
+# Generated dot file from cpu profile
+*.pdf

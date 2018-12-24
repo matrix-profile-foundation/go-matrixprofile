@@ -2,7 +2,7 @@ package matrixprofile
 
 import (
 	"fmt"
-	"github.com/mjibson/go-dsp/fft"
+	"gonum.org/v1/gonum/fourier"
 	"gonum.org/v1/gonum/stat"
 	"math"
 	"math/rand"
@@ -72,7 +72,7 @@ func movstd(ts []float64, m int) ([]float64, error) {
 	return out, nil
 }
 
-// slidingDotProduct computes the sliding dot product between two slices given a query and time series. Uses fast fourier transforms to compute the necessary values
+// slidingDotProductV2 computes the sliding dot product between two slices given a query and time series. Uses fast fourier transforms to compute the necessary values
 func slidingDotProduct(q, t []float64) ([]float64, error) {
 	m := len(q)
 	n := len(t)
@@ -90,15 +90,19 @@ func slidingDotProduct(q, t []float64) ([]float64, error) {
 		qpad[i] = q[m-i-1]
 	}
 
-	f, err := multComplexSlice(fft.FFTReal(t), fft.FFTReal(qpad))
+	fft := fourier.NewFFT(len(t))
+	tf := fft.Coefficients(nil, t)
+	qf := fft.Coefficients(nil, qpad)
+
+	f, err := multComplexSlice(tf, qf)
 	if err != nil {
 		return nil, err
 	}
-	dot := fft.IFFT(f)
+	dot := fft.Sequence(nil, f)
 
 	out := make([]float64, n-m+1)
 	for i := 0; i < len(out); i++ {
-		out[i] = float64(real(dot[m-1+i]))
+		out[i] = dot[m-1+i] / float64(len(t))
 	}
 	return out, nil
 }
@@ -161,16 +165,14 @@ func distanceProfile(a, b []float64, m, idx int) ([]float64, error) {
 	var selfJoin bool
 	if b == nil {
 		selfJoin = true
-		b = make([]float64, len(a))
-		copy(b, a)
+		b = a
 	}
 
 	if idx+m > len(a) {
 		return nil, fmt.Errorf("index %d with m %d asks for data beyond the length of a, %d", idx, m, len(a))
 	}
 
-	query := make([]float64, m)
-	copy(query, a[idx:idx+m])
+	query := a[idx : idx+m]
 	profile, err := Mass(query, b)
 	if err != nil {
 		return nil, err
