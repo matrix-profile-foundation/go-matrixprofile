@@ -84,6 +84,7 @@ func TestMovstd(t *testing.T) {
 func TestSlidingDotProduct(t *testing.T) {
 	var err error
 	var out []float64
+	var mp *MatrixProfile
 
 	testdata := []struct {
 		q        []float64
@@ -101,7 +102,12 @@ func TestSlidingDotProduct(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		out, err = slidingDotProduct(d.q, d.t)
+		mp, err = NewMatrixProfile(d.q, d.t, len(d.q))
+		if err != nil && d.expected == nil {
+			// Got an error while creating a new matrix profile
+			continue
+		}
+		out, err = mp.slidingDotProduct(d.q)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -128,6 +134,7 @@ func TestSlidingDotProduct(t *testing.T) {
 func TestMass(t *testing.T) {
 	var err error
 	var out []float64
+	var mp *MatrixProfile
 
 	testdata := []struct {
 		q        []float64
@@ -145,7 +152,12 @@ func TestMass(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		out, err = Mass(d.q, d.t)
+		mp, err = NewMatrixProfile(d.q, d.t, len(d.q))
+		if err != nil && d.expected == nil {
+			// Got an error while creating a new matrix profile
+			continue
+		}
+		out, err = mp.mass(d.q)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -174,7 +186,8 @@ func TestMass(t *testing.T) {
 
 func TestDistanceProfile(t *testing.T) {
 	var err error
-	var mp []float64
+	var mprof []float64
+	var mp *MatrixProfile
 
 	testdata := []struct {
 		q          []float64
@@ -190,7 +203,13 @@ func TestDistanceProfile(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = distanceProfile(d.q, d.t, d.m, d.idx)
+		mp, err = NewMatrixProfile(d.q, d.t, d.m)
+		if err != nil && d.expectedMP == nil {
+			// Got an error while creating a new matrix profile
+			continue
+		}
+
+		mprof, err = mp.distanceProfile(d.idx)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -201,12 +220,12 @@ func TestDistanceProfile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Did not expect error, %v\n%+v", err, d)
 		}
-		if len(mp) != len(d.expectedMP) {
-			t.Errorf("Expected %d elements, but got %d\n%+v", len(d.expectedMP), len(mp), d)
+		if len(mprof) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d\n%+v", len(d.expectedMP), len(mprof), d)
 		}
-		for i := 0; i < len(mp); i++ {
-			if math.Abs(mp[i]-d.expectedMP[i]) > 1e-7 {
-				t.Errorf("Expected\n%.7f, but got\n%.7f for\n%+v", d.expectedMP, mp, d)
+		for i := 0; i < len(mprof); i++ {
+			if math.Abs(mprof[i]-d.expectedMP[i]) > 1e-7 {
+				t.Errorf("Expected\n%.7f, but got\n%.7f for\n%+v", d.expectedMP, mprof, d)
 				break
 			}
 		}
@@ -216,8 +235,7 @@ func TestDistanceProfile(t *testing.T) {
 
 func TestStmp(t *testing.T) {
 	var err error
-	var mp []float64
-	var mpIdx []int
+	var mp *MatrixProfile
 
 	testdata := []struct {
 		q             []float64
@@ -230,11 +248,19 @@ func TestStmp(t *testing.T) {
 		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, nil, nil},
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, nil, nil},
 		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, nil, nil},
-		{[]float64{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0}, nil, 4, []float64{0, 0, 0, 0, 0, 0, 0, 0, 0}, []int{8, 5, 6, 7, 8, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
 	}
 
 	for _, d := range testdata {
-		mp, mpIdx, err = Stmp(d.q, d.t, d.m)
+		mp, err = NewMatrixProfile(d.q, d.t, d.m)
+		if err != nil && d.expectedMP == nil {
+			// Got an error while creating a new matrix profile
+			continue
+		}
+
+		err = mp.Stmp()
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -245,18 +271,18 @@ func TestStmp(t *testing.T) {
 		if err != nil {
 			t.Errorf("Did not expect error, %v, %+v", err, d)
 		}
-		if len(mp) != len(d.expectedMP) {
-			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp), d)
+		if len(mp.MP) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
 		}
-		for i := 0; i < len(mp); i++ {
-			if math.Abs(mp[i]-d.expectedMP[i]) > 1e-7 {
-				t.Errorf("Expected\n%v, but got\n%v for\n%+v", d.expectedMP, mp, d)
+		for i := 0; i < len(mp.MP); i++ {
+			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
+				t.Errorf("Expected\n%v, but got\n%v for\n%+v", d.expectedMP, mp.MP, d)
 				break
 			}
 		}
-		for i := 0; i < len(mpIdx); i++ {
-			if math.Abs(float64(mpIdx[i]-d.expectedMPIdx[i])) > 1e-7 {
-				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedMPIdx, mpIdx, d)
+		for i := 0; i < len(mp.Idx); i++ {
+			if math.Abs(float64(mp.Idx[i]-d.expectedMPIdx[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedMPIdx, mp.Idx, d)
 				break
 			}
 		}
@@ -265,8 +291,7 @@ func TestStmp(t *testing.T) {
 
 func TestStamp(t *testing.T) {
 	var err error
-	var mp []float64
-	var mpIdx []int
+	var mp *MatrixProfile
 
 	testdata := []struct {
 		q             []float64
@@ -287,7 +312,13 @@ func TestStamp(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, mpIdx, err = Stamp(d.q, d.t, d.m, d.sample)
+		mp, err = NewMatrixProfile(d.q, d.t, d.m)
+		if err != nil && d.expectedMP == nil {
+			// Got an error while creating a new matrix profile
+			continue
+		}
+
+		err = mp.Stamp(d.sample)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -298,18 +329,18 @@ func TestStamp(t *testing.T) {
 		if err != nil {
 			t.Errorf("Did not expect error, %v, %+v", err, d)
 		}
-		if len(mp) != len(d.expectedMP) {
-			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp), d)
+		if len(mp.MP) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
 		}
-		for i := 0; i < len(mp); i++ {
-			if math.Abs(mp[i]-d.expectedMP[i]) > 1e-7 {
-				t.Errorf("Expected\n%v, but got\n%v for\n%+v", d.expectedMP, mp, d)
+		for i := 0; i < len(mp.MP); i++ {
+			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
+				t.Errorf("Expected\n%v, but got\n%v for\n%+v", d.expectedMP, mp.MP, d)
 				break
 			}
 		}
-		for i := 0; i < len(mpIdx); i++ {
-			if math.Abs(float64(mpIdx[i]-d.expectedMPIdx[i])) > 1e-7 {
-				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedMPIdx, mpIdx, d)
+		for i := 0; i < len(mp.Idx); i++ {
+			if math.Abs(float64(mp.Idx[i]-d.expectedMPIdx[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedMPIdx, mp.Idx, d)
 				break
 			}
 		}

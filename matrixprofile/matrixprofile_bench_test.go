@@ -5,7 +5,7 @@ import (
 )
 
 func setupData() []float64 {
-	line := generateLine(0, 0, 120)
+	line := generateLine(0, 0, 512)
 	ext := generateLine(0, 100, len(line)/2)
 	ext2 := generateLine(0, 600, len(line)/2)
 	sig := append(line, ext...)
@@ -16,19 +16,19 @@ func setupData() []float64 {
 	return sig
 }
 
-func BenchmarkSlidingDotProduct(b *testing.B) {
+func BenchmarkZNormalize(b *testing.B) {
 	b.ReportAllocs()
 	sig := setupData()
 	q := sig[:32]
 	var err error
-	var cc []float64
+	var qnorm []float64
 	for i := 0; i < b.N; i++ {
-		cc, err = slidingDotProduct(q, sig)
+		qnorm, err = zNormalize(q)
 		if err != nil {
 			b.Error(err)
 		}
-		if len(cc) < 1 {
-			b.Error("expected at least one value from sliding dot product of a timeseries")
+		if len(qnorm) < 1 {
+			b.Error("expected at least one value from z-normalizing a timeseries")
 		}
 	}
 }
@@ -49,19 +49,25 @@ func BenchmarkMovstd(b *testing.B) {
 	}
 }
 
-func BenchmarkZNormalize(b *testing.B) {
+func BenchmarkSlidingDotProduct(b *testing.B) {
 	b.ReportAllocs()
 	sig := setupData()
 	q := sig[:32]
 	var err error
-	var qnorm []float64
+	var cc []float64
+
+	mp, err := NewMatrixProfile(q, sig, 32)
+	if err != nil {
+		b.Error(err)
+	}
+
 	for i := 0; i < b.N; i++ {
-		qnorm, err = zNormalize(q)
+		cc, err = mp.slidingDotProduct(q)
 		if err != nil {
 			b.Error(err)
 		}
-		if len(qnorm) < 1 {
-			b.Error("expected at least one value from z-normalizing a timeseries")
+		if len(cc) < 1 {
+			b.Error("expected at least one value from sliding dot product of a timeseries")
 		}
 	}
 }
@@ -69,17 +75,22 @@ func BenchmarkZNormalize(b *testing.B) {
 func BenchmarkMass(b *testing.B) {
 	b.ReportAllocs()
 	sig := setupData()
-	var mp []float64
 	var err error
-	var q []float64
+	var q, mprof []float64
+
+	mp, err := NewMatrixProfile(sig, sig, 32)
+	if err != nil {
+		b.Error(err)
+	}
+
 	for i := 0; i < b.N; i++ {
 		q = sig[:32]
-		mp, err = Mass(q, sig)
+		mprof, err = mp.mass(q)
 		if err != nil {
 			b.Error(err)
 		}
-		if len(mp) < 1 {
-			b.Error("expected at least one value from matrix profile and matrix profile index")
+		if len(mprof) < 1 {
+			b.Error("expected at least one value from matrix profile")
 		}
 	}
 }
@@ -87,32 +98,56 @@ func BenchmarkMass(b *testing.B) {
 func BenchmarkDistanceProfile(b *testing.B) {
 	b.ReportAllocs()
 	sig := setupData()
-	var mp []float64
 	var err error
+	var mprof []float64
+
+	mp, err := NewMatrixProfile(sig, nil, 32)
+	if err != nil {
+		b.Error(err)
+	}
+
 	for i := 0; i < b.N; i++ {
-		mp, err = distanceProfile(sig, nil, 32, 0)
+		mprof, err = mp.distanceProfile(0)
 		if err != nil {
 			b.Error(err)
 		}
-		if len(mp) < 1 {
-			b.Error("expected at least one value from matrix profile and matrix profile index")
+		if len(mprof) < 1 {
+			b.Error("expected at least one value from matrix profile")
 		}
 	}
 }
 
 func BenchmarkStmp(b *testing.B) {
-	b.ReportAllocs()
 	sig := setupData()
-	var mp []float64
-	var mpIdx []int
-	var err error
-	for i := 0; i < b.N; i++ {
-		mp, mpIdx, err = Stmp(sig, nil, 32)
-		if err != nil {
-			b.Error(err)
-		}
-		if len(mp) < 1 || len(mpIdx) < 1 {
-			b.Error("expected at least one value from matrix profile and matrix profile index")
-		}
+
+	benchmarks := []struct {
+		name string
+		m    int
+	}{
+		{"m16", 16},
+		{"m32", 32},
+		{"m64", 64},
+		{"m128", 128},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.ReportAllocs()
+
+			mp, err := NewMatrixProfile(sig, nil, 32)
+			if err != nil {
+				b.Error(err)
+			}
+
+			for i := 0; i < b.N; i++ {
+				err = mp.Stmp()
+				if err != nil {
+					b.Error(err)
+				}
+				if len(mp.MP) < 1 || len(mp.Idx) < 1 {
+					b.Error("expected at least one value from matrix profile and matrix profile index")
+				}
+			}
+		})
 	}
 }

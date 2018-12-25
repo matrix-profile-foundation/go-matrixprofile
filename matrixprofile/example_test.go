@@ -18,18 +18,22 @@ func createPoints(sig []float64) (plotter.XYs, plotter.XYs, plotter.XYs, error) 
 		rawPts[i].Y = val
 	}
 
-	mp, mpIdx, err := Stmp(sig, nil, 32)
+	mp, err := NewMatrixProfile(sig, nil, 32)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	_, _, cac := Segment(mpIdx)
+	if err = mp.Stmp(); err != nil {
+		return nil, nil, nil, err
+	}
+
+	_, _, cac := Segment(mp.Idx)
 
 	mpPts := make(plotter.XYs, len(sig))
 	for i := range sig {
 		mpPts[i].X = float64(i)
-		if i < len(mp) {
-			mpPts[i].Y = mp[i]
+		if i < len(mp.MP) {
+			mpPts[i].Y = mp.MP[i]
 		}
 	}
 
