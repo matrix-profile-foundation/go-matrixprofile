@@ -3,7 +3,6 @@ package matrixprofile
 import (
 	"fmt"
 	"gonum.org/v1/gonum/fourier"
-	"gonum.org/v1/gonum/stat"
 	"math"
 	"math/rand"
 )
@@ -48,7 +47,6 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		mp.Idx = make([]int, len(b)-m+1)
 		mp.b = b
 	}
-	mp.fft = fourier.NewFFT(mp.n)
 
 	for i := 0; i < len(mp.MP); i++ {
 		mp.MP[i] = math.Inf(1)
@@ -56,7 +54,12 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 	}
 
 	var err error
+	// precompute the standard deviation for each window of size m for all sliding windows across the b timeseries
 	mp.bStd, err = movstd(mp.b, mp.m)
+
+	// precompute the fourier transform of the b timeseries since it will be used multiple times while computing the matrix profile
+	mp.fft = fourier.NewFFT(mp.n)
+	mp.bF = mp.fft.Coefficients(nil, mp.b)
 
 	return &mp, err
 }
@@ -76,9 +79,6 @@ func (mp *MatrixProfile) slidingDotProduct(q []float64) ([]float64, error) {
 		qpad[i] = q[mp.m-i-1]
 	}
 
-	if mp.bF == nil {
-		mp.bF = mp.fft.Coefficients(nil, mp.b)
-	}
 	qf := mp.fft.Coefficients(nil, qpad)
 
 	// in place multiply the fourier transform of the b time series with the subsequence fourier transform and store in the subsequence fft slice
@@ -208,68 +208,4 @@ func (mp *MatrixProfile) Stamp(sample float64) error {
 		}
 	}
 	return nil
-}
-
-// zNormalize computes a z-normalized version of a slice of floats. This is represented by y[i] = x[i] - mean(x)/std(x)
-func zNormalize(ts []float64) ([]float64, error) {
-	var i int
-
-	if len(ts) == 0 {
-		return nil, fmt.Errorf("slice does not have any data")
-	}
-
-	m := stat.Mean(ts, nil)
-
-	out := make([]float64, len(ts))
-	for i = 0; i < len(ts); i++ {
-		out[i] = ts[i] - m
-	}
-
-	var std float64
-	for _, val := range out {
-		std += val * val
-	}
-	std = math.Sqrt(std / float64(len(out)))
-
-	if std == 0 {
-		return out, fmt.Errorf("standard deviation is zero")
-	}
-
-	for i = 0; i < len(ts); i++ {
-		out[i] = out[i] / std
-	}
-
-	return out, nil
-}
-
-// movstd computes the standard deviation of each sliding window of m over a slice of floats. This is done by one pass through the data and keeping track of the cumulative sum and cumulative sum squared. Diffs between these at intervals of m provide a total of O(n) calculations for the standard deviation of each window of size m for the time series ts.
-func movstd(ts []float64, m int) ([]float64, error) {
-	if m <= 1 {
-		return nil, fmt.Errorf("length of slice must be greater than 1")
-	}
-
-	if m >= len(ts) {
-		return nil, fmt.Errorf("m must be less than length of slice")
-	}
-
-	var i int
-
-	c := make([]float64, len(ts)+1)
-	csqr := make([]float64, len(ts)+1)
-	for i = 0; i < len(ts)+1; i++ {
-		if i == 0 {
-			c[i] = 0
-			csqr[i] = 0
-		} else {
-			c[i] = ts[i-1] + c[i-1]
-			csqr[i] = ts[i-1]*ts[i-1] + csqr[i-1]
-		}
-	}
-
-	out := make([]float64, len(ts)-m+1)
-	for i = 0; i < len(ts)-m+1; i++ {
-		out[i] = math.Sqrt((csqr[i+m]-csqr[i])/float64(m) - (c[i+m]-c[i])*(c[i+m]-c[i])/float64(m*m))
-	}
-
-	return out, nil
 }
