@@ -18,7 +18,7 @@ func createPoints(sig []float64) (plotter.XYs, plotter.XYs, plotter.XYs, error) 
 		rawPts[i].Y = val
 	}
 
-	mp, err := NewMatrixProfile(sig, nil, 32)
+	mp, err := New(sig, nil, 32)
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -102,7 +102,7 @@ func TestSlidingDotProduct(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewMatrixProfile(d.q, d.t, len(d.q))
+		mp, err = New(d.q, d.t, len(d.q))
 		if err != nil && d.expected == nil {
 			// Got an error while creating a new matrix profile
 			continue
@@ -152,7 +152,7 @@ func TestMass(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewMatrixProfile(d.q, d.t, len(d.q))
+		mp, err = New(d.q, d.t, len(d.q))
 		if err != nil && d.expected == nil {
 			// Got an error while creating a new matrix profile
 			continue
@@ -203,7 +203,7 @@ func TestDistanceProfile(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewMatrixProfile(d.q, d.t, d.m)
+		mp, err = New(d.q, d.t, d.m)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while creating a new matrix profile
 			continue
@@ -254,7 +254,7 @@ func TestStmp(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewMatrixProfile(d.q, d.t, d.m)
+		mp, err = New(d.q, d.t, d.m)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while creating a new matrix profile
 			continue
@@ -312,7 +312,7 @@ func TestStamp(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewMatrixProfile(d.q, d.t, d.m)
+		mp, err = New(d.q, d.t, d.m)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while creating a new matrix profile
 			continue

@@ -56,7 +56,7 @@ func BenchmarkSlidingDotProduct(b *testing.B) {
 	var err error
 	var cc []float64
 
-	mp, err := NewMatrixProfile(q, sig, 32)
+	mp, err := New(q, sig, 32)
 	if err != nil {
 		b.Error(err)
 	}
@@ -78,7 +78,7 @@ func BenchmarkMass(b *testing.B) {
 	var err error
 	var q, mprof []float64
 
-	mp, err := NewMatrixProfile(sig, sig, 32)
+	mp, err := New(sig, sig, 32)
 	if err != nil {
 		b.Error(err)
 	}
@@ -101,7 +101,7 @@ func BenchmarkDistanceProfile(b *testing.B) {
 	var err error
 	var mprof []float64
 
-	mp, err := NewMatrixProfile(sig, nil, 32)
+	mp, err := New(sig, nil, 32)
 	if err != nil {
 		b.Error(err)
 	}
@@ -134,7 +134,7 @@ func BenchmarkStmp(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			b.ReportAllocs()
 
-			mp, err := NewMatrixProfile(sig, nil, 32)
+			mp, err := New(sig, nil, 32)
 			if err != nil {
 				b.Error(err)
 			}

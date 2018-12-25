@@ -8,8 +8,6 @@ import (
 	"math/rand"
 )
 
-var parallelism = 5
-
 // MatrixProfile is a struct that tracks the current matrix profile computation for a given timeseries of length N and subsequence length of M. The profile and the profile index are stored here.
 type MatrixProfile struct {
 	a        []float64 // query time series
@@ -24,8 +22,8 @@ type MatrixProfile struct {
 	Idx      []int        // matrix profile index
 }
 
-// NewMatrixProfile creates a matrix profile struct with a given timeseries length n and subsequence length of m. The first slice, a, is used as the initial timeseries to join with the second, b. If b is nil, then the matrix profile assumes a self join on the first timeseries.
-func NewMatrixProfile(a, b []float64, m int) (*MatrixProfile, error) {
+// New creates a matrix profile struct with a given timeseries length n and subsequence length of m. The first slice, a, is used as the initial timeseries to join with the second, b. If b is nil, then the matrix profile assumes a self join on the first timeseries.
+func New(a, b []float64, m int) (*MatrixProfile, error) {
 	if a == nil || len(a) == 0 {
 		return nil, fmt.Errorf("first slice is nil or has a length of 0")
 	}
