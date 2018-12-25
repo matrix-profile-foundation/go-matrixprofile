@@ -273,15 +273,3 @@ func movstd(ts []float64, m int) ([]float64, error) {
 
 	return out, nil
 }
-
-func multComplexSlice(a, b []complex128) ([]complex128, error) {
-	if len(a) != len(b) {
-		return nil, fmt.Errorf("length of both complex slices are not the same")
-	}
-
-	out := make([]complex128, len(a))
-	for i := 0; i < len(a); i++ {
-		out[i] = a[i] * b[i]
-	}
-	return out, nil
-}
