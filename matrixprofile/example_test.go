@@ -6,7 +6,6 @@ import (
 
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
-	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
 	"gonum.org/v1/plot/vg/draw"
 	"gonum.org/v1/plot/vg/vgimg"
@@ -23,7 +22,7 @@ func Points(a []float64, n int) plotter.XYs {
 	return pts
 }
 
-func CreatePlot(pts []plotter.XYs, labels []string) (*plot.Plot, error) {
+func CreatePlot(pts []plotter.XYs, labels []string, title string) (*plot.Plot, error) {
 	if labels != nil && len(pts) != len(labels) {
 		return nil, fmt.Errorf("number of XYs, %d, does not match number of labels, %d", len(pts), len(labels))
 	}
@@ -33,56 +32,47 @@ func CreatePlot(pts []plotter.XYs, labels []string) (*plot.Plot, error) {
 		return p, err
 	}
 
+	p.Title.Text = title
 	for i := 0; i < len(pts); i++ {
-		if labels == nil {
-			err = plotutil.AddLines(p, "", pts[i])
-		} else {
-			err = plotutil.AddLines(p, labels[i], pts[i])
-		}
+		line, points, err := plotter.NewLinePoints(pts[i])
 		if err != nil {
 			return p, err
 		}
+		points.Shape = nil
+		p.Add(line, points)
 	}
 	return p, err
 }
 
 func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, filename string) error {
 	var err error
-	rows, cols := 3, 2
+	rows, cols := len(motifPts), 2
 	plots := make([][]*plot.Plot, rows)
 
-	plots[0] = make([]*plot.Plot, cols)
-	plots[1] = make([]*plot.Plot, cols)
-	plots[2] = make([]*plot.Plot, cols)
+	for i := 0; i < len(motifPts); i++ {
+		plots[i] = make([]*plot.Plot, cols)
+	}
 
-	plots[0][0], err = CreatePlot([]plotter.XYs{sigPts}, []string{"data"})
+	plots[0][0], err = CreatePlot([]plotter.XYs{sigPts}, nil, "signal")
 	if err != nil {
 		return err
 	}
 
-	plots[1][0], err = CreatePlot([]plotter.XYs{mpPts}, []string{"matrix profile"})
+	plots[1][0], err = CreatePlot([]plotter.XYs{mpPts}, nil, "matrix profile")
 	if err != nil {
 		return err
 	}
 
-	plots[2][0], err = CreatePlot([]plotter.XYs{cacPts}, []string{"cac"})
+	plots[2][0], err = CreatePlot([]plotter.XYs{cacPts}, nil, "corrected arc curve")
 	if err != nil {
 		return err
 	}
 
-	plots[0][1], err = CreatePlot(motifPts[0], nil)
-	if err != nil {
-		return err
-	}
-
-	plots[1][1], err = CreatePlot(motifPts[1], nil)
-	if err != nil {
-		return err
-	}
-
-	plots[2][1], err = CreatePlot(motifPts[2], nil)
-	if err != nil {
-		return err
+	for i := 0; i < len(motifPts); i++ {
+		plots[i][1], err = CreatePlot(motifPts[i], nil, fmt.Sprintf("motif %d", i))
+		if err != nil {
+			return err
+		}
 	}
 
 	img := vgimg.New(vg.Points(1200), vg.Points(600))
@@ -114,19 +104,22 @@ func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, filenam
 
 func Example() {
 	sin := generateSin(1, 5, 0, 0, 100, 2)
-	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 0.25)
 	sig := append(sin, sin2...)
-	noise := generateNoise(0.3, len(sin2)*2)
+	noise := generateNoise(0.3, len(sin2)*4)
 	sig = append(sig, noise...)
 	sig = append(sig, sin2...)
 	sig = append(sig, noise...)
+	sig = append(sig, sin2...)
+	sig = append(sig, noise...)
+
 	noise = generateNoise(0.1, len(sig))
 	sig = sigAdd(sig, noise)
 
 	var m, k int
 	var r float64
 	m = 32
-	k = 3
+	k = 6
 	r = 3
 	mp, err := New(sig, nil, m)
 	if err != nil {
@@ -291,7 +284,7 @@ func ExampleMatrixProfile_TopKMotifs() {
 	sig := append(sin, sin2...)
 
 	// noise with an amplitude of 0.1
-	noise := generateNoise(0.01, len(sig))
+	noise := generateNoise(0.0001, len(sig))
 	sig = sigAdd(sig, noise)
 
 	// create a new MatrixProfile struct using the signal and a
@@ -320,14 +313,11 @@ func ExampleMatrixProfile_TopKMotifs() {
 	for i, mg := range motifs {
 		fmt.Printf("Motif Group %d\n", i)
 		fmt.Printf("  %d motifs\n", len(mg.Idx))
-		fmt.Printf("  minimum distance of %.3f\n", mg.MinDist)
 	}
 
 	// Output:
 	// Motif Group 0
 	//   9 motifs
-	//   minimum distance of 0.021
 	// Motif Group 1
-	//   7 motifs
-	//   minimum distance of 0.090
+	//   6 motifs
 }
