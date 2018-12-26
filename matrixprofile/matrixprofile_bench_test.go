@@ -49,7 +49,7 @@ func BenchmarkMovstd(b *testing.B) {
 	}
 }
 
-func BenchmarkSlidingDotProduct(b *testing.B) {
+func BenchmarkCrossCorrelate(b *testing.B) {
 	b.ReportAllocs()
 	sig := setupData()
 	q := sig[:32]
@@ -62,12 +62,12 @@ func BenchmarkSlidingDotProduct(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		cc, err = mp.slidingDotProduct(q)
+		cc, err = mp.crossCorrelate(q)
 		if err != nil {
 			b.Error(err)
 		}
 		if len(cc) < 1 {
-			b.Error("expected at least one value from sliding dot product of a timeseries")
+			b.Error("expected at least one value from cross correlation of a timeseries")
 		}
 	}
 }

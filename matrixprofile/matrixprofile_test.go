@@ -81,7 +81,7 @@ func TestMovstd(t *testing.T) {
 	}
 }
 
-func TestSlidingDotProduct(t *testing.T) {
+func TestCrossCorrelate(t *testing.T) {
 	var err error
 	var out []float64
 	var mp *MatrixProfile
@@ -107,13 +107,13 @@ func TestSlidingDotProduct(t *testing.T) {
 			// Got an error while creating a new matrix profile
 			continue
 		}
-		out, err = mp.slidingDotProduct(d.q)
+		out, err = mp.crossCorrelate(d.q)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
 			continue
 		}
 		if d.expected == nil {
-			t.Errorf("Expected an invalid sliding dot product calculation, %v", d)
+			t.Errorf("Expected an invalid cross correlation calculation, %v", d)
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v", err)

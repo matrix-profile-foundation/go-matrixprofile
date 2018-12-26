@@ -74,11 +74,12 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 	return &mp, err
 }
 
-// slidingDotProduct computes the sliding dot product between two slices
+// crossCorrelate computes the sliding dot product between two slices
 // given a query and time series. Uses fast fourier transforms to compute
 // the necessary values. Returns the a slice of floats for the cross-correlation
-// of the signal q and the mp.b signal.
-func (mp *MatrixProfile) slidingDotProduct(q []float64) ([]float64, error) {
+// of the signal q and the mp.b signal. This makes an optimization where the query
+// length must be less than half the lenght of the timeseries, b.
+func (mp *MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
 	if mp.m*2 >= mp.n {
 		return nil, fmt.Errorf("length of query must be less than half the timeseries")
 	}
@@ -126,13 +127,13 @@ func (mp MatrixProfile) mass(q []float64) ([]float64, error) {
 		return nil, err
 	}
 
-	dot, err := mp.slidingDotProduct(qnorm)
+	dot, err := mp.crossCorrelate(qnorm)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(mp.bStd) != len(dot) {
-		return nil, fmt.Errorf("length of rolling standard deviation, %d, is not the same as the sliding dot product, %d", len(mp.bStd), len(dot))
+		return nil, fmt.Errorf("length of rolling standard deviation, %d, is not the same as the cross correlation, %d", len(mp.bStd), len(dot))
 	}
 
 	// converting cross correlation value to euclidian distance
