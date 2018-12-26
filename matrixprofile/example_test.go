@@ -23,39 +23,69 @@ func Points(a []float64, n int) plotter.XYs {
 	return pts
 }
 
-func CreatePlot(pts plotter.XYs, label string) (*plot.Plot, error) {
+func CreatePlot(pts []plotter.XYs, labels []string) (*plot.Plot, error) {
+	if labels != nil && len(pts) != len(labels) {
+		return nil, fmt.Errorf("number of XYs, %d, does not match number of labels, %d", len(pts), len(labels))
+	}
+
 	p, err := plot.New()
 	if err != nil {
 		return p, err
 	}
-	err = plotutil.AddLines(p, label, pts)
+
+	for i := 0; i < len(pts); i++ {
+		if labels == nil {
+			err = plotutil.AddLines(p, "", pts[i])
+		} else {
+			err = plotutil.AddLines(p, labels[i], pts[i])
+		}
+		if err != nil {
+			return p, err
+		}
+	}
 	return p, err
 }
 
-func PlotMP(sigPts, mpPts, cacPts plotter.XYs, filename string) error {
+func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, filename string) error {
 	var err error
-	rows, cols := 3, 1
+	rows, cols := 3, 2
 	plots := make([][]*plot.Plot, rows)
 
 	plots[0] = make([]*plot.Plot, cols)
-	plots[0][0], err = CreatePlot(sigPts, "data")
-	if err != nil {
-		return err
-	}
-
 	plots[1] = make([]*plot.Plot, cols)
-	plots[1][0], err = CreatePlot(mpPts, "matrix profile")
-	if err != nil {
-		return err
-	}
-
 	plots[2] = make([]*plot.Plot, cols)
-	plots[2][0], err = CreatePlot(cacPts, "cac")
+
+	plots[0][0], err = CreatePlot([]plotter.XYs{sigPts}, []string{"data"})
 	if err != nil {
 		return err
 	}
 
-	img := vgimg.New(vg.Points(600), vg.Points(600))
+	plots[1][0], err = CreatePlot([]plotter.XYs{mpPts}, []string{"matrix profile"})
+	if err != nil {
+		return err
+	}
+
+	plots[2][0], err = CreatePlot([]plotter.XYs{cacPts}, []string{"cac"})
+	if err != nil {
+		return err
+	}
+
+	plots[0][1], err = CreatePlot(motifPts[0], nil)
+	if err != nil {
+		return err
+	}
+
+	plots[1][1], err = CreatePlot(motifPts[1], nil)
+	if err != nil {
+		return err
+	}
+
+	plots[2][1], err = CreatePlot(motifPts[2], nil)
+	if err != nil {
+		return err
+	}
+
+	img := vgimg.New(vg.Points(1200), vg.Points(600))
 	dc := draw.New(img)
 
 	t := draw.Tiles{
@@ -86,10 +116,19 @@ func Example() {
 	sin := generateSin(1, 5, 0, 0, 100, 2)
 	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
 	sig := append(sin, sin2...)
-	noise := generateNoise(0.1, len(sig))
+	noise := generateNoise(0.3, len(sin2)*2)
+	sig = append(sig, noise...)
+	sig = append(sig, sin2...)
+	sig = append(sig, noise...)
+	noise = generateNoise(0.1, len(sig))
 	sig = sigAdd(sig, noise)
 
-	mp, err := New(sig, nil, 32)
+	var m, k int
+	var r float64
+	m = 32
+	k = 3
+	r = 3
+	mp, err := New(sig, nil, m)
 	if err != nil {
 		panic(err)
 	}
@@ -100,11 +139,27 @@ func Example() {
 
 	_, _, cac := mp.Segment()
 
+	motifs, err := mp.TopKMotifs(k, r)
+	if err != nil {
+		panic(err)
+	}
+
 	sigPts := Points(sig, len(sig))
 	mpPts := Points(mp.MP, len(sig))
 	cacPts := Points(cac, len(sig))
+	motifPts := make([][]plotter.XYs, k)
 
-	if err = PlotMP(sigPts, mpPts, cacPts, "mp_sine.png"); err != nil {
+	for i := 0; i < k; i++ {
+		motifPts[i] = make([]plotter.XYs, len(motifs[i].Idx))
+	}
+
+	for i := 0; i < k; i++ {
+		for j, idx := range motifs[i].Idx {
+			motifPts[i][j] = Points(sig[idx:idx+m], m)
+		}
+	}
+
+	if err = PlotMP(sigPts, mpPts, cacPts, motifPts, "mp_sine.png"); err != nil {
 		panic(err)
 	}
 
@@ -257,7 +312,7 @@ func ExampleMatrixProfile_TopKMotifs() {
 	// finds the top 3 motifs in the signal. Motif groups include
 	// all subsequences that are within 2 times the distance of the
 	// original motif pair
-	motifs, err := mp.TopKMotifs(3, 2)
+	motifs, err := mp.TopKMotifs(2, 2)
 	if err != nil {
 		panic(err)
 	}
@@ -271,11 +326,8 @@ func ExampleMatrixProfile_TopKMotifs() {
 	// Output:
 	// Motif Group 0
 	//   9 motifs
-	//   minimum distance of 0.024
+	//   minimum distance of 0.021
 	// Motif Group 1
 	//   7 motifs
-	//   minimum distance of 0.100
-	// Motif Group 2
-	//   77 motifs
-	//   minimum distance of 3.368
+	//   minimum distance of 0.090
 }
