@@ -347,3 +347,126 @@ func TestStamp(t *testing.T) {
 
 	}
 }
+
+func TestTopKMotifs(t *testing.T) {
+	a := []float64{0, 0, 0.56, 0.99, 0.97, 0.75, 0, 0, 0, 0.43, 0.98, 0.99, 0.65, 0, 0, 0, 0.6, 0.97, 0.965, 0.8, 0, 0, 0}
+	a = sigAdd(a, generateNoise(1e-7, len(a)))
+
+	expectedMotifs := [][]int{{1, 15}, {0, 7, 14}, {3, 10}}
+	expectedMinDist := []float64{0.1459618197766371, 0.3352336136782056, 0.46369664551715467}
+	mp, err := New(a, nil, 7)
+	if err != nil {
+		t.Error(err)
+	}
+	if err = mp.Stmp(); err != nil {
+		t.Error(err)
+	}
+	motifs, err := mp.TopKMotifs(3, 2)
+
+	for i, mg := range motifs {
+		if len(mg.Idx) != len(expectedMotifs[i]) {
+			t.Errorf("expected %d motifs for group %d, but got %d", len(expectedMotifs[i]), i, len(mg.Idx))
+		}
+
+		for j, idx := range mg.Idx {
+			if idx != expectedMotifs[i][j] {
+				t.Errorf("expected index, %d for group %d, but got %d", expectedMotifs[i][j], i, idx)
+			}
+		}
+		if math.Abs(mg.MinDist-expectedMinDist[i]) > 1e-7 {
+			t.Errorf("expected minimum distance, %.3f for group %d, but got %.3f", expectedMinDist[i], i, mg.MinDist)
+		}
+	}
+}
+
+func TestIac(t *testing.T) {
+	testdata := []struct {
+		x        float64
+		n        int
+		expected float64
+	}{
+		{0, 124, 0},
+		{124, 124, 0},
+		{62, 124, 62},
+	}
+
+	var out float64
+	for _, d := range testdata {
+		if out = iac(d.x, d.n); out != d.expected {
+			t.Errorf("Expected %.3f but got %.3f", d.expected, out)
+		}
+	}
+}
+
+func TestArcCurve(t *testing.T) {
+	testdata := []struct {
+		mpIdx         []int
+		expectedHisto []float64
+	}{
+		{[]int{}, []float64{}},
+		{[]int{1, 1, 1, 1, 1}, []float64{0, 0, 2, 1, 0}},
+		{[]int{4, 5, 6, 0, 2, 1, 0}, []float64{0, 3, 5, 6, 4, 2, 0}},
+		{[]int{4, 5, 12, 0, 2, 1, 0}, []float64{0, 3, 5, 5, 3, 1, 0}},
+		{[]int{4, 5, -1, 0, 2, 1, 0}, []float64{0, 3, 5, 5, 3, 1, 0}},
+		{[]int{4, 5, 6, 2, 2, 1, 0}, []float64{0, 2, 4, 6, 4, 2, 0}},
+		{[]int{2, 3, 0, 0, 6, 3, 4}, []float64{0, 3, 2, 0, 1, 2, 0}},
+	}
+
+	var histo []float64
+	for _, d := range testdata {
+		histo = arcCurve(d.mpIdx)
+		if len(histo) != len(d.expectedHisto) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedHisto), len(histo), d)
+		}
+		for i := 0; i < len(histo); i++ {
+			if math.Abs(float64(histo[i]-d.expectedHisto[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedHisto, histo, d)
+				break
+			}
+		}
+	}
+}
+
+func TestSegment(t *testing.T) {
+	testdata := []struct {
+		mpIdx         []int
+		expectedIdx   int
+		expectedVal   float64
+		expectedHisto []float64
+	}{
+		{[]int{}, 0, 0, nil},
+		{[]int{1, 1, 1, 1, 1}, 0, 0, nil},
+		{[]int{4, 5, 6, 0, 2, 1, 0}, 5, 0.7, []float64{1, 1, 1, 1, 1, 0.7, 1}},
+		{[]int{4, 5, 12, 0, 2, 1, 0}, 5, 0.35, []float64{1, 1, 1, 1, 0.875, 0.35, 1}},
+		{[]int{4, 5, -1, 0, 2, 1, 0}, 5, 0.35, []float64{1, 1, 1, 1, 0.875, 0.35, 1}},
+		{[]int{4, 5, 6, 2, 2, 1, 0}, 5, 0.7, []float64{1, 1, 1, 1, 1, 0.7, 1}},
+		{[]int{2, 3, 0, 0, 6, 3, 4}, 3, 0, []float64{1, 1, 0.7, 0, 0.29166666, 0.7, 1}},
+	}
+
+	var minIdx int
+	var minVal float64
+	var histo []float64
+	for _, d := range testdata {
+		mp := MatrixProfile{Idx: d.mpIdx}
+		minIdx, minVal, histo = mp.Segment()
+		if histo != nil && d.expectedHisto == nil {
+			// Failed to compute histogram
+			continue
+		}
+		if minIdx != d.expectedIdx {
+			t.Errorf("Expected %d min index but got %d, %+v", d.expectedIdx, minIdx, d)
+		}
+		if minVal != d.expectedVal {
+			t.Errorf("Expected %.3f min index value but got %.3f, %+v", d.expectedVal, minVal, d)
+		}
+		if len(histo) != len(d.expectedHisto) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedHisto), len(histo), d)
+		}
+		for i := 0; i < len(histo); i++ {
+			if math.Abs(float64(histo[i]-d.expectedHisto[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedHisto, histo, d)
+				break
+			}
+		}
+	}
+}

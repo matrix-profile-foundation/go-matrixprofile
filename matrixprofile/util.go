@@ -7,7 +7,8 @@ import (
 	"math/rand"
 )
 
-// zNormalize computes a z-normalized version of a slice of floats. This is represented by y[i] = x[i] - mean(x)/std(x)
+// zNormalize computes a z-normalized version of a slice of floats.
+// This is represented by y[i] = x[i] - mean(x)/std(x)
 func zNormalize(ts []float64) ([]float64, error) {
 	var i int
 
@@ -39,7 +40,12 @@ func zNormalize(ts []float64) ([]float64, error) {
 	return out, nil
 }
 
-// movstd computes the standard deviation of each sliding window of m over a slice of floats. This is done by one pass through the data and keeping track of the cumulative sum and cumulative sum squared. Diffs between these at intervals of m provide a total of O(n) calculations for the standard deviation of each window of size m for the time series ts.
+// movstd computes the standard deviation of each sliding window of m
+// over a slice of floats. This is done by one pass through the data
+// and keeping track of the cumulative sum and cumulative sum squared.
+// Diffs between these at intervals of m provide a total of O(n)
+// calculations for the standard deviation of each window of size m for
+// the time series ts.
 func movstd(ts []float64, m int) ([]float64, error) {
 	if m <= 1 {
 		return nil, fmt.Errorf("length of slice must be greater than 1")
@@ -71,7 +77,8 @@ func movstd(ts []float64, m int) ([]float64, error) {
 	return out, nil
 }
 
-// applyExclusionZone performs an in place operation on a given matrix profile setting distances around an index to +Inf
+// applyExclusionZone performs an in place operation on a given matrix
+// profile setting distances around an index to +Inf
 func applyExclusionZone(profile []float64, idx, zoneSize int) {
 	startIdx := 0
 	if idx-zoneSize > startIdx {
@@ -86,7 +93,39 @@ func applyExclusionZone(profile []float64, idx, zoneSize int) {
 	}
 }
 
-// generateSin produces a sin wave with a given amplitude, frequency, phase, sampleRate and duration in seconds
+// arcCurve computes the arc curve (histogram) which is uncorrected for.
+// This loops through the matrix profile index and increments the
+// counter for each index that the destination index passes through
+// start from the index in the matrix profile index.
+func arcCurve(mpIdx []int) []float64 {
+	histo := make([]float64, len(mpIdx))
+	for i, idx := range mpIdx {
+		switch {
+		case idx >= len(mpIdx):
+		case idx < 0:
+			continue
+		case idx > i+1:
+			for j := i + 1; j < idx; j++ {
+				histo[j]++
+			}
+		case idx < i-1:
+			for j := i - 1; j > idx; j-- {
+				histo[j]++
+			}
+		}
+	}
+	return histo
+}
+
+// iac represents the ideal arc curve with a maximum of n/2 and 0 values
+// at 0 and n-1. The derived equation to ensure the requirements is
+// -(sqrt(2/n)*(x-n/2))^2 + n/2 = y
+func iac(x float64, n int) float64 {
+	return -math.Pow(math.Sqrt(2/float64(n))*(x-float64(n)/2.0), 2.0) + float64(n)/2.0
+}
+
+// generateSin produces a sin wave with a given amplitude, frequency,
+// phase, sampleRate and duration in seconds
 func generateSin(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
 	nsamp := int(sampleRate * durationSec)
 	if nsamp == 0 {
@@ -100,7 +139,8 @@ func generateSin(amp, freq, phase, offset, sampleRate, durationSec float64) []fl
 	return out
 }
 
-// generateSawtooth produces a sawtooth wave with a given amplitude, frequency, phase, sampleRate and duration in seconds
+// generateSawtooth produces a sawtooth wave with a given amplitude,
+// frequency, phase, sampleRate and duration in seconds
 func generateSawtooth(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
 	nsamp := int(sampleRate * durationSec)
 	if nsamp == 0 {
@@ -132,7 +172,8 @@ func generateNoise(amp float64, n int) []float64 {
 	return out
 }
 
-// sigAdd adds one or more slices of floats together returning a signal with a length equal to the longest signal passed in
+// sigAdd adds one or more slices of floats together returning a signal
+// with a length equal to the longest signal passed in
 func sigAdd(sig ...[]float64) []float64 {
 	var maxLen int
 	for _, signal := range sig {

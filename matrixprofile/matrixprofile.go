@@ -1,13 +1,18 @@
+// Package matrixprofile computes the matrix profile and matrix profile index of a time series
 package matrixprofile
 
 import (
+	"errors"
 	"fmt"
 	"gonum.org/v1/gonum/fourier"
 	"math"
 	"math/rand"
+	"sort"
 )
 
-// MatrixProfile is a struct that tracks the current matrix profile computation for a given timeseries of length N and subsequence length of M. The profile and the profile index are stored here.
+// MatrixProfile is a struct that tracks the current matrix profile computation
+// for a given timeseries of length N and subsequence length of M. The profile
+// and the profile index are stored here.
 type MatrixProfile struct {
 	a        []float64 // query time series
 	b        []float64 // timeseries to perform full join with
@@ -21,7 +26,10 @@ type MatrixProfile struct {
 	Idx      []int        // matrix profile index
 }
 
-// New creates a matrix profile struct with a given timeseries length n and subsequence length of m. The first slice, a, is used as the initial timeseries to join with the second, b. If b is nil, then the matrix profile assumes a self join on the first timeseries.
+// New creates a matrix profile struct with a given timeseries length n and
+// subsequence length of m. The first slice, a, is used as the initial
+// timeseries to join with the second, b. If b is nil, then the matrix profile
+// assumes a self join on the first timeseries.
 func New(a, b []float64, m int) (*MatrixProfile, error) {
 	if a == nil || len(a) == 0 {
 		return nil, fmt.Errorf("first slice is nil or has a length of 0")
@@ -54,17 +62,22 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 	}
 
 	var err error
-	// precompute the standard deviation for each window of size m for all sliding windows across the b timeseries
+	// precompute the standard deviation for each window of size m for all
+	// sliding windows across the b timeseries
 	mp.bStd, err = movstd(mp.b, mp.m)
 
-	// precompute the fourier transform of the b timeseries since it will be used multiple times while computing the matrix profile
+	// precompute the fourier transform of the b timeseries since it will
+	// be used multiple times while computing the matrix profile
 	mp.fft = fourier.NewFFT(mp.n)
 	mp.bF = mp.fft.Coefficients(nil, mp.b)
 
 	return &mp, err
 }
 
-// slidingDotProduct computes the sliding dot product between two slices given a query and time series. Uses fast fourier transforms to compute the necessary values
+// slidingDotProduct computes the sliding dot product between two slices
+// given a query and time series. Uses fast fourier transforms to compute
+// the necessary values. Returns the a slice of floats for the cross-correlation
+// of the signal q and the mp.b signal.
 func (mp *MatrixProfile) slidingDotProduct(q []float64) ([]float64, error) {
 	if mp.m*2 >= mp.n {
 		return nil, fmt.Errorf("length of query must be less than half the timeseries")
@@ -81,7 +94,8 @@ func (mp *MatrixProfile) slidingDotProduct(q []float64) ([]float64, error) {
 
 	qf := mp.fft.Coefficients(nil, qpad)
 
-	// in place multiply the fourier transform of the b time series with the subsequence fourier transform and store in the subsequence fft slice
+	// in place multiply the fourier transform of the b time series with
+	// the subsequence fourier transform and store in the subsequence fft slice
 	for i := 0; i < len(qf); i++ {
 		qf[i] = mp.bF[i] * qf[i]
 	}
@@ -95,7 +109,9 @@ func (mp *MatrixProfile) slidingDotProduct(q []float64) ([]float64, error) {
 	return out, nil
 }
 
-// mass calculates the Mueen's algorithm for similarity search (MASS) between a specified query and timeseries.
+// mass calculates the Mueen's algorithm for similarity search (MASS)
+// between a specified query and timeseries. Returns the euclidean distance
+// of the query to every subsequence in mp.b as a slice of floats.
 func (mp MatrixProfile) mass(q []float64) ([]float64, error) {
 	if mp.m < 2 {
 		return nil, fmt.Errorf("need at least 2 samples for the query")
@@ -127,7 +143,11 @@ func (mp MatrixProfile) mass(q []float64) ([]float64, error) {
 	return out, nil
 }
 
-// distanceProfile computes the distance profile between a and b time series. If b is set to nil then it assumes a self join and will create an exclusion area for trivial nearest neighbors
+// distanceProfile computes the distance profile between a and b time series.
+// If b is set to nil then it assumes a self join and will create an exclusion
+// area for trivial nearest neighbors. Returns the euclidean distance between
+// the specified subsequence in mp.a with each subsequence in mp.b as a slice
+// of floats
 func (mp MatrixProfile) distanceProfile(idx int) ([]float64, error) {
 	if idx+mp.m > len(mp.a) {
 		return nil, fmt.Errorf("index %d with m %d asks for data beyond the length of a, %d", idx, mp.m, len(mp.a))
@@ -146,7 +166,10 @@ func (mp MatrixProfile) distanceProfile(idx int) ([]float64, error) {
 	return profile, nil
 }
 
-// Stmp computes the full matrix profile given two time series as inputs. If the second time series is set to nil then a self join on the first will be performed.
+// Stmp computes the full matrix profile given two time series as inputs.
+// If the second time series is set to nil then a self join on the first
+// will be performed. Stores the matrix profile and matrix profile index
+// in the struct.
 func (mp *MatrixProfile) Stmp() error {
 	var err error
 	var profile []float64
@@ -171,7 +194,12 @@ func (mp *MatrixProfile) Stmp() error {
 	return nil
 }
 
-// Stamp uses random ordering to compute the matrix profile. User can the sample to anything between 0 and 1 so that the computation early terminates and provides the current computed matrix profile. This should compute far faster at the cost of an approximation of the matrix profile
+// Stamp uses random ordering to compute the matrix profile. User
+// can specify the sample to be anything between 0 and 1 so that the
+// computation early terminates and provides the current computed matrix
+// profile. This should compute far faster at the cost of an approximation
+// of the matrix profile. Stores the matrix profile and matrix profile index
+// in the struct.
 func (mp *MatrixProfile) Stamp(sample float64) error {
 	if sample == 0.0 {
 		return fmt.Errorf("must provide a non zero sampling")
@@ -198,4 +226,104 @@ func (mp *MatrixProfile) Stamp(sample float64) error {
 		}
 	}
 	return nil
+}
+
+// MotifGroup stores a list of indices representing a similar motif along
+// with the minimum distance that this set of motif composes of.
+type MotifGroup struct {
+	Idx     []int
+	MinDist float64
+}
+
+// TopKMotifs will iteratively go through the matrix profile to find the
+// top k motifs with a given radius. Only applies to self joins.
+func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
+	if !mp.selfJoin {
+		return nil, errors.New("can only find top motifs if a self join is performed")
+	}
+
+	motifs := make([]MotifGroup, k)
+
+	mpCurrent := make([]float64, len(mp.MP))
+	copy(mpCurrent, mp.MP)
+
+	for j := 0; j < k; j++ {
+		// find minimum distance and index location
+		motifDistance := math.Inf(1)
+		minIdx := math.MaxInt64
+		for i, d := range mpCurrent {
+			if d < motifDistance {
+				motifDistance = d
+				minIdx = i
+			}
+		}
+
+		if minIdx == math.MaxInt64 {
+			// can't find any more motifs so returning what we currently found
+			return motifs, nil
+		}
+
+		// filter out all indexes that have a distance within r*motifDistance
+		motifSet := make(map[int]struct{})
+		initialMotif := []int{minIdx, mp.Idx[minIdx]}
+		motifSet[minIdx] = struct{}{}
+		motifSet[mp.Idx[minIdx]] = struct{}{}
+
+		for _, idx := range initialMotif {
+			prof, err := mp.distanceProfile(idx)
+			if err != nil {
+				return nil, err
+			}
+			for i, d := range prof {
+				if d < motifDistance*r {
+					motifSet[i] = struct{}{}
+				}
+			}
+		}
+
+		// store the found motif indexes and create an exclusion zone around
+		// each index in the current matrix profile
+		motifs[j] = MotifGroup{
+			Idx:     make([]int, 0, len(motifSet)),
+			MinDist: motifDistance,
+		}
+		for idx, _ := range motifSet {
+			motifs[j].Idx = append(motifs[j].Idx, idx)
+			applyExclusionZone(mpCurrent, idx, mp.m/2)
+		}
+
+		// sorts the indices in ascending order
+		sort.IntSlice(motifs[j].Idx).Sort()
+	}
+
+	return motifs, nil
+}
+
+// Segment finds the the index where there may be a potential timeseries
+// change. Returns the index of the potential change, value of the corrected
+// arc curve score and the histogram of all the crossings for each index in
+// the matrix profile index. This approach is based on the UCR paper on
+// segmentation of timeseries using matrix profiles which can be found
+// https://www.cs.ucr.edu/%7Eeamonn/Segmentation_ICDM.pdf
+func (mp MatrixProfile) Segment() (int, float64, []float64) {
+	histo := arcCurve(mp.Idx)
+
+	for i := 0; i < len(histo); i++ {
+		if i == 0 || i == len(histo)-1 {
+			histo[i] = math.Min(1.0, float64(len(histo)))
+		} else {
+			histo[i] = math.Min(1.0, histo[i]/iac(float64(i), len(histo)))
+		}
+	}
+
+	minIdx := math.MaxInt64
+	minVal := math.Inf(1)
+	for i := 0; i < len(histo); i++ {
+		if histo[i] < minVal {
+			minIdx = i
+			minVal = histo[i]
+		}
+	}
+
+	return minIdx, float64(minVal), histo
 }

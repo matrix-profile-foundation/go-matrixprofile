@@ -1,6 +1,7 @@
 package matrixprofile
 
 import (
+	"fmt"
 	"os"
 
 	"gonum.org/v1/plot"
@@ -11,90 +12,50 @@ import (
 	"gonum.org/v1/plot/vg/vgimg"
 )
 
-func createPoints(sig []float64) (plotter.XYs, plotter.XYs, plotter.XYs, error) {
-	rawPts := make(plotter.XYs, len(sig))
-	for i, val := range sig {
-		rawPts[i].X = float64(i)
-		rawPts[i].Y = val
-	}
-
-	mp, err := New(sig, nil, 32)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	if err = mp.Stmp(); err != nil {
-		return nil, nil, nil, err
-	}
-
-	_, _, cac := mp.Segment()
-
-	mpPts := make(plotter.XYs, len(sig))
-	for i := range sig {
-		mpPts[i].X = float64(i)
-		if i < len(mp.MP) {
-			mpPts[i].Y = mp.MP[i]
+func Points(a []float64, n int) plotter.XYs {
+	pts := make(plotter.XYs, n)
+	for i := 0; i < n; i++ {
+		pts[i].X = float64(i)
+		if i < len(a) {
+			pts[i].Y = a[i]
 		}
 	}
-
-	cacPts := make(plotter.XYs, len(sig))
-	for i := range sig {
-		cacPts[i].X = float64(i)
-		if i < len(cac) {
-			cacPts[i].Y = cac[i]
-		}
-	}
-
-	return rawPts, mpPts, cacPts, err
+	return pts
 }
 
-func plotMP(raw, mp, cac plotter.XYs, filename string) error {
+func CreatePlot(pts plotter.XYs, label string) (*plot.Plot, error) {
+	p, err := plot.New()
+	if err != nil {
+		return p, err
+	}
+	err = plotutil.AddLines(p, label, pts)
+	return p, err
+}
+
+func PlotMP(sigPts, mpPts, cacPts plotter.XYs, filename string) error {
+	var err error
 	rows, cols := 3, 1
 	plots := make([][]*plot.Plot, rows)
 
 	plots[0] = make([]*plot.Plot, cols)
-	p, err := plot.New()
+	plots[0][0], err = CreatePlot(sigPts, "data")
 	if err != nil {
 		return err
 	}
-	err = plotutil.AddLines(p,
-		"data", raw,
-	)
-	if err != nil {
-		return err
-	}
-
-	plots[0][0] = p
 
 	plots[1] = make([]*plot.Plot, cols)
-	p, err = plot.New()
+	plots[1][0], err = CreatePlot(mpPts, "matrix profile")
 	if err != nil {
 		return err
 	}
-	err = plotutil.AddLines(p,
-		"matrix profile", mp,
-	)
-	if err != nil {
-		return err
-	}
-
-	plots[1][0] = p
 
 	plots[2] = make([]*plot.Plot, cols)
-	p, err = plot.New()
-	if err != nil {
-		return err
-	}
-	err = plotutil.AddLines(p,
-		"cac", cac,
-	)
+	plots[2][0], err = CreatePlot(cacPts, "cac")
 	if err != nil {
 		return err
 	}
 
-	plots[2][0] = p
-
-	img := vgimg.New(vg.Points(1200), vg.Points(1200))
+	img := vgimg.New(vg.Points(600), vg.Points(600))
 	dc := draw.New(img)
 
 	t := draw.Tiles{
@@ -128,43 +89,193 @@ func Example() {
 	noise := generateNoise(0.1, len(sig))
 	sig = sigAdd(sig, noise)
 
-	raw, mp, cac, err := createPoints(sig)
+	mp, err := New(sig, nil, 32)
 	if err != nil {
 		panic(err)
 	}
-	if err = plotMP(raw, mp, cac, "mp_sine.png"); err != nil {
+
+	if err = mp.Stmp(); err != nil {
 		panic(err)
 	}
 
-	saw := generateSawtooth(1, 5, 0, 0, 100, 2)
-	ext := generateLine(0.08, -1, len(saw)/2)
-	sig = append(saw, ext...)
-	noise = generateNoise(0.1, len(sig))
+	_, _, cac := mp.Segment()
+
+	sigPts := Points(sig, len(sig))
+	mpPts := Points(mp.MP, len(sig))
+	cacPts := Points(cac, len(sig))
+
+	if err = PlotMP(sigPts, mpPts, cacPts, "mp_sine.png"); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Saved png file result to mp_sine.png")
+	// Output: Saved png file result to mp_sine.png
+}
+
+func ExampleMatrixProfile_Stmp() {
+	// generate a signal mainly composed of sine waves and switches
+	// frequencies, amplitude, and offset midway through
+
+	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
+	// time of 2 seconds
+	sin := generateSin(1, 5, 0, 0, 100, 2)
+
+	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
+	// frequency of 100 Hz, time of 1 second
+	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sig := append(sin, sin2...)
+
+	// noise with an amplitude of 0.1
+	noise := generateNoise(0.1, len(sig))
 	sig = sigAdd(sig, noise)
 
-	raw, mp, cac, err = createPoints(sig)
+	// create a new MatrixProfile struct using the signal and a
+	// subsequence length of 32. The second subsequence is set to nil
+	// so we perform a self join.
+	mp, err := New(sig, nil, 32)
 	if err != nil {
 		panic(err)
 	}
-	if err = plotMP(raw, mp, cac, "mp_sawtooth.png"); err != nil {
+
+	// run the STMP algorithm with self join. The matrix profile
+	// will be stored in mp.MP and the matrix profile index will
+	// be stored in mp.Idx
+	if err = mp.Stmp(); err != nil {
 		panic(err)
 	}
+}
 
-	line := generateLine(0, 0, 120)
-	ext = generateLine(0, 100, len(line)/2)
-	ext2 := generateLine(0, 600, len(line)/2)
-	sig = append(line, ext...)
-	sig = append(sig, ext2...)
-	noise = generateNoise(10, len(sig))
+func ExampleMatrixProfile_Stamp() {
+	// generate a signal mainly composed of sine waves and switches
+	// frequencies, amplitude, and offset midway through
+
+	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
+	// time of 2 seconds
+	sin := generateSin(1, 5, 0, 0, 100, 2)
+
+	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
+	// frequency of 100 Hz, time of 1 second
+	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sig := append(sin, sin2...)
+
+	// noise with an amplitude of 0.1
+	noise := generateNoise(0.1, len(sig))
 	sig = sigAdd(sig, noise)
 
-	raw, mp, cac, err = createPoints(sig)
+	// create a new MatrixProfile struct using the signal and a
+	// subsequence length of 32. The second subsequence is set to nil
+	// so we perform a self join.
+	mp, err := New(sig, nil, 32)
 	if err != nil {
 		panic(err)
 	}
-	if err = plotMP(raw, mp, cac, "mp_rect.png"); err != nil {
+
+	// run the STAMP algorithm with self join and a sample of 0.2 of
+	// all subsequences. The matrix profile will be stored in mp.MP
+	// and the matrix profile index will be stored in mp.Idx
+	if err = mp.Stamp(0.2); err != nil {
 		panic(err)
+	}
+
+}
+
+func ExampleMatrixProfile_Segment() {
+	// generate a signal mainly composed of sine waves and switches
+	// frequencies, amplitude, and offset midway through
+
+	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
+	// time of 2 seconds
+	sin := generateSin(1, 5, 0, 0, 100, 2)
+
+	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
+	// frequency of 100 Hz, time of 1 second
+	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sig := append(sin, sin2...)
+
+	// noise with an amplitude of 0.1
+	noise := generateNoise(0.01, len(sig))
+	sig = sigAdd(sig, noise)
+
+	// create a new MatrixProfile struct using the signal and a
+	// subsequence length of 32. The second subsequence is set to nil
+	// so we perform a self join.
+	mp, err := New(sig, nil, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	// run the STMP algorithm with self join. The matrix profile
+	// will be stored in mp.MP and the matrix profile index will
+	// be stored in mp.Idx
+	if err = mp.Stmp(); err != nil {
+		panic(err)
+	}
+
+	// segment the timeseries using the number of arc crossings over
+	// each index in the matrix profile index
+	idx, cac, _ := mp.Segment()
+	fmt.Printf("Signal change foud at index: %d\n", idx)
+	fmt.Printf("Corrected Arc Curve (CAC) value: %.3f\n", cac)
+
+	// Output:
+	// Signal change foud at index: 194
+	// Corrected Arc Curve (CAC) value: 0.000
+}
+
+func ExampleMatrixProfile_TopKMotifs() {
+	// generate a signal mainly composed of sine waves and switches
+	// frequencies, amplitude, and offset midway through
+
+	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
+	// time of 2 seconds
+	sin := generateSin(1, 5, 0, 0, 100, 2)
+
+	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
+	// frequency of 100 Hz, time of 1 second
+	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sig := append(sin, sin2...)
+
+	// noise with an amplitude of 0.1
+	noise := generateNoise(0.01, len(sig))
+	sig = sigAdd(sig, noise)
+
+	// create a new MatrixProfile struct using the signal and a
+	// subsequence length of 32. The second subsequence is set to nil
+	// so we perform a self join.
+	mp, err := New(sig, nil, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	// run the STMP algorithm with self join. The matrix profile
+	// will be stored in mp.MP and the matrix profile index will
+	// be stored in mp.Idx
+	if err = mp.Stmp(); err != nil {
+		panic(err)
+	}
+
+	// finds the top 3 motifs in the signal. Motif groups include
+	// all subsequences that are within 2 times the distance of the
+	// original motif pair
+	motifs, err := mp.TopKMotifs(3, 2)
+	if err != nil {
+		panic(err)
+	}
+
+	for i, mg := range motifs {
+		fmt.Printf("Motif Group %d\n", i)
+		fmt.Printf("  %d motifs\n", len(mg.Idx))
+		fmt.Printf("  minimum distance of %.3f\n", mg.MinDist)
 	}
 
 	// Output:
+	// Motif Group 0
+	//   9 motifs
+	//   minimum distance of 0.024
+	// Motif Group 1
+	//   7 motifs
+	//   minimum distance of 0.100
+	// Motif Group 2
+	//   77 motifs
+	//   minimum distance of 3.368
 }
