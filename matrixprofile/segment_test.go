@@ -73,7 +73,8 @@ func TestSegment(t *testing.T) {
 	var minVal float64
 	var histo []float64
 	for _, d := range testdata {
-		minIdx, minVal, histo = Segment(d.mpIdx)
+		mp := MatrixProfile{Idx: d.mpIdx}
+		minIdx, minVal, histo = mp.Segment()
 		if histo != nil && d.expectedHisto == nil {
 			// Failed to compute histogram
 			continue

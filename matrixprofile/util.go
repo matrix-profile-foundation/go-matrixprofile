@@ -71,6 +71,21 @@ func movstd(ts []float64, m int) ([]float64, error) {
 	return out, nil
 }
 
+// applyExclusionZone performs an in place operation on a given matrix profile setting distances around an index to +Inf
+func applyExclusionZone(profile []float64, idx, zoneSize int) {
+	startIdx := 0
+	if idx-zoneSize > startIdx {
+		startIdx = idx - zoneSize
+	}
+	endIdx := len(profile)
+	if idx+zoneSize < endIdx {
+		endIdx = idx + zoneSize
+	}
+	for i := startIdx; i < endIdx; i++ {
+		profile[i] = math.Inf(1)
+	}
+}
+
 // generateSin produces a sin wave with a given amplitude, frequency, phase, sampleRate and duration in seconds
 func generateSin(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
 	nsamp := int(sampleRate * durationSec)

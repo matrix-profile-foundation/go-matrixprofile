@@ -27,7 +27,7 @@ func createPoints(sig []float64) (plotter.XYs, plotter.XYs, plotter.XYs, error) 
 		return nil, nil, nil, err
 	}
 
-	_, _, cac := Segment(mp.Idx)
+	_, _, cac := mp.Segment()
 
 	mpPts := make(plotter.XYs, len(sig))
 	for i := range sig {

@@ -7,8 +7,8 @@ import (
 // Segment finds the the index where there may be a potential timeseries change. This is based
 // from the UCR paper on segmentation of timeseries using matrix profiles which can be found
 // https://www.cs.ucr.edu/%7Eeamonn/Segmentation_ICDM.pdf
-func Segment(mpIdx []int) (int, float64, []float64) {
-	histo := arcCurve(mpIdx)
+func (mp MatrixProfile) Segment() (int, float64, []float64) {
+	histo := arcCurve(mp.Idx)
 
 	for i := 0; i < len(histo); i++ {
 		if i == 0 || i == len(histo)-1 {

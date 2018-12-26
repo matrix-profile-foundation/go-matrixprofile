@@ -141,17 +141,7 @@ func (mp MatrixProfile) distanceProfile(idx int) ([]float64, error) {
 
 	// sets the distance in the exclusion zone to +Inf
 	if mp.selfJoin {
-		startIdx := 0
-		if idx-mp.m/2 > startIdx {
-			startIdx = idx - mp.m/2
-		}
-		endIdx := len(profile)
-		if idx+mp.m/2 < endIdx {
-			endIdx = idx + mp.m/2
-		}
-		for i := startIdx; i < endIdx; i++ {
-			profile[i] = math.Inf(1)
-		}
+		applyExclusionZone(profile, idx, mp.m/2)
 	}
 	return profile, nil
 }
