@@ -3,7 +3,7 @@
 
 # go-matrixprofile
 
-Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series segmentation and motif discovery after computing the matrix profile.
+Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series segmentation and motif discovery after computing the matrix profile. https://godoc.org/github.com/aouyang1/go-matrixprofile
 
 ## Contents
 - [Installation](#installation)
@@ -16,93 +16,42 @@ $ go get -u github.com/aouyang1/go-matrixprofile/matrixprofile
 ```
 
 ## Quick start
+```sh
+$ cat example_mp.go
+```
 ```go
 package main
 
 import (
-  "fmt"
+	"fmt"
 
-  "github.com/aouyang1/go-matrixprofile/matrixprofile"
+	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 )
 
 func main() {
-  // generate a synthetic signal to run a self join on
-  sig := generateSignal()
+	sig := []float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}
 
-  var m, k int
-  var r float64
-  m = 32 // subsequence length
-  k = 6  // find the top N motifs
-  r = 3  // motif groups contain subsequences that are at most R time distance 
-         // from the initial motif
+	mp, err := matrixprofile.New(sig, nil, 4)
+	if err != nil {
+		panic(err)
+	}
 
-  // creates a matrix profile struct
-  mp, err := matrixprofile.New(sig, nil, m)
-  if err != nil {
-    panic(err)
-  }
+	if err = mp.Stmp(); err != nil {
+		panic(err)
+	}
 
-  // computes the matrix profile and matrix profile index using the STMP algorithm
-  if err = mp.Stmp(); err != nil {
-    panic(err)
-  }
-
-  // uses the matrix profile index to compute the corrected arc curve
-  idx, cac, _ := mp.Segment()
-  fmt.Printf("Signal change foud at index: %d\n", idx)
-  fmt.Printf("Corrected Arc Curve (CAC) value: %.3f\n", cac)
-  // Signal change foud at index: 182
-  // Corrected Arc Curve (CAC) value: 0.000
-
-  // uses the matrix profile and matrix profile index to find the top K motif groups
-  // within a radius of r times the minimum distance in the motif group
-  motifs, err := mp.TopKMotifs(k, r)
-  if err != nil {
-    panic(err)
-  }
-
-  for i, mg := range motifs {
-    fmt.Printf("Motif Group %d\n", i)
-    fmt.Printf("  %d motifs\n", len(mg.Idx))
-  }
-  // Motif Group 0
-  //   8 motifs
-  // Motif Group 1
-  //   2 motifs
-  // Motif Group 2
-  //   3 motifs
-  // Motif Group 3
-  //   27 motifs
-  // Motif Group 4
-  //   12 motifs
-  // Motif Group 5
-  //   22 motifs
-}
-
-func generateSignal() []float64 {
-  // Amp: 1, Freq: 5Hz, Sampling Freq: 100Hz, Duration: 2sec
-  sin := matrixprofile.Sin(1, 5, 0, 0, 100, 2)
-
-  // Amp: 0.25, Freq: 10Hz, Offset: 0.75, Sampling Freq: 100Hz, Duration: 0.25sec
-  sin2 := matrixprofile.Sin(0.25, 10, 0, 0.75, 100, 0.25)
-
-  // Amp: 0.3, Duration: 1sec
-  noise := matrixprofile.Noise(0.3, len(sin2)*4)
-
-  sig := append(sin, sin2...)
-  sig = append(sig, noise...)
-  sig = append(sig, sin2...)
-  sig = append(sig, noise...)
-  sig = append(sig, sin2...)
-  sig = append(sig, noise...)
-
-  // Add additional noise to the entire signal
-  noise = matrixprofile.Noise(0.1, len(sig))
-  sig = matrixprofile.SigAdd(sig, noise)
-
-  return sig
+	fmt.Printf("Signal:         %.3f\n", sig)
+	fmt.Printf("Matrix Profile: %.3f\n", mp.MP)
+	fmt.Printf("Profile Index:  %5d\n", mp.Idx)
 }
 ```
+```sh
+$ go run example_mp.go
+Signal:         [0.000 0.990 1.000 0.000 0.000 0.980 1.000 0.000 0.000 0.960 1.000 0.000]
+Matrix Profile: [0.014 0.014 0.029 0.029 0.014 0.014 0.029 0.029 0.029]
+Profile Index:  [    4     5     6     7     0     1     2     3     4]
+```
+
 
 ## Benchmarks
 Benchmark name               | NumReps |    Time/Rep   |  Memory/Rep  |   Alloc/Rep
