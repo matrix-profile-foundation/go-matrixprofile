@@ -78,7 +78,7 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 // given a query and time series. Uses fast fourier transforms to compute
 // the necessary values. Returns the a slice of floats for the cross-correlation
 // of the signal q and the mp.b signal. This makes an optimization where the query
-// length must be less than half the lenght of the timeseries, b.
+// length must be less than half the length of the timeseries, b.
 func (mp *MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
 	if mp.m*2 >= mp.n {
 		return nil, fmt.Errorf("length of query must be less than half the timeseries")
@@ -288,7 +288,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 			Idx:     make([]int, 0, len(motifSet)),
 			MinDist: motifDistance,
 		}
-		for idx, _ := range motifSet {
+		for idx := range motifSet {
 			motifs[j].Idx = append(motifs[j].Idx, idx)
 			applyExclusionZone(mpCurrent, idx, mp.m/2)
 		}

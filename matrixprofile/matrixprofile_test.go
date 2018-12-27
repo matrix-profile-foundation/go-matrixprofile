@@ -362,6 +362,9 @@ func TestTopKMotifs(t *testing.T) {
 		t.Error(err)
 	}
 	motifs, err := mp.TopKMotifs(3, 2)
+	if err != nil {
+		t.Error(err)
+	}
 
 	for i, mg := range motifs {
 		if len(mg.Idx) != len(expectedMotifs[i]) {
