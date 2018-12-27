@@ -124,9 +124,9 @@ func iac(x float64, n int) float64 {
 	return -math.Pow(math.Sqrt(2/float64(n))*(x-float64(n)/2.0), 2.0) + float64(n)/2.0
 }
 
-// generateSin produces a sin wave with a given amplitude, frequency,
+// Sin produces a sin wave with a given amplitude, frequency,
 // phase, sampleRate and duration in seconds
-func generateSin(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
+func Sin(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
 	nsamp := int(sampleRate * durationSec)
 	if nsamp == 0 {
 		return nil
@@ -139,9 +139,9 @@ func generateSin(amp, freq, phase, offset, sampleRate, durationSec float64) []fl
 	return out
 }
 
-// generateSawtooth produces a sawtooth wave with a given amplitude,
+// Sawtooth produces a sawtooth wave with a given amplitude,
 // frequency, phase, sampleRate and duration in seconds
-func generateSawtooth(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
+func Sawtooth(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
 	nsamp := int(sampleRate * durationSec)
 	if nsamp == 0 {
 		return nil
@@ -154,8 +154,8 @@ func generateSawtooth(amp, freq, phase, offset, sampleRate, durationSec float64)
 	return out
 }
 
-// generateLine creates a line given a slope, offset and number of data points
-func generateLine(slope, offset float64, n int) []float64 {
+// Line creates a line given a slope, offset and number of data points
+func Line(slope, offset float64, n int) []float64 {
 	out := make([]float64, n)
 	for i := 0; i < n; i++ {
 		out[i] = slope*float64(i) + offset
@@ -163,8 +163,8 @@ func generateLine(slope, offset float64, n int) []float64 {
 	return out
 }
 
-// generateNoise creates a noise signal
-func generateNoise(amp float64, n int) []float64 {
+// Noise creates a noise signal
+func Noise(amp float64, n int) []float64 {
 	out := make([]float64, n)
 	for i := 0; i < n; i++ {
 		out[i] = amp * (rand.Float64() - 0.5)
@@ -172,9 +172,9 @@ func generateNoise(amp float64, n int) []float64 {
 	return out
 }
 
-// sigAdd adds one or more slices of floats together returning a signal
+// SigAdd adds one or more slices of floats together returning a signal
 // with a length equal to the longest signal passed in
-func sigAdd(sig ...[]float64) []float64 {
+func SigAdd(sig ...[]float64) []float64 {
 	var maxLen int
 	for _, signal := range sig {
 		if len(signal) > maxLen {

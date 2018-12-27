@@ -103,18 +103,19 @@ func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, filenam
 }
 
 func Example() {
-	sin := generateSin(1, 5, 0, 0, 100, 2)
-	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 0.25)
+	sin := Sin(1, 5, 0, 0, 100, 2)
+	sin2 := Sin(0.25, 10, 0, 0.75, 100, 0.25)
+	noise := Noise(0.3, len(sin2)*4)
+
 	sig := append(sin, sin2...)
-	noise := generateNoise(0.3, len(sin2)*4)
 	sig = append(sig, noise...)
 	sig = append(sig, sin2...)
 	sig = append(sig, noise...)
 	sig = append(sig, sin2...)
 	sig = append(sig, noise...)
 
-	noise = generateNoise(0.1, len(sig))
-	sig = sigAdd(sig, noise)
+	noise = Noise(0.1, len(sig))
+	sig = SigAdd(sig, noise)
 
 	var m, k int
 	var r float64
@@ -166,16 +167,16 @@ func ExampleMatrixProfile_Stmp() {
 
 	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
 	// time of 2 seconds
-	sin := generateSin(1, 5, 0, 0, 100, 2)
+	sin := Sin(1, 5, 0, 0, 100, 2)
 
 	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
 	// frequency of 100 Hz, time of 1 second
-	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sin2 := Sin(0.25, 10, 0, 0.75, 100, 1)
 	sig := append(sin, sin2...)
 
 	// noise with an amplitude of 0.1
-	noise := generateNoise(0.1, len(sig))
-	sig = sigAdd(sig, noise)
+	noise := Noise(0.1, len(sig))
+	sig = SigAdd(sig, noise)
 
 	// create a new MatrixProfile struct using the signal and a
 	// subsequence length of 32. The second subsequence is set to nil
@@ -199,16 +200,16 @@ func ExampleMatrixProfile_Stamp() {
 
 	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
 	// time of 2 seconds
-	sin := generateSin(1, 5, 0, 0, 100, 2)
+	sin := Sin(1, 5, 0, 0, 100, 2)
 
 	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
 	// frequency of 100 Hz, time of 1 second
-	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sin2 := Sin(0.25, 10, 0, 0.75, 100, 1)
 	sig := append(sin, sin2...)
 
 	// noise with an amplitude of 0.1
-	noise := generateNoise(0.1, len(sig))
-	sig = sigAdd(sig, noise)
+	noise := Noise(0.1, len(sig))
+	sig = SigAdd(sig, noise)
 
 	// create a new MatrixProfile struct using the signal and a
 	// subsequence length of 32. The second subsequence is set to nil
@@ -233,16 +234,16 @@ func ExampleMatrixProfile_Segment() {
 
 	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
 	// time of 2 seconds
-	sin := generateSin(1, 5, 0, 0, 100, 2)
+	sin := Sin(1, 5, 0, 0, 100, 2)
 
 	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
 	// frequency of 100 Hz, time of 1 second
-	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sin2 := Sin(0.25, 10, 0, 0.75, 100, 1)
 	sig := append(sin, sin2...)
 
 	// noise with an amplitude of 0.1
-	noise := generateNoise(0.01, len(sig))
-	sig = sigAdd(sig, noise)
+	noise := Noise(0.01, len(sig))
+	sig = SigAdd(sig, noise)
 
 	// create a new MatrixProfile struct using the signal and a
 	// subsequence length of 32. The second subsequence is set to nil
@@ -276,16 +277,16 @@ func ExampleMatrixProfile_TopKMotifs() {
 
 	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
 	// time of 2 seconds
-	sin := generateSin(1, 5, 0, 0, 100, 2)
+	sin := Sin(1, 5, 0, 0, 100, 2)
 
 	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
 	// frequency of 100 Hz, time of 1 second
-	sin2 := generateSin(0.25, 10, 0, 0.75, 100, 1)
+	sin2 := Sin(0.25, 10, 0, 0.75, 100, 1)
 	sig := append(sin, sin2...)
 
 	// noise with an amplitude of 0.1
-	noise := generateNoise(0.0001, len(sig))
-	sig = sigAdd(sig, noise)
+	noise := Noise(0.0001, len(sig))
+	sig = SigAdd(sig, noise)
 
 	// create a new MatrixProfile struct using the signal and a
 	// subsequence length of 32. The second subsequence is set to nil

@@ -350,7 +350,7 @@ func TestStamp(t *testing.T) {
 
 func TestTopKMotifs(t *testing.T) {
 	a := []float64{0, 0, 0.56, 0.99, 0.97, 0.75, 0, 0, 0, 0.43, 0.98, 0.99, 0.65, 0, 0, 0, 0.6, 0.97, 0.965, 0.8, 0, 0, 0}
-	a = sigAdd(a, generateNoise(1e-7, len(a)))
+	a = SigAdd(a, Noise(1e-7, len(a)))
 
 	expectedMotifs := [][]int{{1, 15}, {0, 7, 14}, {3, 10}}
 	expectedMinDist := []float64{0.1459618197766371, 0.3352336136782056, 0.46369664551715467}

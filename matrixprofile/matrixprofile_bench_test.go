@@ -5,13 +5,13 @@ import (
 )
 
 func setupData() []float64 {
-	line := generateLine(0, 0, 512)
-	ext := generateLine(0, 100, len(line)/2)
-	ext2 := generateLine(0, 600, len(line)/2)
+	line := Line(0, 0, 512)
+	ext := Line(0, 100, len(line)/2)
+	ext2 := Line(0, 600, len(line)/2)
 	sig := append(line, ext...)
 	sig = append(sig, ext2...)
-	noise := generateNoise(10, len(sig))
-	sig = sigAdd(sig, noise)
+	noise := Noise(10, len(sig))
+	sig = SigAdd(sig, noise)
 
 	return sig
 }
