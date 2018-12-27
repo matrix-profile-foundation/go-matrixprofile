@@ -376,6 +376,46 @@ func TestStamp(t *testing.T) {
 	}
 }
 
+func TestDiscords(t *testing.T) {
+	a := []float64{0, 0, 0.50, 0.99, 0.99, 0.50, 0, 0, 0, 0.50, 0.99, 0.10, 0.50, 0, 0, 0, 0.50, 0.99, 0.99, 0.50, 0, 0, 0}
+	a = SigAdd(a, Noise(1e-7, len(a)))
+
+	testdata := []struct {
+		a                []float64
+		b                []float64
+		k                int
+		expectedDiscords []int
+	}{
+		{
+			a, nil, 3,
+			[]int{9, 11, 19},
+		},
+	}
+
+	for _, d := range testdata {
+		mp, err := New(d.a, d.b, 4)
+		if err != nil {
+			t.Error(err)
+		}
+		if err = mp.Stmp(); err != nil {
+			t.Error(err)
+		}
+		discords := mp.Discords(d.k)
+		if err != nil {
+			if d.expectedDiscords == nil {
+				continue
+			}
+			t.Error(err)
+		}
+
+		for i, idx := range discords {
+			if idx != d.expectedDiscords[i] {
+				t.Errorf("expected index, %d, but got %d", d.expectedDiscords[i], idx)
+			}
+		}
+	}
+}
+
 func TestTopKMotifs(t *testing.T) {
 	a := []float64{0, 0, 0.56, 0.99, 0.97, 0.75, 0, 0, 0, 0.43, 0.98, 0.99, 0.65, 0, 0, 0, 0.6, 0.97, 0.965, 0.8, 0, 0, 0}
 	a = SigAdd(a, Noise(1e-7, len(a)))

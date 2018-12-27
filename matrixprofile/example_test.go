@@ -3,9 +3,11 @@ package matrixprofile
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/plotutil"
 	"gonum.org/v1/plot/vg"
 	"gonum.org/v1/plot/vg/draw"
 	"gonum.org/v1/plot/vg/vgimg"
@@ -38,15 +40,23 @@ func CreatePlot(pts []plotter.XYs, labels []string, title string) (*plot.Plot, e
 		if err != nil {
 			return p, err
 		}
+		line.Color = plotutil.Color(i)
+		points.Color = plotutil.Color(i)
 		points.Shape = nil
 		p.Add(line, points)
+		if labels != nil {
+			p.Legend.Add(labels[i], line)
+		}
 	}
 	return p, err
 }
 
-func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, filename string) error {
+func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discordPts []plotter.XYs, discordLabels []string, filename string) error {
 	var err error
 	rows, cols := len(motifPts), 2
+	if rows < 4 {
+		rows = 4
+	}
 	plots := make([][]*plot.Plot, rows)
 
 	for i := 0; i < len(motifPts); i++ {
@@ -64,6 +74,11 @@ func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, filenam
 	}
 
 	plots[2][0], err = CreatePlot([]plotter.XYs{cacPts}, nil, "corrected arc curve")
+	if err != nil {
+		return err
+	}
+
+	plots[3][0], err = CreatePlot(discordPts, discordLabels, "discords")
 	if err != nil {
 		return err
 	}
@@ -105,14 +120,17 @@ func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, filenam
 func Example() {
 	sin := Sin(1, 5, 0, 0, 100, 2)
 	sin2 := Sin(0.25, 10, 0, 0.75, 100, 0.25)
+	saw := Sawtooth(0.5, 7, 0, 0, 100, 1)
 	noise := Noise(0.3, len(sin2)*4)
 
 	sig := append(sin, sin2...)
+	sig = append(sig, sin...)
 	sig = append(sig, noise...)
 	sig = append(sig, sin2...)
 	sig = append(sig, noise...)
 	sig = append(sig, sin2...)
 	sig = append(sig, noise...)
+	sig = append(sig, saw...)
 
 	noise = Noise(0.1, len(sig))
 	sig = SigAdd(sig, noise)
@@ -138,10 +156,17 @@ func Example() {
 		panic(err)
 	}
 
+	discords := mp.Discords(3)
+	if err != nil {
+		panic(err)
+	}
+
 	sigPts := Points(sig, len(sig))
 	mpPts := Points(mp.MP, len(sig))
 	cacPts := Points(cac, len(sig))
 	motifPts := make([][]plotter.XYs, k)
+	discordPts := make([]plotter.XYs, k)
+	discordLabels := make([]string, k)
 
 	for i := 0; i < k; i++ {
 		motifPts[i] = make([]plotter.XYs, len(motifs[i].Idx))
@@ -153,7 +178,12 @@ func Example() {
 		}
 	}
 
-	if err = PlotMP(sigPts, mpPts, cacPts, motifPts, "../mp_sine.png"); err != nil {
+	for i, idx := range discords {
+		discordPts[i] = Points(sig[idx:idx+m], m)
+		discordLabels[i] = strconv.Itoa(idx)
+	}
+
+	if err = PlotMP(sigPts, mpPts, cacPts, motifPts, discordPts, discordLabels, "../mp_sine.png"); err != nil {
 		panic(err)
 	}
 
@@ -284,10 +314,6 @@ func ExampleMatrixProfile_TopKMotifs() {
 	sin2 := Sin(0.25, 10, 0, 0.75, 100, 1)
 	sig := append(sin, sin2...)
 
-	// noise with an amplitude of 0.1
-	noise := Noise(0.0001, len(sig))
-	sig = SigAdd(sig, noise)
-
 	// create a new MatrixProfile struct using the signal and a
 	// subsequence length of 32. The second subsequence is set to nil
 	// so we perform a self join.
@@ -318,7 +344,7 @@ func ExampleMatrixProfile_TopKMotifs() {
 
 	// Output:
 	// Motif Group 0
-	//   9 motifs
+	//   2 motifs
 	// Motif Group 1
-	//   6 motifs
+	//   2 motifs
 }
