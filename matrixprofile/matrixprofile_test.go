@@ -227,6 +227,7 @@ func TestDistanceProfile(t *testing.T) {
 		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 0, nil},
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 0, nil},
 		{[]float64{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0}, nil, 4, 0, []float64{math.Inf(1), math.Inf(1), 4, 2.8284271247461903, 0, 2.8284271247461903, 4, 2.8284271247461903, 0}},
+		{[]float64{0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0}, nil, 4, 9, nil},
 	}
 
 	for _, d := range testdata {
@@ -379,32 +380,59 @@ func TestTopKMotifs(t *testing.T) {
 	a := []float64{0, 0, 0.56, 0.99, 0.97, 0.75, 0, 0, 0, 0.43, 0.98, 0.99, 0.65, 0, 0, 0, 0.6, 0.97, 0.965, 0.8, 0, 0, 0}
 	a = SigAdd(a, Noise(1e-7, len(a)))
 
-	expectedMotifs := [][]int{{1, 15}, {0, 7, 14}, {3, 10}}
-	expectedMinDist := []float64{0.1459618197766371, 0.3352336136782056, 0.46369664551715467}
-	mp, err := New(a, nil, 7)
-	if err != nil {
-		t.Error(err)
-	}
-	if err = mp.Stmp(); err != nil {
-		t.Error(err)
-	}
-	motifs, err := mp.TopKMotifs(3, 2)
-	if err != nil {
-		t.Error(err)
+	testdata := []struct {
+		a               []float64
+		b               []float64
+		k               int
+		expectedMotifs  [][]int
+		expectedMinDist []float64
+	}{
+		{
+			a, nil, 3,
+			[][]int{{1, 15}, {0, 7, 14}, {3, 10}},
+			[]float64{0.1459618197766371, 0.3352336136782056, 0.46369664551715467},
+		},
+		{
+			a, a, 3,
+			nil,
+			nil,
+		},
+		{
+			a, nil, 5,
+			[][]int{{1, 15}, {0, 7, 14}, {3, 10}, {}, {}},
+			[]float64{0.1459618197766371, 0.3352336136782056, 0.46369664551715467, 0, 0},
+		},
 	}
 
-	for i, mg := range motifs {
-		if len(mg.Idx) != len(expectedMotifs[i]) {
-			t.Errorf("expected %d motifs for group %d, but got %d", len(expectedMotifs[i]), i, len(mg.Idx))
+	for _, d := range testdata {
+		mp, err := New(d.a, d.b, 7)
+		if err != nil {
+			t.Error(err)
 		}
-
-		for j, idx := range mg.Idx {
-			if idx != expectedMotifs[i][j] {
-				t.Errorf("expected index, %d for group %d, but got %d", expectedMotifs[i][j], i, idx)
+		if err = mp.Stmp(); err != nil {
+			t.Error(err)
+		}
+		motifs, err := mp.TopKMotifs(d.k, 2)
+		if err != nil {
+			if d.expectedMotifs == nil {
+				continue
 			}
+			t.Error(err)
 		}
-		if math.Abs(mg.MinDist-expectedMinDist[i]) > 1e-7 {
-			t.Errorf("expected minimum distance, %.3f for group %d, but got %.3f", expectedMinDist[i], i, mg.MinDist)
+
+		for i, mg := range motifs {
+			if len(mg.Idx) != len(d.expectedMotifs[i]) {
+				t.Errorf("expected %d motifs for group %d, but got %d", len(d.expectedMotifs[i]), i, len(mg.Idx))
+			}
+
+			for j, idx := range mg.Idx {
+				if idx != d.expectedMotifs[i][j] {
+					t.Errorf("expected index, %d for group %d, but got %d", d.expectedMotifs[i][j], i, idx)
+				}
+			}
+			if math.Abs(mg.MinDist-d.expectedMinDist[i]) > 1e-7 {
+				t.Errorf("expected minimum distance, %.3f for group %d, but got %.3f", d.expectedMinDist[i], i, mg.MinDist)
+			}
 		}
 	}
 }
