@@ -29,42 +29,42 @@ func main() {
   // generate a synthetic signal to run a self join on
   sig := generateSignal()
 
-	var m, k int
-	var r float64
-	m = 32 // subsequence length
-	k = 6  // find the top N motifs
-	r = 3  // motif groups contain subsequences that are at most R time distance 
+  var m, k int
+  var r float64
+  m = 32 // subsequence length
+  k = 6  // find the top N motifs
+  r = 3  // motif groups contain subsequences that are at most R time distance 
          // from the initial motif
 
   // creates a matrix profile struct
-	mp, err := matrixprofile.New(sig, nil, m)
-	if err != nil {
-		panic(err)
-	}
+  mp, err := matrixprofile.New(sig, nil, m)
+  if err != nil {
+    panic(err)
+  }
 
   // computes the matrix profile and matrix profile index using the STMP algorithm
-	if err = mp.Stmp(); err != nil {
-		panic(err)
-	}
+  if err = mp.Stmp(); err != nil {
+    panic(err)
+  }
 
   // uses the matrix profile index to compute the corrected arc curve
-	idx, cac, _ := mp.Segment()
-	fmt.Printf("Signal change foud at index: %d\n", idx)
-	fmt.Printf("Corrected Arc Curve (CAC) value: %.3f\n", cac)
-	// Signal change foud at index: 182
-	// Corrected Arc Curve (CAC) value: 0.000
+  idx, cac, _ := mp.Segment()
+  fmt.Printf("Signal change foud at index: %d\n", idx)
+  fmt.Printf("Corrected Arc Curve (CAC) value: %.3f\n", cac)
+  // Signal change foud at index: 182
+  // Corrected Arc Curve (CAC) value: 0.000
 
   // uses the matrix profile and matrix profile index to find the top K motif groups
   // within a radius of r times the minimum distance in the motif group
-	motifs, err := mp.TopKMotifs(k, r)
-	if err != nil {
-		panic(err)
-	}
+  motifs, err := mp.TopKMotifs(k, r)
+  if err != nil {
+    panic(err)
+  }
 
-	for i, mg := range motifs {
-		fmt.Printf("Motif Group %d\n", i)
-		fmt.Printf("  %d motifs\n", len(mg.Idx))
-	}
+  for i, mg := range motifs {
+    fmt.Printf("Motif Group %d\n", i)
+    fmt.Printf("  %d motifs\n", len(mg.Idx))
+  }
   // Motif Group 0
   //   8 motifs
   // Motif Group 1
@@ -81,24 +81,24 @@ func main() {
 
 func generateSignal() []float64 {
   // Amp: 1, Freq: 5Hz, Sampling Freq: 100Hz, Duration: 2sec
-	sin := matrixprofile.Sin(1, 5, 0, 0, 100, 2)
+  sin := matrixprofile.Sin(1, 5, 0, 0, 100, 2)
 
   // Amp: 0.25, Freq: 10Hz, Offset: 0.75, Sampling Freq: 100Hz, Duration: 0.25sec
-	sin2 := matrixprofile.Sin(0.25, 10, 0, 0.75, 100, 0.25)
+  sin2 := matrixprofile.Sin(0.25, 10, 0, 0.75, 100, 0.25)
 
   // Amp: 0.3, Duration: 1sec
-	noise := matrixprofile.Noise(0.3, len(sin2)*4)
+  noise := matrixprofile.Noise(0.3, len(sin2)*4)
 
-	sig := append(sin, sin2...)
-	sig = append(sig, noise...)
-	sig = append(sig, sin2...)
-	sig = append(sig, noise...)
-	sig = append(sig, sin2...)
-	sig = append(sig, noise...)
+  sig := append(sin, sin2...)
+  sig = append(sig, noise...)
+  sig = append(sig, sin2...)
+  sig = append(sig, noise...)
+  sig = append(sig, sin2...)
+  sig = append(sig, noise...)
 
   // Add additional noise to the entire signal
-	noise = matrixprofile.Noise(0.1, len(sig))
-	sig = matrixprofile.SigAdd(sig, noise)
+  noise = matrixprofile.Noise(0.1, len(sig))
+  sig = matrixprofile.SigAdd(sig, noise)
 
   return sig
 }
