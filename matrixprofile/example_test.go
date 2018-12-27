@@ -153,7 +153,7 @@ func Example() {
 		}
 	}
 
-	if err = PlotMP(sigPts, mpPts, cacPts, motifPts, "mp_sine.png"); err != nil {
+	if err = PlotMP(sigPts, mpPts, cacPts, motifPts, "../mp_sine.png"); err != nil {
 		panic(err)
 	}
 
