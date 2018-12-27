@@ -16,6 +16,7 @@ import (
 type MatrixProfile struct {
 	a        []float64 // query time series
 	b        []float64 // timeseries to perform full join with
+	bMean    []float64 // sliding mean of b with a window of m each
 	bStd     []float64 // sliding standard deviation of b with a window of m each
 	n        int       // length of the timeseries
 	m        int       // length of a subsequence
@@ -70,9 +71,9 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 	}
 
 	var err error
-	// precompute the standard deviation for each window of size m for all
+	// precompute the mean and standard deviation for each window of size m for all
 	// sliding windows across the b timeseries
-	mp.bStd, err = movstd(mp.b, mp.m)
+	mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
 
 	// precompute the fourier transform of the b timeseries since it will
 	// be used multiple times while computing the matrix profile

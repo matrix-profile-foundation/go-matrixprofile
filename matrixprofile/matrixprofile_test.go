@@ -67,40 +67,51 @@ func TestZNormalize(t *testing.T) {
 	}
 }
 
-func TestMovstd(t *testing.T) {
+func TestMovmeanstd(t *testing.T) {
 	var err error
-	var out []float64
+	var mean, std []float64
 
 	testdata := []struct {
-		data     []float64
-		m        int
-		expected []float64
+		data         []float64
+		m            int
+		expectedMean []float64
+		expectedStd  []float64
 	}{
-		{[]float64{}, 4, nil},
-		{[]float64{}, 0, nil},
-		{[]float64{1, 1, 1, 1}, 0, nil},
-		{[]float64{1, 1, 1, 1}, 2, []float64{0, 0, 0}},
-		{[]float64{-1, -1, -1, -1}, 2, []float64{0, 0, 0}},
-		{[]float64{1, -1, -1, 1}, 2, []float64{1, 0, 1}},
-		{[]float64{1, -1, -1, 1}, 4, nil},
-		{[]float64{1, 2, 4, 8}, 2, []float64{0.5, 1, 2}},
+		{[]float64{}, 4, nil, nil},
+		{[]float64{}, 0, nil, nil},
+		{[]float64{1, 1, 1, 1}, 0, nil, nil},
+		{[]float64{1, 1, 1, 1}, 2, []float64{1, 1, 1}, []float64{0, 0, 0}},
+		{[]float64{-1, -1, -1, -1}, 2, []float64{-1, -1, -1}, []float64{0, 0, 0}},
+		{[]float64{1, -1, -1, 1}, 2, []float64{0, -1, 0}, []float64{1, 0, 1}},
+		{[]float64{1, -1, -1, 1}, 4, nil, nil},
+		{[]float64{1, 2, 4, 8}, 2, []float64{1.5, 3, 6}, []float64{0.5, 1, 2}},
 	}
 
 	for _, d := range testdata {
-		out, err = movstd(d.data, d.m)
-		if err != nil && d.expected == nil {
+		mean, std, err = movmeanstd(d.data, d.m)
+		if err != nil && d.expectedStd == nil && d.expectedMean == nil {
 			// Got an error while calculating and expected an error
 			continue
 		}
-		if d.expected == nil {
+		if d.expectedStd == nil {
 			t.Errorf("Expected an invalid moving standard deviation, %v", d)
 		}
-		if len(out) != len(d.expected) {
-			t.Errorf("Expected %d elements, but got %d, %v", len(d.expected), len(out), d)
+		if len(mean) != len(d.expectedMean) {
+			t.Errorf("Expected %d elements, but got %d, %v", len(d.expectedMean), len(mean), d)
 		}
-		for i := 0; i < len(out); i++ {
-			if math.Abs(out[i]-d.expected[i]) > 1e-7 {
-				t.Errorf("Expected %v, but got %v for %v", d.expected, out, d)
+		for i := 0; i < len(mean); i++ {
+			if math.Abs(mean[i]-d.expectedMean[i]) > 1e-7 {
+				t.Errorf("Expected %v, but got %v for %v", d.expectedMean, mean, d)
+				break
+			}
+		}
+
+		if len(std) != len(d.expectedStd) {
+			t.Errorf("Expected %d elements, but got %d, %v", len(d.expectedStd), len(std), d)
+		}
+		for i := 0; i < len(std); i++ {
+			if math.Abs(std[i]-d.expectedStd[i]) > 1e-7 {
+				t.Errorf("Expected %v, but got %v for %v", d.expectedStd, std, d)
 				break
 			}
 		}

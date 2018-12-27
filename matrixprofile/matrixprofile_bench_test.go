@@ -37,15 +37,19 @@ func BenchmarkMovstd(b *testing.B) {
 	b.ReportAllocs()
 	sig := setupData()
 	var err error
-	var std []float64
+	var mean, std []float64
 	for i := 0; i < b.N; i++ {
-		std, err = movstd(sig, 32)
+		mean, std, err = movmeanstd(sig, 32)
 		if err != nil {
 			b.Error(err)
 		}
 		if len(std) < 1 {
 			b.Error("expected at least one value from moving standard deviation of a timeseries")
 		}
+		if len(mean) < 1 {
+			b.Error("expected at least one value from moving mean of a timeseries")
+		}
+
 	}
 }
 

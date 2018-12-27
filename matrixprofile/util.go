@@ -8,7 +8,7 @@ import (
 )
 
 // zNormalize computes a z-normalized version of a slice of floats.
-// This is represented by y[i] = x[i] - mean(x)/std(x)
+// This is represented by y[i] = (x[i] - mean(x))/std(x)
 func zNormalize(ts []float64) ([]float64, error) {
 	var i int
 
@@ -40,19 +40,19 @@ func zNormalize(ts []float64) ([]float64, error) {
 	return out, nil
 }
 
-// movstd computes the standard deviation of each sliding window of m
-// over a slice of floats. This is done by one pass through the data
-// and keeping track of the cumulative sum and cumulative sum squared.
-// Diffs between these at intervals of m provide a total of O(n)
+// movmeanstd computes the mean and standard deviation of each sliding
+// window of m over a slice of floats. This is done by one pass through
+// the data and keeping track of the cumulative sum and cumulative sum
+// squared.  s between these at intervals of m provide a total of O(n)
 // calculations for the standard deviation of each window of size m for
 // the time series ts.
-func movstd(ts []float64, m int) ([]float64, error) {
+func movmeanstd(ts []float64, m int) ([]float64, []float64, error) {
 	if m <= 1 {
-		return nil, fmt.Errorf("length of slice must be greater than 1")
+		return nil, nil, fmt.Errorf("length of slice must be greater than 1")
 	}
 
 	if m >= len(ts) {
-		return nil, fmt.Errorf("m must be less than length of slice")
+		return nil, nil, fmt.Errorf("m must be less than length of slice")
 	}
 
 	var i int
@@ -69,12 +69,14 @@ func movstd(ts []float64, m int) ([]float64, error) {
 		}
 	}
 
-	out := make([]float64, len(ts)-m+1)
+	mean := make([]float64, len(ts)-m+1)
+	std := make([]float64, len(ts)-m+1)
 	for i = 0; i < len(ts)-m+1; i++ {
-		out[i] = math.Sqrt((csqr[i+m]-csqr[i])/float64(m) - (c[i+m]-c[i])*(c[i+m]-c[i])/float64(m*m))
+		mean[i] = (c[i+m] - c[i]) / float64(m)
+		std[i] = math.Sqrt((csqr[i+m]-csqr[i])/float64(m) - mean[i]*mean[i])
 	}
 
-	return out, nil
+	return mean, std, nil
 }
 
 // applyExclusionZone performs an in place operation on a given matrix
