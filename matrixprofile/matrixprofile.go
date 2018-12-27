@@ -56,6 +56,14 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		mp.b = b
 	}
 
+	if mp.m*2 >= mp.n {
+		return nil, fmt.Errorf("subsequence length must be less than half the timeseries")
+	}
+
+	if mp.m < 2 {
+		return nil, fmt.Errorf("subsequence length must be at least 2")
+	}
+
 	for i := 0; i < len(mp.MP); i++ {
 		mp.MP[i] = math.Inf(1)
 		mp.Idx[i] = math.MaxInt64
@@ -80,14 +88,6 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 // of the signal q and the mp.b signal. This makes an optimization where the query
 // length must be less than half the length of the timeseries, b.
 func (mp *MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
-	if mp.m*2 >= mp.n {
-		return nil, fmt.Errorf("length of query must be less than half the timeseries")
-	}
-
-	if mp.m < 2 {
-		return nil, fmt.Errorf("query must be at least length 2")
-	}
-
 	qpad := make([]float64, mp.n)
 	for i := 0; i < len(q); i++ {
 		qpad[i] = q[mp.m-i-1]
@@ -114,14 +114,6 @@ func (mp *MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
 // between a specified query and timeseries. Returns the euclidean distance
 // of the query to every subsequence in mp.b as a slice of floats.
 func (mp MatrixProfile) mass(q []float64) ([]float64, error) {
-	if mp.m < 2 {
-		return nil, fmt.Errorf("need at least 2 samples for the query")
-	}
-
-	if mp.m*2 >= mp.n {
-		return nil, fmt.Errorf("query must be less than half of the timeseries")
-	}
-
 	qnorm, err := zNormalize(q)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,33 @@ import (
 	"testing"
 )
 
+func TestNew(t *testing.T) {
+	testdata := []struct {
+		a           []float64
+		b           []float64
+		m           int
+		expectedErr bool
+	}{
+		{[]float64{}, []float64{}, 2, true},
+		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, true},
+		{[]float64{1, 1, 1, 1, 1}, nil, 2, false},
+		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, true},
+		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 2, false},
+		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 1, true},
+		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 4, true},
+	}
+
+	for _, d := range testdata {
+		_, err := New(d.a, d.b, d.m)
+		if d.expectedErr && err == nil {
+			t.Errorf("Expected an error, but got none for %v", d)
+		}
+		if !d.expectedErr && err != nil {
+			t.Errorf("Expected no error, but got %v for %v", err, d)
+		}
+	}
+}
+
 func TestZNormalize(t *testing.T) {
 	var out []float64
 	var err error
