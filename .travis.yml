@@ -1,5 +1,10 @@
 language: go
-script: go test -v -bench=. ./...
+
+script: go test -v -bench=. ./... -race -coverprofile=coverage.txt -covermode=atomic
+
 go:
   - "1.10"
   - "1.11"
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
