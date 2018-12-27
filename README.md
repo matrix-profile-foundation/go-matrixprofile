@@ -13,6 +13,10 @@ Golang library for computing a matrix profiles and matrix profile indexes. Featu
 - [Quick start](#quick-start)
 - [Case Study](#case-study)
 - [Benchmarks](#benchmarks)
+- [Contributing](#contributing)
+- [Testing](#testing)
+- [Contact](#contact)
+- [License](#license)
 
 ## Installation
 ```sh
@@ -93,3 +97,32 @@ BenchmarkStmp/m32-4          |       20| 67491284 ns/op| 42202424 B/op| 5958 all
 BenchmarkStmp/m64-4          |       20| 72172709 ns/op| 42202424 B/op| 5958 allocs/op
 BenchmarkStmp/m128-4         |       20| 68277992 ns/op| 42202424 B/op| 5958 allocs/op
 
+Ran on a 2018 MacBookAir on Dec 27, 2018
+Processor: 1.6 GHz Intel Core i5
+   Memory: 8GB 2133 MHz LPDDR3
+       OS: macOS Mojave v10.14.2
+
+## Contributing
+* Fork the repository
+* Create a new feature branch for the new feature or bug fix
+* Run tests
+* Commit your changes
+* Push code and open a new pull request
+
+## Testing
+Run all tests including benchmarks
+```sh
+$ go test -v ./... -bench=.
+```
+Just run tests
+```sh
+$ go test -v ./...
+```
+## Contact
+* Austin Ouyang
+* aouyang1@gmail.com
+
+## License
+The MIT License (MIT). See [LICENSE](https://github.com/aouyang1/go-matrixprofile/blob/master/LICENSE) for more details.
+
+Copyright (c) 2018 Austin Ouyang
