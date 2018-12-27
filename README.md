@@ -12,14 +12,18 @@ Golang library for computing a matrix profiles and matrix profile indexes. Featu
 
 ## Installation
 ```sh
-$ go get -u github.com/aouyang1/go-matrixprofile
+$ go get -u github.com/aouyang1/go-matrixprofile/matrixprofile
 ```
 
 ## Quick start
 ```go
 package main
 
-import "github.com/aouyang1/go-matrixprofile"
+import (
+  "fmt"
+
+  "github.com/aouyang1/go-matrixprofile/matrixprofile"
+)
 
 func main() {
   // generate a synthetic signal to run a self join on
@@ -44,7 +48,11 @@ func main() {
 	}
 
   // uses the matrix profile index to compute the corrected arc curve
-	_, _, cac := mp.Segment()
+	idx, cac, _ := mp.Segment()
+	fmt.Printf("Signal change foud at index: %d\n", idx)
+	fmt.Printf("Corrected Arc Curve (CAC) value: %.3f\n", cac)
+	// Signal change foud at index: 182
+	// Corrected Arc Curve (CAC) value: 0.000
 
   // uses the matrix profile and matrix profile index to find the top K motif groups
   // within a radius of r times the minimum distance in the motif group
@@ -52,6 +60,23 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	for i, mg := range motifs {
+		fmt.Printf("Motif Group %d\n", i)
+		fmt.Printf("  %d motifs\n", len(mg.Idx))
+	}
+  // Motif Group 0
+  //   8 motifs
+  // Motif Group 1
+  //   2 motifs
+  // Motif Group 2
+  //   3 motifs
+  // Motif Group 3
+  //   27 motifs
+  // Motif Group 4
+  //   12 motifs
+  // Motif Group 5
+  //   22 motifs
 }
 
 func generateSignal() []float64 {
