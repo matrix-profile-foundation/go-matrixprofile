@@ -104,60 +104,77 @@ func (mp *MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
 
 	dot := mp.fft.Sequence(nil, qf)
 
-	out := make([]float64, mp.n-mp.m+1)
-	for i := 0; i < len(out); i++ {
-		out[i] = dot[mp.m-1+i] / float64(mp.n)
+	for i := 0; i < mp.n-mp.m+1; i++ {
+		dot[mp.m-1+i] = dot[mp.m-1+i] / float64(mp.n)
 	}
-	return out, nil
+	return dot[mp.m-1:], nil
 }
 
 // mass calculates the Mueen's algorithm for similarity search (MASS)
-// between a specified query and timeseries. Returns the euclidean distance
-// of the query to every subsequence in mp.b as a slice of floats.
-func (mp MatrixProfile) mass(q []float64) ([]float64, error) {
+// between a specified query and timeseries. Writes the euclidean distance
+// of the query to every subsequence in mp.b to profile.
+func (mp MatrixProfile) mass(q []float64, profile []float64) error {
 	qnorm, err := zNormalize(q)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	dot, err := mp.crossCorrelate(qnorm)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(mp.bStd) != len(dot) {
-		return nil, fmt.Errorf("length of rolling standard deviation, %d, is not the same as the cross correlation, %d", len(mp.bStd), len(dot))
+		return fmt.Errorf("length of rolling standard deviation, %d, is not the same as the cross correlation, %d", len(mp.bStd), len(dot))
 	}
 
 	// converting cross correlation value to euclidian distance
-	out := make([]float64, len(dot))
 	for i := 0; i < len(dot); i++ {
-		out[i] = math.Sqrt(math.Abs(2 * (float64(mp.m) - (dot[i] / mp.bStd[i]))))
+		profile[i] = math.Sqrt(math.Abs(2 * (float64(mp.m) - (dot[i] / mp.bStd[i]))))
 	}
-	return out, nil
+	return nil
 }
 
 // distanceProfile computes the distance profile between a and b time series.
 // If b is set to nil then it assumes a self join and will create an exclusion
-// area for trivial nearest neighbors. Returns the euclidean distance between
-// the specified subsequence in mp.a with each subsequence in mp.b as a slice
-// of floats
-func (mp MatrixProfile) distanceProfile(idx int) ([]float64, error) {
+// area for trivial nearest neighbors. Writes the euclidean distance between
+// the specified subsequence in mp.a with each subsequence in mp.b to profile
+func (mp MatrixProfile) distanceProfile(idx int, profile []float64) error {
 	if idx+mp.m > len(mp.a) {
-		return nil, fmt.Errorf("index %d with m %d asks for data beyond the length of a, %d", idx, mp.m, len(mp.a))
+		return fmt.Errorf("index %d with m %d asks for data beyond the length of a, %d", idx, mp.m, len(mp.a))
 	}
 
 	query := mp.a[idx : idx+mp.m]
-	profile, err := mp.mass(query)
+	err := mp.mass(query, profile)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// sets the distance in the exclusion zone to +Inf
 	if mp.selfJoin {
 		applyExclusionZone(profile, idx, mp.m/2)
 	}
-	return profile, nil
+	return nil
+}
+
+// calculateDistanceProfile converts a sliding dot product slice of floats into
+// distances and normalizes the output. Writes results back into the profile slice
+// of floats representing the distance profile.
+func (mp MatrixProfile) calculateDistanceProfile(dot []float64, idx int, profile []float64) error {
+	if idx > mp.n-mp.m {
+		return fmt.Errorf("provided index is beyond the length of the profile and dot product slices")
+	}
+	if len(profile) != len(dot) {
+		return fmt.Errorf("profile length, %d, is not the same as the dot product length, %d", len(profile), len(dot))
+	}
+	// converting cross correlation value to euclidian distance
+	for i := 0; i < len(dot); i++ {
+		profile[i] = math.Sqrt(2 * float64(mp.m) * math.Abs(1-(dot[i]-float64(mp.m)*mp.bMean[i]*mp.bMean[idx])/(float64(mp.m)*mp.bStd[i]*mp.bStd[idx])))
+	}
+
+	// sets the distance in the exclusion zone to +Inf
+	applyExclusionZone(profile, idx, mp.m/2)
+	return nil
 }
 
 // Stmp computes the full matrix profile given two time series as inputs.
@@ -166,17 +183,14 @@ func (mp MatrixProfile) distanceProfile(idx int) ([]float64, error) {
 // in the struct.
 func (mp *MatrixProfile) Stmp() error {
 	var err error
-	var profile []float64
+	profile := make([]float64, mp.n-mp.m+1)
 
 	for i := 0; i < mp.n-mp.m+1; i++ {
-		profile, err = mp.distanceProfile(i)
+		err = mp.distanceProfile(i, profile)
 		if err != nil {
 			return err
 		}
 
-		if len(profile) != len(mp.MP) {
-			return fmt.Errorf("distance profile length, %d, and initialized matrix profile length, %d, do not match", len(profile), len(mp.MP))
-		}
 		for j := 0; j < len(profile); j++ {
 			if profile[j] <= mp.MP[j] {
 				mp.MP[j] = profile[j]
@@ -199,13 +213,12 @@ func (mp *MatrixProfile) Stamp(sample float64) error {
 		return fmt.Errorf("must provide a non zero sampling")
 	}
 
-	var profile []float64
 	var i, j int
 	var err error
-
+	profile := make([]float64, mp.n-mp.m+1)
 	randIdx := rand.Perm(mp.n - mp.m + 1)
 	for i = 0; i < int(float64(mp.n-mp.m+1)*sample); i++ {
-		profile, err = mp.distanceProfile(randIdx[i])
+		err = mp.distanceProfile(randIdx[i], profile)
 		if err != nil {
 			return err
 		}
@@ -216,6 +229,56 @@ func (mp *MatrixProfile) Stamp(sample float64) error {
 			if profile[j] <= mp.MP[j] {
 				mp.MP[j] = profile[j]
 				mp.Idx[j] = randIdx[i]
+			}
+		}
+	}
+	return nil
+}
+
+// Stomp is an optimization on the STAMP approach reducing the runtime from O(n^2logn)
+// down to O(n^2). This is an ordered approach, since the sliding dot product or cross
+// correlation can be easily updated for the next sliding window, if the previous window
+// dot product is available. This should also greatly reduce the number of memory
+// allocations needed to compute an arbitrary timeseries length. This only works if
+// a self join is performed. For arbitrary joins, STAMP or STMP is the preferred approach.
+func (mp *MatrixProfile) Stomp() error {
+	var err error
+	var i, j int
+
+	if !mp.selfJoin {
+		return fmt.Errorf("must be performing a self join for the STOMP approach")
+	}
+
+	dot, err := mp.crossCorrelate(mp.a[:mp.m])
+	if err != nil {
+		return err
+	}
+	cachedDot := make([]float64, len(dot))
+	copy(cachedDot, dot)
+
+	profile := make([]float64, len(dot))
+	err = mp.calculateDistanceProfile(dot, 0, profile)
+	if err != nil {
+		return err
+	}
+	copy(mp.MP, profile)
+	for i = 0; i < len(profile); i++ {
+		mp.Idx[i] = 0
+	}
+
+	for i = 1; i < mp.n-mp.m+1; i++ {
+		for j = mp.n - mp.m; j > 0; j-- {
+			dot[j] = dot[j-1] - mp.a[j-1]*mp.a[i-1] + mp.a[j+mp.m-1]*mp.a[i+mp.m-1]
+		}
+		dot[0] = cachedDot[i]
+		err = mp.calculateDistanceProfile(dot, i, profile)
+		if err != nil {
+			return err
+		}
+		for j = 0; j < len(profile); j++ {
+			if profile[j] <= mp.MP[j] {
+				mp.MP[j] = profile[j]
+				mp.Idx[j] = i
 			}
 		}
 	}
@@ -241,6 +304,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 	mpCurrent := make([]float64, len(mp.MP))
 	copy(mpCurrent, mp.MP)
 
+	prof := make([]float64, mp.n-mp.m+1)
 	for j := 0; j < k; j++ {
 		// find minimum distance and index location
 		motifDistance := math.Inf(1)
@@ -264,7 +328,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		motifSet[mp.Idx[minIdx]] = struct{}{}
 
 		for _, idx := range initialMotif {
-			prof, err := mp.distanceProfile(idx)
+			err := mp.distanceProfile(idx, prof)
 			if err != nil {
 				return nil, err
 			}

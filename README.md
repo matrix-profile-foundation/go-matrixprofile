@@ -44,7 +44,7 @@ func main() {
 		panic(err)
 	}
 
-	if err = mp.Stmp(); err != nil {
+	if err = mp.Stomp(); err != nil {
 		panic(err)
 	}
 
@@ -85,17 +85,22 @@ $ go test -v -run=Example
 A png file will be saved in the top level directory of the repository as `mp_sine.png`
 
 ## Benchmarks
-Benchmark name               | NumReps |    Time/Rep   |  Memory/Rep  |   Alloc/Rep
------------------------------|--------:|--------------:|-------------:|--------------:
-BenchmarkZNormalize-4        | 10000000|      178 ns/op|      256 B/op|    1 allocs/op
-BenchmarkMovstd-4            |   200000|    11908 ns/op|    27136 B/op|    3 allocs/op
-BenchmarkCrossCorrelate-4    |    20000|    66093 ns/op|    34053 B/op|    4 allocs/op
-BenchmarkMass-4              |    20000|    68604 ns/op|    42501 B/op|    6 allocs/op
-BenchmarkDistanceProfile-4   |    20000|    66735 ns/op|    42501 B/op|    6 allocs/op
-BenchmarkStmp/m16-4          |       20| 71546986 ns/op| 42202424 B/op| 5958 allocs/op
-BenchmarkStmp/m32-4          |       20| 67491284 ns/op| 42202424 B/op| 5958 allocs/op
-BenchmarkStmp/m64-4          |       20| 72172709 ns/op| 42202424 B/op| 5958 allocs/op
-BenchmarkStmp/m128-4         |       20| 68277992 ns/op| 42202424 B/op| 5958 allocs/op
+Benchmark name                     | NumReps |    Time/Rep   |  Memory/Rep  |   Alloc/Rep
+-----------------------------------|--------:|--------------:|-------------:|--------------:
+BenchmarkZNormalize-4              | 10000000|      178 ns/op|      256 B/op|    1 allocs/op
+BenchmarkMovmeanstd-4              |   100000|    14065 ns/op|    35328 B/op|    4 allocs/op
+BenchmarkCrossCorrelate-4          |    20000|    62305 ns/op|    25861 B/op|    3 allocs/op
+BenchmarkMass-4                    |    20000|    70990 ns/op|    26118 B/op|    4 allocs/op
+BenchmarkDistanceProfile-4         |    20000|    68031 ns/op|    26118 B/op|    4 allocs/op
+BenchmarkCalculateDistanceProfile-4|   300000|     3820 ns/op|        0 B/op|    0 allocs/op
+BenchmarkStmp/m16-4                |       20| 73508326 ns/op| 25941804 B/op| 3973 allocs/op
+BenchmarkStmp/m32-4                |       20| 66700083 ns/op| 25941715 B/op| 3973 allocs/op
+BenchmarkStmp/m64-4                |       20| 65093308 ns/op| 25941715 B/op| 3973 allocs/op
+BenchmarkStmp/m128-4               |       20| 67796897 ns/op| 25941715 B/op| 3973 allocs/op
+BenchmarkStomp/m16-4               |      200|  7006631 ns/op|    42670 B/op|    5 allocs/op
+BenchmarkStomp/m32-4               |      200|  6774930 ns/op|    42670 B/op|    5 allocs/op
+BenchmarkStomp/m64-4               |      200|  6977334 ns/op|    42670 B/op|    5 allocs/op
+BenchmarkStomp/m128-4              |      200|  7124072 ns/op|    42670 B/op|    5 allocs/op
 
 Ran on a 2018 MacBookAir on Dec 27, 2018
 Processor: 1.6 GHz Intel Core i5

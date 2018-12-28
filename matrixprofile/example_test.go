@@ -145,7 +145,7 @@ func Example() {
 		panic(err)
 	}
 
-	if err = mp.Stmp(); err != nil {
+	if err = mp.Stomp(); err != nil {
 		panic(err)
 	}
 
@@ -256,6 +256,39 @@ func ExampleMatrixProfile_Stamp() {
 		panic(err)
 	}
 
+}
+
+func ExampleMatrixProfile_Stomp() {
+	// generate a signal mainly composed of sine waves and switches
+	// frequencies, amplitude, and offset midway through
+
+	// amplitude of 1, frequency of 5Hz, sampling frequency of 100 Hz,
+	// time of 2 seconds
+	sin := Sin(1, 5, 0, 0, 100, 2)
+
+	// amplitude of 0.25, frequency of 10Hz, offset of 0.75, sampling
+	// frequency of 100 Hz, time of 1 second
+	sin2 := Sin(0.25, 10, 0, 0.75, 100, 1)
+	sig := append(sin, sin2...)
+
+	// noise with an amplitude of 0.1
+	noise := Noise(0.1, len(sig))
+	sig = SigAdd(sig, noise)
+
+	// create a new MatrixProfile struct using the signal and a
+	// subsequence length of 32. The second subsequence is set to nil
+	// so we perform a self join.
+	mp, err := New(sig, nil, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	// run the STOMP algorithm with self join. The matrix profile
+	// will be stored in mp.MP and the matrix profile index will
+	// be stored in mp.Idx
+	if err = mp.Stomp(); err != nil {
+		panic(err)
+	}
 }
 
 func ExampleMatrixProfile_Segment() {
