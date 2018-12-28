@@ -61,7 +61,7 @@ Profile Index:  [    4     5     6     7     0     1     2     3     4]
 ```
 
 ## Case study
-Going through a completely synthetic scenario, we'll go through what features to look for in a matrix profile, and what the additional Discords, TopKMotifs, and Segment tell us. We'll first be generating a fake signal that composed of sine waves, noise, and sawtooth waves. We then run STMP on the signal triggering a self join.
+Going through a completely synthetic scenario, we'll cover what features to look for in a matrix profile, and what the additional Discords, TopKMotifs, and Segment tell us. We'll first be generating a fake signal that is composed of sine waves, noise, and sawtooth waves. We then run STOMP on the signal to calculte the matrix profile and matrix profile indexes.
 
 ![mpsin](https://github.com/aouyang1/go-matrixprofile/blob/master/mp_sine.png)
 subsequence length: 32
