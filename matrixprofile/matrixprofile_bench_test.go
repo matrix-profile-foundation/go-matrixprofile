@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func setupData() []float64 {
-	line := Line(0, 0, 512)
+func setupData(numPoints int) []float64 {
+	line := Line(0, 0, numPoints)
 	ext := Line(0, 100, len(line)/2)
 	ext2 := Line(0, 600, len(line)/2)
 	sig := append(line, ext...)
@@ -17,8 +17,7 @@ func setupData() []float64 {
 }
 
 func BenchmarkZNormalize(b *testing.B) {
-	b.ReportAllocs()
-	sig := setupData()
+	sig := setupData(1000)
 	q := sig[:32]
 	var err error
 	var qnorm []float64
@@ -34,8 +33,7 @@ func BenchmarkZNormalize(b *testing.B) {
 }
 
 func BenchmarkMovmeanstd(b *testing.B) {
-	b.ReportAllocs()
-	sig := setupData()
+	sig := setupData(1000)
 	var err error
 	var mean, std []float64
 	for i := 0; i < b.N; i++ {
@@ -54,8 +52,7 @@ func BenchmarkMovmeanstd(b *testing.B) {
 }
 
 func BenchmarkCrossCorrelate(b *testing.B) {
-	b.ReportAllocs()
-	sig := setupData()
+	sig := setupData(1000)
 	q := sig[:32]
 	var err error
 	var cc []float64
@@ -77,8 +74,7 @@ func BenchmarkCrossCorrelate(b *testing.B) {
 }
 
 func BenchmarkMass(b *testing.B) {
-	b.ReportAllocs()
-	sig := setupData()
+	sig := setupData(1000)
 	var err error
 	var q []float64
 
@@ -101,8 +97,7 @@ func BenchmarkMass(b *testing.B) {
 }
 
 func BenchmarkDistanceProfile(b *testing.B) {
-	b.ReportAllocs()
-	sig := setupData()
+	sig := setupData(1000)
 	var err error
 
 	mp, err := New(sig, nil, 32)
@@ -123,8 +118,7 @@ func BenchmarkDistanceProfile(b *testing.B) {
 }
 
 func BenchmarkCalculateDistanceProfile(b *testing.B) {
-	b.ReportAllocs()
-	sig := setupData()
+	sig := setupData(1000)
 	var err error
 
 	mp, err := New(sig, nil, 32)
@@ -151,7 +145,7 @@ func BenchmarkCalculateDistanceProfile(b *testing.B) {
 }
 
 func BenchmarkStmp(b *testing.B) {
-	sig := setupData()
+	sig := setupData(1000)
 
 	benchmarks := []struct {
 		name string
@@ -165,8 +159,6 @@ func BenchmarkStmp(b *testing.B) {
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			b.ReportAllocs()
-
 			mp, err := New(sig, nil, 32)
 			if err != nil {
 				b.Error(err)
@@ -186,29 +178,31 @@ func BenchmarkStmp(b *testing.B) {
 }
 
 func BenchmarkStomp(b *testing.B) {
-	sig := setupData()
-
 	benchmarks := []struct {
-		name string
-		m    int
+		name        string
+		m           int
+		parallelism int
+		numPoints   int
 	}{
-		{"m16", 16},
-		{"m32", 32},
-		{"m64", 64},
-		{"m128", 128},
+		{"m16_p1_pts1k", 16, 1, 1000},
+		{"m128_p1_pts1k", 128, 1, 1000},
+		{"m128_p2_pts1k", 128, 2, 1000},
+		{"m128_p2_pts2k", 128, 2, 2000},
+		{"m128_p2_pts5k", 128, 2, 5000},
+		{"m128_p2_pts10k", 128, 2, 10000},
+		{"m128_p2_pts50k", 128, 2, 50000},
 	}
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			b.ReportAllocs()
-
+			sig := setupData(bm.numPoints)
 			mp, err := New(sig, nil, 32)
 			if err != nil {
 				b.Error(err)
 			}
 
 			for i := 0; i < b.N; i++ {
-				err = mp.Stomp()
+				err = mp.Stomp(bm.parallelism)
 				if err != nil {
 					b.Error(err)
 				}

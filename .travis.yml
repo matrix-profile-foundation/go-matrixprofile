@@ -1,6 +1,6 @@
 language: go
 
-script: go test -v -bench=. ./... -race -coverprofile=coverage.txt -covermode=atomic
+script: go test -v -bench=. ./... -race -coverprofile=coverage.txt -covermode=atomic -test.benchmem
 
 go:
   - "1.10"

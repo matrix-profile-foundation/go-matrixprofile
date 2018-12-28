@@ -452,14 +452,24 @@ func TestStomp(t *testing.T) {
 		q             []float64
 		t             []float64
 		m             int
+		p             int
 		expectedMP    []float64
 		expectedMPIdx []int
 	}{
-		{[]float64{}, []float64{}, 2, nil, nil},
-		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, nil, nil},
-		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, nil, nil},
-		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, nil, nil},
-		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4,
+		{[]float64{}, []float64{}, 2, 1, nil, nil},
+		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 1, nil, nil},
+		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
+		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 1,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 2,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 100,
 			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
 			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
 	}
@@ -471,7 +481,7 @@ func TestStomp(t *testing.T) {
 			continue
 		}
 
-		err = mp.Stomp()
+		err = mp.Stomp(d.p)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -487,19 +497,18 @@ func TestStomp(t *testing.T) {
 		}
 		for i := 0; i < len(mp.MP); i++ {
 			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
-				t.Errorf("Expected\n%v, but got\n%v for\n%+v", d.expectedMP, mp.MP, d)
+				t.Errorf("Expected\n%.4f, but got\n%.4f for\n%+v", d.expectedMP, mp.MP, d)
 				break
 			}
 		}
 		for i := 0; i < len(mp.Idx); i++ {
 			if math.Abs(float64(mp.Idx[i]-d.expectedMPIdx[i])) > 1e-7 {
-				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedMPIdx, mp.Idx, d)
+				t.Errorf("Expected %d,\nbut got\n%v for\n%+v", d.expectedMPIdx, mp.Idx, d)
 				break
 			}
 		}
 	}
 }
-
 func TestDiscords(t *testing.T) {
 	a := []float64{0, 0, 0.50, 0.99, 0.99, 0.50, 0, 0, 0, 0.50, 0.99, 0.10, 0.50, 0, 0, 0, 0.50, 0.99, 0.99, 0.50, 0, 0, 0}
 	a = SigAdd(a, Noise(1e-7, len(a)))

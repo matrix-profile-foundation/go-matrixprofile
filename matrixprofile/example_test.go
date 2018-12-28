@@ -145,7 +145,7 @@ func Example() {
 		panic(err)
 	}
 
-	if err = mp.Stomp(); err != nil {
+	if err = mp.Stomp(2); err != nil {
 		panic(err)
 	}
 
@@ -286,7 +286,7 @@ func ExampleMatrixProfile_Stomp() {
 	// run the STOMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	if err = mp.Stomp(); err != nil {
+	if err = mp.Stomp(1); err != nil {
 		panic(err)
 	}
 }
