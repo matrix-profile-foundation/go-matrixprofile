@@ -103,9 +103,11 @@ BenchmarkStomp/m64-4               |      200|  6977334 ns/op|    42670 B/op|   
 BenchmarkStomp/m128-4              |      200|  7124072 ns/op|    42670 B/op|    5 allocs/op
 
 Ran on a 2018 MacBookAir on Dec 27, 2018
+```
 Processor: 1.6 GHz Intel Core i5
-   Memory: 8GB 2133 MHz LPDDR3
+   Memory: 8GB 2133 MHz LPDDR3   
        OS: macOS Mojave v10.14.2
+```
 
 ## Contributing
 * Fork the repository
