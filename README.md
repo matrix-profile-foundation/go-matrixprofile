@@ -85,7 +85,6 @@ $ go test -v -run=Example
 A png file will be saved in the top level directory of the repository as `mp_sine.png`
 
 ## Benchmarks
-```sh
 Benchmark name                     | NumReps |      Time/Rep    |  Memory/Rep  |    Alloc/Rep
 ----------------------------------:|--------:|-----------------:|-------------:|----------------
 BenchmarkZNormalize-4              | 10000000|         193 ns/op|      256 B/op|     1 allocs/op
@@ -107,12 +106,15 @@ BenchmarkStomp/m128_p2_pts10k-4    |        1|  1859255784 ns/op|  7833504 B/op|
 BenchmarkStomp/m128_p2_pts50k-4    |        1| 63110814445 ns/op| 38561696 B/op|    59 allocs/op
 
 Ran on a 2018 MacBookAir on Dec 28, 2018
-```
+```sh
     Processor: 1.6 GHz Intel Core i5
        Memory: 8GB 2133 MHz LPDDR3
            OS: macOS Mojave v10.14.2
  Logical CPUs: 4
 Physical CPUs: 2
+```
+```sh
+$ go test -v ./... -bench=. -run=Benchmark -test.benchmem
 ```
 
 ## Contributing
