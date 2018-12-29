@@ -510,40 +510,30 @@ func TestStomp(t *testing.T) {
 	}
 }
 func TestDiscords(t *testing.T) {
-	a := []float64{0, 0, 0.50, 0.99, 0.99, 0.50, 0, 0, 0, 0.50, 0.99, 0.10, 0.50, 0, 0, 0, 0.50, 0.99, 0.99, 0.50, 0, 0, 0}
-	a = SigAdd(a, Noise(1e-7, len(a)))
+	mprof := []float64{1, 2, 3, 4}
 
 	testdata := []struct {
-		a                []float64
-		b                []float64
+		mp               []float64
 		k                int
+		exzone           int
 		expectedDiscords []int
 	}{
-		{
-			a, nil, 3,
-			[]int{9, 11, 19},
-		},
+		{mprof, 4, 0, []int{3, 3, 3, 3}},
+		{mprof, 4, 1, []int{3, 1, math.MaxInt64, math.MaxInt64}},
+		{mprof, 10, 1, []int{3, 1, math.MaxInt64, math.MaxInt64}},
+		{mprof, 0, 1, []int{}},
+		{[]float64{}, 3, 1, []int{}},
 	}
 
 	for _, d := range testdata {
-		mp, err := New(d.a, d.b, 4)
-		if err != nil {
-			t.Error(err)
+		mp := MatrixProfile{MP: d.mp}
+		discords := mp.Discords(d.k, d.exzone)
+		if len(discords) != len(d.expectedDiscords) {
+			t.Errorf("Got a length of %d discords, but expected %d, for %v", len(discords), len(d.expectedDiscords), d)
 		}
-		if err = mp.Stmp(); err != nil {
-			t.Error(err)
-		}
-		discords := mp.Discords(d.k)
-		if err != nil {
-			if d.expectedDiscords == nil {
-				continue
-			}
-			t.Error(err)
-		}
-
 		for i, idx := range discords {
 			if idx != d.expectedDiscords[i] {
-				t.Errorf("expected index, %d, but got %d", d.expectedDiscords[i], idx)
+				t.Errorf("expected index, %d, but got %d, for %v", d.expectedDiscords[i], idx, d)
 			}
 		}
 	}

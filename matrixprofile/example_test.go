@@ -156,7 +156,7 @@ func Example() {
 		panic(err)
 	}
 
-	discords := mp.Discords(3)
+	discords := mp.Discords(3, mp.m/2)
 	if err != nil {
 		panic(err)
 	}
