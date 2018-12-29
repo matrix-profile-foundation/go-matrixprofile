@@ -46,14 +46,10 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		n: len(b),
 	}
 	if b == nil {
-		mp.MP = make([]float64, len(a)-m+1)
-		mp.Idx = make([]int, len(a)-m+1)
 		mp.n = len(a)
 		mp.b = a
 		mp.selfJoin = true
 	} else {
-		mp.MP = make([]float64, len(b)-m+1)
-		mp.Idx = make([]int, len(b)-m+1)
 		mp.b = b
 	}
 
@@ -65,11 +61,6 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		return nil, fmt.Errorf("subsequence length must be at least 2")
 	}
 
-	for i := 0; i < len(mp.MP); i++ {
-		mp.MP[i] = math.Inf(1)
-		mp.Idx[i] = math.MaxInt64
-	}
-
 	var err error
 	// precompute the mean and standard deviation for each window of size m for all
 	// sliding windows across the b timeseries
@@ -79,6 +70,13 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 	// be used multiple times while computing the matrix profile
 	fft := fourier.NewFFT(mp.n)
 	mp.bF = fft.Coefficients(nil, mp.b)
+
+	mp.MP = make([]float64, mp.n-mp.m+1)
+	mp.Idx = make([]int, mp.n-m+1)
+	for i := 0; i < len(mp.MP); i++ {
+		mp.MP[i] = math.Inf(1)
+		mp.Idx[i] = math.MaxInt64
+	}
 
 	return &mp, err
 }
@@ -204,12 +202,11 @@ func (mp *MatrixProfile) Stmp() error {
 	return nil
 }
 
-// Stamp uses random ordering to compute the matrix profile. User
-// can specify the sample to be anything between 0 and 1 so that the
-// computation early terminates and provides the current computed matrix
-// profile. This should compute far faster at the cost of an approximation
-// of the matrix profile. Stores the matrix profile and matrix profile index
-// in the struct.
+// Stamp uses random ordering to compute the matrix profile. User can specify the
+// sample to be anything between 0 and 1 so that the computation early terminates
+// and provides the current computed matrix profile. 1 represents the exact matrix
+// profile. This should compute far faster at the cost of an approximation of the
+// matrix profile. Stores the matrix profile and matrix profile index in the struct.
 func (mp *MatrixProfile) Stamp(sample float64) error {
 	if sample == 0.0 {
 		return fmt.Errorf("must provide a non zero sampling")
@@ -233,6 +230,66 @@ func (mp *MatrixProfile) Stamp(sample float64) error {
 				mp.Idx[j] = randIdx[i]
 			}
 		}
+	}
+	return nil
+}
+
+// StampUpdate updates a matrix profile and matrix profile index in place providing streaming
+// like behavior.
+func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
+	var err error
+
+	if !mp.selfJoin {
+		return errors.New("update of the matrix profile with STAMP is only supported with self joins")
+	}
+
+	var profile []float64
+	for _, val := range newValues {
+		// add to the a and b time series and increment the time series length
+		mp.a = append(mp.a, val)
+		mp.b = append(mp.b, val)
+		mp.n += 1
+
+		// increase the size of the Matrix Profile and Index
+		mp.MP = append(mp.MP, math.Inf(1))
+		mp.Idx = append(mp.Idx, math.MaxInt64)
+
+		// recalculate the moving mean standard deviation
+		// TODO: want to just calculate for that last window and append to bMean and bStd
+		fft := fourier.NewFFT(mp.n)
+		mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
+		if err != nil {
+			return err
+		}
+
+		// recompute the b timeseries fourier transform. this will get slower over time as
+		// the b timeseries gets larger and larger
+		mp.bF = fft.Coefficients(nil, mp.b)
+
+		// only compute the last distance profile
+		profile = make([]float64, mp.n-mp.m+1)
+		err = mp.distanceProfile(mp.n-mp.m, profile)
+		if err != nil {
+			return err
+		}
+		if len(profile) != len(mp.MP) {
+			return fmt.Errorf("distance profile length, %d, and initialized matrix profile length, %d, do not match", len(profile), len(mp.MP))
+		}
+
+		minVal := math.Inf(1)
+		minIdx := math.MaxInt64
+		for j := 0; j < len(profile)-1; j++ {
+			if profile[j] <= mp.MP[j] {
+				mp.MP[j] = profile[j]
+				mp.Idx[j] = mp.n - mp.m
+			}
+			if profile[j] < minVal {
+				minVal = profile[j]
+				minIdx = j
+			}
+		}
+		mp.MP[mp.n-mp.m] = minVal
+		mp.Idx[mp.n-mp.m] = minIdx
 	}
 	return nil
 }

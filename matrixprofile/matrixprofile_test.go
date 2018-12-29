@@ -509,6 +509,59 @@ func TestStomp(t *testing.T) {
 		}
 	}
 }
+
+func TestStampUpdate(t *testing.T) {
+	var err error
+	var outMP []float64
+	var outIdx []int
+	var mp *MatrixProfile
+
+	a := []float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}
+
+	testdata := []struct {
+		vals []float64
+	}{
+		{[]float64{}},
+		{[]float64{0.5}},
+		{[]float64{0.2, 0.3, 0.4, 0.9}},
+	}
+
+	mp, err = New(a, nil, 4)
+	if err != nil {
+		t.Error(err)
+	}
+	if err = mp.Stomp(1); err != nil {
+		t.Error(err)
+	}
+
+	for _, d := range testdata {
+		if err = mp.StampUpdate(d.vals); err != nil {
+			t.Error(err)
+		}
+		outMP = make([]float64, len(mp.MP))
+		outIdx = make([]int, len(mp.Idx))
+		copy(outMP, mp.MP)
+		copy(outIdx, mp.Idx)
+
+		if err = mp.Stomp(1); err != nil {
+			t.Error(err)
+		}
+
+		for i := 0; i < len(mp.MP); i++ {
+			if math.Abs(mp.MP[i]-outMP[i]) > 1e-7 {
+				t.Errorf("Expected\n%.4f, but got\n%.4f for\n%+v", mp.MP, outMP, d)
+				break
+			}
+		}
+		for i := 0; i < len(mp.Idx); i++ {
+			if math.Abs(float64(mp.Idx[i]-outIdx[i])) > 1e-7 {
+				t.Errorf("Expected %d,\nbut got\n%v for\n%+v", mp.Idx, outIdx, d)
+				break
+			}
+		}
+	}
+}
+
 func TestDiscords(t *testing.T) {
 	mprof := []float64{1, 2, 3, 4}
 

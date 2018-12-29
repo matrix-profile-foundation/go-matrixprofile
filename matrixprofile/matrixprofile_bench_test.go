@@ -1,6 +1,7 @@
 package matrixprofile
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -211,5 +212,26 @@ func BenchmarkStomp(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkStompUpdate(b *testing.B) {
+	sig := setupData(5000)
+	mp, err := New(sig, nil, 32)
+	if err != nil {
+		b.Error(err)
+	}
+
+	err = mp.Stomp(2)
+	if err != nil {
+		b.Error(err)
+	}
+
+	if len(mp.MP) < 1 || len(mp.Idx) < 1 {
+		b.Error("expected at least one value from matrix profile and matrix profile index")
+	}
+
+	for i := 0; i < b.N; i++ {
+		err = mp.StampUpdate([]float64{rand.Float64() - 0.5})
 	}
 }
