@@ -184,14 +184,13 @@ func BenchmarkStomp(b *testing.B) {
 		m           int
 		parallelism int
 		numPoints   int
+		reps        int
 	}{
-		{"m16_p1_pts1k", 16, 1, 1000},
-		{"m128_p1_pts1k", 128, 1, 1000},
-		{"m128_p2_pts1k", 128, 2, 1000},
-		{"m128_p2_pts2k", 128, 2, 2000},
-		{"m128_p2_pts5k", 128, 2, 5000},
-		{"m128_p2_pts10k", 128, 2, 10000},
-		{"m128_p2_pts50k", 128, 2, 50000},
+		{"m16_p1_pts1k", 16, 1, 1000, 50},
+		{"m128_p1_pts1k", 128, 1, 1000, 50},
+		{"m128_p2_pts1k", 128, 2, 1000, 100},
+		{"m128_p2_pts2k", 128, 2, 2000, 20},
+		{"m128_p2_pts5k", 128, 2, 5000, 10},
 	}
 
 	for _, bm := range benchmarks {
@@ -202,6 +201,7 @@ func BenchmarkStomp(b *testing.B) {
 				b.Error(err)
 			}
 
+			b.N = bm.reps
 			for i := 0; i < b.N; i++ {
 				err = mp.Stomp(bm.parallelism)
 				if err != nil {
