@@ -101,7 +101,6 @@ func (mp MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
 		qf[i] = mp.bF[i] * qf[i]
 	}
 
-	fft = fourier.NewFFT(mp.n)
 	dot := fft.Sequence(nil, qf)
 
 	for i := 0; i < mp.n-mp.m+1; i++ {
@@ -144,9 +143,7 @@ func (mp MatrixProfile) distanceProfile(idx int, profile []float64) error {
 		return fmt.Errorf("index %d with m %d asks for data beyond the length of a, %d", idx, mp.m, len(mp.a))
 	}
 
-	query := mp.a[idx : idx+mp.m]
-	err := mp.mass(query, profile)
-	if err != nil {
+	if err := mp.mass(mp.a[idx:idx+mp.m], profile); err != nil {
 		return err
 	}
 
@@ -256,7 +253,6 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 
 		// recalculate the moving mean standard deviation
 		// TODO: want to just calculate for that last window and append to bMean and bStd
-		fft := fourier.NewFFT(mp.n)
 		mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
 		if err != nil {
 			return err
@@ -264,6 +260,7 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 
 		// recompute the b timeseries fourier transform. this will get slower over time as
 		// the b timeseries gets larger and larger
+		fft := fourier.NewFFT(mp.n)
 		mp.bF = fft.Coefficients(nil, mp.b)
 
 		// only compute the last distance profile
