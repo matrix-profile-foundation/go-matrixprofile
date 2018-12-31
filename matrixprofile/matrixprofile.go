@@ -207,6 +207,8 @@ func (mp *MatrixProfile) Stamp(sample float64, parallelism int) error {
 		return fmt.Errorf("must provide a non zero sampling")
 	}
 
+	randIdx := rand.Perm(len(mp.a) - mp.m + 1)
+
 	batchSize := (len(mp.a)-mp.m+1)/parallelism + 1
 	results := make([]chan mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
@@ -226,7 +228,6 @@ func (mp *MatrixProfile) Stamp(sample float64, parallelism int) error {
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
-	randIdx := rand.Perm(len(mp.a) - mp.m + 1)
 	var wg sync.WaitGroup
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
@@ -353,6 +354,11 @@ type mpResult struct {
 // dot product is available. This should also greatly reduce the number of memory
 // allocations needed to compute an arbitrary timeseries length.
 func (mp *MatrixProfile) Stomp(parallelism int) error {
+	// save the first dot product of the first row that will be used by all future
+	// go routines
+	fft := fourier.NewFFT(mp.n)
+	cachedDot := mp.crossCorrelate(mp.a[:mp.m], fft)
+
 	batchSize := (len(mp.a)-mp.m+1)/parallelism + 1
 	results := make([]chan mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
@@ -369,11 +375,6 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 		err = mp.mergeMPResults(results)
 		done <- true
 	}()
-
-	// save the first dot product of the first row that will be used by all future
-	// go routines
-	fft := fourier.NewFFT(mp.n)
-	cachedDot := mp.crossCorrelate(mp.a[:mp.m], fft)
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
