@@ -23,6 +23,8 @@ Golang library for computing a matrix profiles and matrix profile indexes. Featu
 ## Installation
 ```sh
 $ go get -u github.com/aouyang1/go-matrixprofile/matrixprofile
+$ go get -u gonum.org/v1/gonum/...
+$ go get -u gonum.org/v1/plot/...
 ```
 
 ## Quick start
