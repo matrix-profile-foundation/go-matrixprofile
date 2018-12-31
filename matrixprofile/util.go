@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gonum.org/v1/gonum/stat"
 	"math"
-	"math/rand"
 )
 
 // zNormalize computes a z-normalized version of a slice of floats.
@@ -124,70 +123,4 @@ func arcCurve(mpIdx []int) []float64 {
 // -(sqrt(2/n)*(x-n/2))^2 + n/2 = y
 func iac(x float64, n int) float64 {
 	return -math.Pow(math.Sqrt(2/float64(n))*(x-float64(n)/2.0), 2.0) + float64(n)/2.0
-}
-
-// Sin produces a sin wave with a given amplitude, frequency,
-// phase, sampleRate and duration in seconds
-func Sin(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
-	nsamp := int(sampleRate * durationSec)
-	if nsamp == 0 {
-		return nil
-	}
-
-	out := make([]float64, nsamp)
-	for i := 0; i < nsamp; i++ {
-		out[i] = amp*math.Sin(2*math.Pi*freq*float64(i)/sampleRate+phase) + offset
-	}
-	return out
-}
-
-// Sawtooth produces a sawtooth wave with a given amplitude,
-// frequency, phase, sampleRate and duration in seconds
-func Sawtooth(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
-	nsamp := int(sampleRate * durationSec)
-	if nsamp == 0 {
-		return nil
-	}
-
-	out := make([]float64, nsamp)
-	for i := 0; i < nsamp; i++ {
-		out[i] = -2*amp/math.Pi*math.Atan(1.0/math.Tan(float64(i)/sampleRate*math.Pi*freq)) + offset
-	}
-	return out
-}
-
-// Line creates a line given a slope, offset and number of data points
-func Line(slope, offset float64, n int) []float64 {
-	out := make([]float64, n)
-	for i := 0; i < n; i++ {
-		out[i] = slope*float64(i) + offset
-	}
-	return out
-}
-
-// Noise creates a noise signal
-func Noise(amp float64, n int) []float64 {
-	out := make([]float64, n)
-	for i := 0; i < n; i++ {
-		out[i] = amp * (rand.Float64() - 0.5)
-	}
-	return out
-}
-
-// SigAdd adds one or more slices of floats together returning a signal
-// with a length equal to the longest signal passed in
-func SigAdd(sig ...[]float64) []float64 {
-	var maxLen int
-	for _, signal := range sig {
-		if len(signal) > maxLen {
-			maxLen = len(signal)
-		}
-	}
-	out := make([]float64, maxLen)
-	for _, signal := range sig {
-		for i, val := range signal {
-			out[i] += val
-		}
-	}
-	return out
 }

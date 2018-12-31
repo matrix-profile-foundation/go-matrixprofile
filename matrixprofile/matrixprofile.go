@@ -617,3 +617,34 @@ func (mp MatrixProfile) Segment() (int, float64, []float64) {
 
 	return minIdx, float64(minVal), histo
 }
+
+// ApplyAV applies an annotation vector to the current matrix profile. Annotation vector
+// values must be between 0 and 1.
+func (mp *MatrixProfile) ApplyAV(av []float64) error {
+	if len(av) != len(mp.MP) {
+		return fmt.Errorf("annotation vector length, %d, does not match matrix profile length, %d", len(av), len(mp.MP))
+	}
+
+	// find the maximum matrix profile value
+	maxMP := 0.0
+	for _, val := range mp.MP {
+		if val > maxMP {
+			maxMP = val
+		}
+	}
+
+	// check that all annotation vector values are between 0 and 1
+	for idx, val := range av {
+		if val < 0.0 || val > 1.0 {
+			return fmt.Errorf("got an annotation vector value of %.3f at index %d. must be between 0 and 1.", val, idx)
+		}
+	}
+
+	// applies the matrix profile correction. 1 results in no change to the matrix profile and
+	// 0 results in lifting the current matrix profile value by the maximum matrix profile value
+	for idx, val := range av {
+		mp.MP[idx] += (1 - val) * maxMP
+	}
+
+	return nil
+}

@@ -752,3 +752,44 @@ func TestSegment(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyAV(t *testing.T) {
+	mprof := []float64{4, 6, 10, 2, 1, 0, 1, 2, 0, 0, 1, 2, 6}
+
+	testdata := []struct {
+		av         []float64
+		expectedMP []float64
+	}{
+		{[]float64{}, nil},
+		{[]float64{1, 1, 1, 1, 1}, nil},
+		{[]float64{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, mprof},
+		{[]float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, []float64{14, 16, 20, 12, 11, 10, 11, 12, 10, 10, 11, 12, 16}},
+		{[]float64{1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1}, []float64{4, 6, 10, 2, 1, 0, 1, 2, 10, 10, 1, 2, 6}},
+		{[]float64{1, 1, 1, 1, 1, 1, 1.01, 1, 0, 0, 1, 1, 1}, nil},
+		{[]float64{1, 1, 1, 1, 1, 1, 1, 1, -0.01, 0, 1, 1, 1}, nil},
+	}
+
+	var mp MatrixProfile
+	var err error
+	for _, d := range testdata {
+		newMP := make([]float64, len(mprof))
+		copy(newMP, mprof)
+		mp = MatrixProfile{MP: newMP}
+		err = mp.ApplyAV(d.av)
+		if err != nil && d.expectedMP == nil {
+			// Expected error while applying av
+			continue
+		}
+
+		if len(mp.MP) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
+			break
+		}
+		for i := 0; i < len(mp.MP); i++ {
+			if math.Abs(float64(mp.MP[i]-d.expectedMP[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for %+v", d.expectedMP, mp.MP, d)
+				break
+			}
+		}
+	}
+}

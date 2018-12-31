@@ -4,17 +4,18 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/aouyang1/go-matrixprofile/siggen"
 	"gonum.org/v1/gonum/fourier"
 )
 
 func setupData(numPoints int) []float64 {
-	line := Line(0, 0, numPoints)
-	ext := Line(0, 100, len(line)/2)
-	ext2 := Line(0, 600, len(line)/2)
-	sig := append(line, ext...)
-	sig = append(sig, ext2...)
-	noise := Noise(10, len(sig))
-	sig = SigAdd(sig, noise)
+	line := siggen.Line(0, 0, numPoints)
+	ext := siggen.Line(0, 100, len(line)/2)
+	ext2 := siggen.Line(0, 600, len(line)/2)
+	sig := siggen.Append(line, ext, ext2)
+
+	noise := siggen.Noise(10, len(sig))
+	sig = siggen.Add(sig, noise)
 
 	return sig
 }
