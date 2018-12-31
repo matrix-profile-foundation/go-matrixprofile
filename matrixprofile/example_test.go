@@ -252,7 +252,7 @@ func ExampleMatrixProfile_Stamp() {
 	// run the STAMP algorithm with self join and a sample of 0.2 of
 	// all subsequences. The matrix profile will be stored in mp.MP
 	// and the matrix profile index will be stored in mp.Idx
-	if err = mp.Stamp(0.2); err != nil {
+	if err = mp.Stamp(0.2, 2); err != nil {
 		panic(err)
 	}
 

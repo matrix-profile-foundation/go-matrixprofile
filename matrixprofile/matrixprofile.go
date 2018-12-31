@@ -86,13 +86,12 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 // the necessary values. Returns the a slice of floats for the cross-correlation
 // of the signal q and the mp.b signal. This makes an optimization where the query
 // length must be less than half the length of the timeseries, b.
-func (mp MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
+func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) ([]float64, error) {
 	qpad := make([]float64, mp.n)
 	for i := 0; i < len(q); i++ {
 		qpad[i] = q[mp.m-i-1]
 	}
 
-	fft := fourier.NewFFT(mp.n)
 	qf := fft.Coefficients(nil, qpad)
 
 	// in place multiply the fourier transform of the b time series with
@@ -112,13 +111,13 @@ func (mp MatrixProfile) crossCorrelate(q []float64) ([]float64, error) {
 // mass calculates the Mueen's algorithm for similarity search (MASS)
 // between a specified query and timeseries. Writes the euclidean distance
 // of the query to every subsequence in mp.b to profile.
-func (mp MatrixProfile) mass(q []float64, profile []float64) error {
+func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) error {
 	qnorm, err := zNormalize(q)
 	if err != nil {
 		return err
 	}
 
-	dot, err := mp.crossCorrelate(qnorm)
+	dot, err := mp.crossCorrelate(qnorm, fft)
 	if err != nil {
 		return err
 	}
@@ -138,12 +137,12 @@ func (mp MatrixProfile) mass(q []float64, profile []float64) error {
 // If b is set to nil then it assumes a self join and will create an exclusion
 // area for trivial nearest neighbors. Writes the euclidean distance between
 // the specified subsequence in mp.a with each subsequence in mp.b to profile
-func (mp MatrixProfile) distanceProfile(idx int, profile []float64) error {
+func (mp MatrixProfile) distanceProfile(idx int, profile []float64, fft *fourier.FFT) error {
 	if idx+mp.m > len(mp.a) {
 		return fmt.Errorf("index %d with m %d asks for data beyond the length of a, %d", idx, mp.m, len(mp.a))
 	}
 
-	if err := mp.mass(mp.a[idx:idx+mp.m], profile); err != nil {
+	if err := mp.mass(mp.a[idx:idx+mp.m], profile, fft); err != nil {
 		return err
 	}
 
@@ -182,8 +181,9 @@ func (mp *MatrixProfile) Stmp() error {
 	var err error
 	profile := make([]float64, mp.n-mp.m+1)
 
+	fft := fourier.NewFFT(mp.n)
 	for i := 0; i < mp.n-mp.m+1; i++ {
-		err = mp.distanceProfile(i, profile)
+		err = mp.distanceProfile(i, profile, fft)
 		if err != nil {
 			return err
 		}
@@ -204,31 +204,84 @@ func (mp *MatrixProfile) Stmp() error {
 // and provides the current computed matrix profile. 1 represents the exact matrix
 // profile. This should compute far faster at the cost of an approximation of the
 // matrix profile. Stores the matrix profile and matrix profile index in the struct.
-func (mp *MatrixProfile) Stamp(sample float64) error {
+func (mp *MatrixProfile) Stamp(sample float64, parallelism int) error {
 	if sample == 0.0 {
 		return fmt.Errorf("must provide a non zero sampling")
 	}
 
-	var i, j int
+	batchSize := (len(mp.a)-mp.m+1)/parallelism + 1
+	results := make([]chan MPResult, parallelism)
+	for i := 0; i < parallelism; i++ {
+		results[i] = make(chan MPResult)
+	}
+
+	// go routine to continually check for results on the slice of channels
+	// for each batch kicked off. This merges the results of the batched go
+	// routines by picking the lowest value in each batch's matrix profile and
+	// updating the matrix profile index.
 	var err error
-	profile := make([]float64, mp.n-mp.m+1)
-	randIdx := rand.Perm(mp.n - mp.m + 1)
-	for i = 0; i < int(float64(mp.n-mp.m+1)*sample); i++ {
-		err = mp.distanceProfile(randIdx[i], profile)
+	done := make(chan bool)
+	go func() {
+		err = mp.mergeMPResults(results)
+		done <- true
+	}()
+
+	// kick off multiple go routines to process a batch of rows returning back
+	// the matrix profile for that batch and any error encountered
+	randIdx := rand.Perm(len(mp.a) - mp.m + 1)
+	var wg sync.WaitGroup
+	wg.Add(parallelism)
+	for batch := 0; batch < parallelism; batch++ {
+		go func(idx int) {
+			result := mp.stampBatch(idx, batchSize, sample, randIdx, &wg)
+			results[idx] <- result
+		}(batch)
+	}
+	wg.Wait()
+
+	// waits for all results to be read and merged before returning success
+	<-done
+
+	return err
+}
+
+// stampBatch processes a batch set of rows in a matrix profile calculation
+func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx []int, wg *sync.WaitGroup) MPResult {
+	defer wg.Done()
+	if idx*batchSize+mp.m > len(mp.a) {
+		// got an index larger than mp.a so ignore
+		return MPResult{}
+	}
+
+	// initialize this batch's matrix profile results
+	result := MPResult{
+		MP:  make([]float64, mp.n-mp.m+1),
+		Idx: make([]int, mp.n-mp.m+1),
+	}
+	for i := 0; i < len(mp.MP); i++ {
+		result.MP[i] = math.Inf(1)
+		result.Idx[i] = math.MaxInt64
+	}
+
+	var err error
+	profile := make([]float64, len(result.MP))
+	fft := fourier.NewFFT(mp.n)
+	for i := 0; i < int(float64(batchSize)*sample); i++ {
+		if idx*batchSize+i >= len(randIdx) {
+			break
+		}
+		err = mp.distanceProfile(randIdx[idx*batchSize+i], profile, fft)
 		if err != nil {
-			return err
+			return MPResult{nil, nil, err}
 		}
-		if len(profile) != len(mp.MP) {
-			return fmt.Errorf("distance profile length, %d, and initialized matrix profile length, %d, do not match", len(profile), len(mp.MP))
-		}
-		for j = 0; j < len(profile); j++ {
-			if profile[j] <= mp.MP[j] {
-				mp.MP[j] = profile[j]
-				mp.Idx[j] = randIdx[i]
+		for j := 0; j < len(profile); j++ {
+			if profile[j] <= result.MP[j] {
+				result.MP[j] = profile[j]
+				result.Idx[j] = randIdx[idx*batchSize+i]
 			}
 		}
 	}
-	return nil
+	return result
 }
 
 // StampUpdate updates a matrix profile and matrix profile index in place providing streaming
@@ -236,15 +289,15 @@ func (mp *MatrixProfile) Stamp(sample float64) error {
 func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 	var err error
 
-	if !mp.selfJoin {
-		return errors.New("update of the matrix profile with STAMP is only supported with self joins")
-	}
-
 	var profile []float64
 	for _, val := range newValues {
 		// add to the a and b time series and increment the time series length
-		mp.a = append(mp.a, val)
-		mp.b = append(mp.b, val)
+		if mp.selfJoin {
+			mp.a = append(mp.a, val)
+			mp.b = mp.a
+		} else {
+			mp.b = append(mp.b, val)
+		}
 		mp.n += 1
 
 		// increase the size of the Matrix Profile and Index
@@ -264,13 +317,10 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 		mp.bF = fft.Coefficients(nil, mp.b)
 
 		// only compute the last distance profile
-		profile = make([]float64, mp.n-mp.m+1)
-		err = mp.distanceProfile(mp.n-mp.m, profile)
+		profile = make([]float64, len(mp.MP))
+		err = mp.distanceProfile(len(mp.a)-mp.m, profile, fft)
 		if err != nil {
 			return err
-		}
-		if len(profile) != len(mp.MP) {
-			return fmt.Errorf("distance profile length, %d, and initialized matrix profile length, %d, do not match", len(profile), len(mp.MP))
 		}
 
 		minVal := math.Inf(1)
@@ -291,7 +341,7 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 	return nil
 }
 
-type StompResult struct {
+type MPResult struct {
 	MP  []float64
 	Idx []int
 	Err error
@@ -301,17 +351,12 @@ type StompResult struct {
 // down to O(n^2). This is an ordered approach, since the sliding dot product or cross
 // correlation can be easily updated for the next sliding window, if the previous window
 // dot product is available. This should also greatly reduce the number of memory
-// allocations needed to compute an arbitrary timeseries length. This only works if
-// a self join is performed. For arbitrary joins, STAMP or STMP is the preferred approach.
+// allocations needed to compute an arbitrary timeseries length.
 func (mp *MatrixProfile) Stomp(parallelism int) error {
-	if !mp.selfJoin {
-		return fmt.Errorf("must be performing a self join for the STOMP approach")
-	}
-
-	batchSize := (mp.n-mp.m+1)/parallelism + 1
-	results := make([]chan StompResult, parallelism)
+	batchSize := (len(mp.a)-mp.m+1)/parallelism + 1
+	results := make([]chan MPResult, parallelism)
 	for i := 0; i < parallelism; i++ {
-		results[i] = make(chan StompResult)
+		results[i] = make(chan MPResult)
 	}
 
 	// go routine to continually check for results on the slice of channels
@@ -321,13 +366,14 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	var err error
 	done := make(chan bool)
 	go func() {
-		err = mp.mergeStompResults(results)
+		err = mp.mergeMPResults(results)
 		done <- true
 	}()
 
 	// save the first dot product of the first row that will be used by all future
 	// go routines
-	cachedDot, err := mp.crossCorrelate(mp.a[:mp.m])
+	fft := fourier.NewFFT(mp.n)
+	cachedDot, err := mp.crossCorrelate(mp.a[:mp.m], fft)
 	if err != nil {
 		return err
 	}
@@ -350,10 +396,10 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	return err
 }
 
-func (mp *MatrixProfile) mergeStompResults(results []chan StompResult) error {
+func (mp *MatrixProfile) mergeMPResults(results []chan MPResult) error {
 	var err error
 
-	resultSlice := make([]StompResult, len(results))
+	resultSlice := make([]MPResult, len(results))
 	for i := 0; i < len(results); i++ {
 		resultSlice[i] = <-results[i]
 
@@ -380,28 +426,29 @@ func (mp *MatrixProfile) mergeStompResults(results []chan StompResult) error {
 	return err
 }
 
-// stompBatch processes a batch set of rows in a self join matrix profile calculation. Each batch will comput its first row's dot product and build the subsequent matrix profile and matrix profile index using the stomp iterative algorithm. This also uses the very first row's dot product, cachedDot, to update the very first index of the current row's dot product.
-func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *sync.WaitGroup) StompResult {
+// stompBatch processes a batch set of rows in matrix profile calculation. Each batch will comput its first row's dot product and build the subsequent matrix profile and matrix profile index using the stomp iterative algorithm. This also uses the very first row's dot product, cachedDot, to update the very first index of the current row's dot product.
+func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *sync.WaitGroup) MPResult {
 	defer wg.Done()
 	if idx*batchSize+mp.m > len(mp.a) {
 		// got an index larger than mp.a so ignore
-		return StompResult{}
+		return MPResult{}
 	}
 
 	// compute for this batch the first row's sliding dot product
-	dot, err := mp.crossCorrelate(mp.a[idx*batchSize : idx*batchSize+mp.m])
+	fft := fourier.NewFFT(mp.n)
+	dot, err := mp.crossCorrelate(mp.a[idx*batchSize:idx*batchSize+mp.m], fft)
 	if err != nil {
-		return StompResult{nil, nil, err}
+		return MPResult{nil, nil, err}
 	}
 
 	profile := make([]float64, len(dot))
 	err = mp.calculateDistanceProfile(dot, idx*batchSize, profile)
 	if err != nil {
-		return StompResult{nil, nil, err}
+		return MPResult{nil, nil, err}
 	}
 
 	// initialize this batch's matrix profile results
-	result := StompResult{
+	result := MPResult{
 		MP:  make([]float64, mp.n-mp.m+1),
 		Idx: make([]int, mp.n-mp.m+1),
 	}
@@ -425,7 +472,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 		dot[0] = cachedDot[idx*batchSize+i]
 		err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile)
 		if err != nil {
-			return StompResult{nil, nil, err}
+			return MPResult{nil, nil, err}
 		}
 
 		// element wise min update of the matrix profile and matrix profile index
@@ -481,8 +528,9 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		motifSet[minIdx] = struct{}{}
 		motifSet[mp.Idx[minIdx]] = struct{}{}
 
+		fft := fourier.NewFFT(mp.n)
 		for _, idx := range initialMotif {
-			err := mp.distanceProfile(idx, prof)
+			err := mp.distanceProfile(idx, prof, fft)
 			if err != nil {
 				return nil, err
 			}

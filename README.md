@@ -85,24 +85,23 @@ $ go test -v -run=Example
 A png file will be saved in the top level directory of the repository as `mp_sine.png`
 
 ## Benchmarks
-Benchmark name                     | NumReps |    Time/Rep    |  Memory/Rep   |    Alloc/Rep  |
-----------------------------------:|--------:|---------------:|--------------:|--------------:|
-BenchmarkZNormalize-4              | 10000000|       167 ns/op|       256 B/op|     1 allocs/op
-BenchmarkMovmeanstd-4              |    50000|     25579 ns/op|     65537 B/op|     4 allocs/op
-BenchmarkCrossCorrelate-4          |    10000|    155756 ns/op|     98502 B/op|     6 allocs/op
-BenchmarkMass-4                    |    10000|    160642 ns/op|     98760 B/op|     7 allocs/op
-BenchmarkDistanceProfile-4         |    10000|    161315 ns/op|     98760 B/op|     7 allocs/op
-BenchmarkCalculateDistanceProfile-4|   200000|      7257 ns/op|         1 B/op|     0 allocs/op
-BenchmarkStmp/m16-4                |        5| 335420427 ns/op| 194460409 B/op| 13786 allocs/op
-BenchmarkStmp/m32-4                |        5| 319777381 ns/op| 194460409 B/op| 13786 allocs/op
-BenchmarkStmp/m64-4                |        5| 320290797 ns/op| 194460409 B/op| 13786 allocs/op
-BenchmarkStmp/m128-4               |        5| 315263452 ns/op| 194460409 B/op| 13786 allocs/op
-BenchmarkStomp/m16_p1_pts1k-4      |       50|  25851864 ns/op|    251009 B/op|    21 allocs/op
-BenchmarkStomp/m128_p1_pts1k-4     |       50|  26898529 ns/op|    251004 B/op|    21 allocs/op
-BenchmarkStomp/m128_p2_pts1k-4     |      100|  15583481 ns/op|    396577 B/op|    31 allocs/op
-BenchmarkStomp/m128_p2_pts2k-4     |       20|  61923884 ns/op|    812156 B/op|    31 allocs/op
-BenchmarkStomp/m128_p2_pts5k-4     |       10| 376484151 ns/op|   2088398 B/op|    33 allocs/op
-BenchmarkStompUpdate-4             |       20|  70611782 ns/op|   1409704 B/op|    18 allocs/op
+Benchmark name                      | NumReps |    Time/Rep    |  Memory/Rep  |    Alloc/Rep  |
+-----------------------------------:|--------:|---------------:|-------------:|--------------:|
+BenchmarkZNormalize-4               | 10000000|       192 ns/op|      256 B/op|    1 allocs/op|
+BenchmarkMovmeanstd-4               |    50000|     26831 ns/op|    65537 B/op|    4 allocs/op|
+BenchmarkCrossCorrelate-4           |    10000|    145788 ns/op|    49179 B/op|    3 allocs/op|
+BenchmarkMass-4                     |    10000|    153662 ns/op|    49437 B/op|    4 allocs/op|
+BenchmarkDistanceProfile-4          |    10000|    152102 ns/op|    49437 B/op|    4 allocs/op|
+BenchmarkCalculateDistanceProfile-4 |   200000|      8705 ns/op|        1 B/op|    0 allocs/op|
+BenchmarkStmp/m32_pts1k-4           |        5| 304670190 ns/op| 97382905 B/op| 7882 allocs/op|
+BenchmarkStmp/m128_pts1k-4          |        5| 291483007 ns/op| 94078201 B/op| 7498 allocs/op|
+BenchmarkStamp/m32_p2_pts1k-4       |       10| 169431665 ns/op| 97498204 B/op| 7896 allocs/op|
+BenchmarkStomp/m32_p1_pts1k-4       |       50|  30177279 ns/op|   251006 B/op|   21 allocs/op|
+BenchmarkStomp/m128_p1_pts1k-4      |       50|  30401886 ns/op|   251025 B/op|   21 allocs/op|
+BenchmarkStomp/m128_p2_pts1k-4      |      100|  15921867 ns/op|   396616 B/op|   31 allocs/op|
+BenchmarkStomp/m128_p2_pts2k-4      |       20|  62799129 ns/op|   812152 B/op|   31 allocs/op|
+BenchmarkStomp/m128_p2_pts5k-4      |       10| 391000142 ns/op|  2088350 B/op|   32 allocs/op|
+BenchmarkStampUpdate-4              |       20|  76834458 ns/op|  1158439 B/op|   15 allocs/op|
 
 Ran on a 2018 MacBookAir on Dec 28, 2018
 ```sh

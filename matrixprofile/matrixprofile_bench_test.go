@@ -3,6 +3,8 @@ package matrixprofile
 import (
 	"math/rand"
 	"testing"
+
+	"gonum.org/v1/gonum/fourier"
 )
 
 func setupData(numPoints int) []float64 {
@@ -63,8 +65,9 @@ func BenchmarkCrossCorrelate(b *testing.B) {
 		b.Error(err)
 	}
 
+	fft := fourier.NewFFT(mp.n)
 	for i := 0; i < b.N; i++ {
-		cc, err = mp.crossCorrelate(q)
+		cc, err = mp.crossCorrelate(q, fft)
 		if err != nil {
 			b.Error(err)
 		}
@@ -85,9 +88,10 @@ func BenchmarkMass(b *testing.B) {
 	}
 
 	mprof := make([]float64, mp.n-mp.m+1)
+	fft := fourier.NewFFT(mp.n)
 	for i := 0; i < b.N; i++ {
 		q = sig[:32]
-		err = mp.mass(q, mprof)
+		err = mp.mass(q, mprof, fft)
 		if err != nil {
 			b.Error(err)
 		}
@@ -107,8 +111,9 @@ func BenchmarkDistanceProfile(b *testing.B) {
 	}
 
 	mprof := make([]float64, mp.n-mp.m+1)
+	fft := fourier.NewFFT(mp.n)
 	for i := 0; i < b.N; i++ {
-		err = mp.distanceProfile(0, mprof)
+		err = mp.distanceProfile(0, mprof, fft)
 		if err != nil {
 			b.Error(err)
 		}
@@ -127,7 +132,8 @@ func BenchmarkCalculateDistanceProfile(b *testing.B) {
 		b.Error(err)
 	}
 
-	dot, err := mp.crossCorrelate(mp.a[:mp.m])
+	fft := fourier.NewFFT(mp.n)
+	dot, err := mp.crossCorrelate(mp.a[:mp.m], fft)
 	if err != nil {
 		b.Error(err)
 	}
@@ -152,15 +158,13 @@ func BenchmarkStmp(b *testing.B) {
 		name string
 		m    int
 	}{
-		{"m16", 16},
-		{"m32", 32},
-		{"m64", 64},
-		{"m128", 128},
+		{"m32_pts1k", 32},
+		{"m128_pts1k", 128},
 	}
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			mp, err := New(sig, nil, 32)
+			mp, err := New(sig, nil, bm.m)
 			if err != nil {
 				b.Error(err)
 			}
@@ -178,6 +182,27 @@ func BenchmarkStmp(b *testing.B) {
 	}
 }
 
+func BenchmarkStamp(b *testing.B) {
+	sig := setupData(1000)
+
+	mp, err := New(sig, nil, 32)
+	if err != nil {
+		b.Error(err)
+	}
+
+	b.Run("m32_p2_pts1k", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			err = mp.Stamp(1.0, 2)
+			if err != nil {
+				b.Error(err)
+			}
+			if len(mp.MP) < 1 || len(mp.Idx) < 1 {
+				b.Error("expected at least one value from matrix profile and matrix profile index")
+			}
+		}
+	})
+}
+
 func BenchmarkStomp(b *testing.B) {
 	benchmarks := []struct {
 		name        string
@@ -186,7 +211,7 @@ func BenchmarkStomp(b *testing.B) {
 		numPoints   int
 		reps        int
 	}{
-		{"m16_p1_pts1k", 16, 1, 1000, 50},
+		{"m32_p1_pts1k", 32, 1, 1000, 50},
 		{"m128_p1_pts1k", 128, 1, 1000, 50},
 		{"m128_p2_pts1k", 128, 2, 1000, 100},
 		{"m128_p2_pts2k", 128, 2, 2000, 20},
@@ -215,7 +240,7 @@ func BenchmarkStomp(b *testing.B) {
 	}
 }
 
-func BenchmarkStompUpdate(b *testing.B) {
+func BenchmarkStampUpdate(b *testing.B) {
 	sig := setupData(5000)
 	mp, err := New(sig, nil, 32)
 	if err != nil {

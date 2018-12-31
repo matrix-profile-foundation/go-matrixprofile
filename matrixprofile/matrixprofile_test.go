@@ -3,6 +3,8 @@ package matrixprofile
 import (
 	"math"
 	"testing"
+
+	"gonum.org/v1/gonum/fourier"
 )
 
 func TestNew(t *testing.T) {
@@ -145,7 +147,9 @@ func TestCrossCorrelate(t *testing.T) {
 			// Got an error while creating a new matrix profile
 			continue
 		}
-		out, err = mp.crossCorrelate(d.q)
+
+		fft := fourier.NewFFT(mp.n)
+		out, err = mp.crossCorrelate(d.q, fft)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -196,7 +200,8 @@ func TestMass(t *testing.T) {
 			continue
 		}
 		out = make([]float64, mp.n-mp.m+1)
-		err = mp.mass(d.q, out)
+		fft := fourier.NewFFT(mp.n)
+		err = mp.mass(d.q, out, fft)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -250,7 +255,8 @@ func TestDistanceProfile(t *testing.T) {
 		}
 
 		mprof = make([]float64, mp.n-mp.m+1)
-		err = mp.distanceProfile(d.idx, mprof)
+		fft := fourier.NewFFT(mp.n)
+		err = mp.distanceProfile(d.idx, mprof, fft)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -299,7 +305,8 @@ func TestCalculateDistanceProfile(t *testing.T) {
 			continue
 		}
 
-		dot, err := mp.crossCorrelate(mp.a[:mp.m])
+		fft := fourier.NewFFT(mp.n)
+		dot, err := mp.crossCorrelate(mp.a[:mp.m], fft)
 		if err != nil {
 			t.Error(err)
 		}
@@ -414,13 +421,13 @@ func TestStamp(t *testing.T) {
 			continue
 		}
 
-		err = mp.Stamp(d.sample)
+		err = mp.Stamp(d.sample, 2)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
 		}
 		if d.expectedMP == nil {
-			t.Errorf("Expected an invalid STMP calculation, %+v", d)
+			t.Errorf("Expected an invalid STAMP calculation, %+v", d)
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v, %+v", err, d)
@@ -459,7 +466,7 @@ func TestStomp(t *testing.T) {
 		{[]float64{}, []float64{}, 2, 1, nil, nil},
 		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 1, nil, nil},
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
-		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
+		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, []float64{math.Inf(1), math.Inf(1), math.Inf(1), math.Inf(1)}, []int{0, math.MaxInt64, math.MaxInt64, math.MaxInt64}},
 		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 1,
 			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
 			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
@@ -487,10 +494,12 @@ func TestStomp(t *testing.T) {
 			continue
 		}
 		if d.expectedMP == nil {
-			t.Errorf("Expected an invalid STMP calculation, %+v", d)
+			t.Errorf("Expected an invalid STOMP calculation, %+v", d)
+			break
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v, %+v", err, d)
+			break
 		}
 		if len(mp.MP) != len(d.expectedMP) {
 			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
@@ -594,7 +603,6 @@ func TestDiscords(t *testing.T) {
 
 func TestTopKMotifs(t *testing.T) {
 	a := []float64{0, 0, 0.56, 0.99, 0.97, 0.75, 0, 0, 0, 0.43, 0.98, 0.99, 0.65, 0, 0, 0, 0.6, 0.97, 0.965, 0.8, 0, 0, 0}
-	a = SigAdd(a, Noise(1e-7, len(a)))
 
 	testdata := []struct {
 		a               []float64
@@ -605,8 +613,8 @@ func TestTopKMotifs(t *testing.T) {
 	}{
 		{
 			a, nil, 3,
-			[][]int{{1, 15}, {0, 7, 14}, {3, 10}},
-			[]float64{0.1459618197766371, 0.3352336136782056, 0.46369664551715467},
+			[][]int{{0, 14}, {0, 7, 14}, {3, 10}},
+			[]float64{0.1459619228330262, 0.3352336136782056, 0.46369664551715467},
 		},
 		{
 			a, a, 3,
@@ -615,8 +623,8 @@ func TestTopKMotifs(t *testing.T) {
 		},
 		{
 			a, nil, 5,
-			[][]int{{1, 15}, {0, 7, 14}, {3, 10}, {}, {}},
-			[]float64{0.1459618197766371, 0.3352336136782056, 0.46369664551715467, 0, 0},
+			[][]int{{0, 14}, {0, 7, 14}, {3, 10}, {}, {}},
+			[]float64{0.1459619228330262, 0.3352336136782056, 0.46369664551715467, 0, 0},
 		},
 	}
 
@@ -638,16 +646,16 @@ func TestTopKMotifs(t *testing.T) {
 
 		for i, mg := range motifs {
 			if len(mg.Idx) != len(d.expectedMotifs[i]) {
-				t.Errorf("expected %d motifs for group %d, but got %d", len(d.expectedMotifs[i]), i, len(mg.Idx))
+				t.Errorf("expected %d motifs for group %d, but got %d for %v", len(d.expectedMotifs[i]), i, len(mg.Idx), d)
 			}
 
 			for j, idx := range mg.Idx {
 				if idx != d.expectedMotifs[i][j] {
-					t.Errorf("expected index, %d for group %d, but got %d", d.expectedMotifs[i][j], i, idx)
+					t.Errorf("expected index, %d for group %d, but got %d for %v", d.expectedMotifs[i][j], i, idx, d)
 				}
 			}
 			if math.Abs(mg.MinDist-d.expectedMinDist[i]) > 1e-7 {
-				t.Errorf("expected minimum distance, %.3f for group %d, but got %.3f", d.expectedMinDist[i], i, mg.MinDist)
+				t.Errorf("expected minimum distance, %v for group %d, but got %v for %v", d.expectedMinDist[i], i, mg.MinDist, d)
 			}
 		}
 	}
