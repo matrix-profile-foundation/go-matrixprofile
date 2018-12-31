@@ -44,9 +44,6 @@ func TestCrossCorrelate(t *testing.T) {
 		t        []float64
 		expected []float64
 	}{
-		{[]float64{}, []float64{}, nil},
-		{[]float64{1, 1, 1, 1, 1}, []float64{}, nil},
-		{[]float64{}, []float64{1, 1, 1, 1, 1}, nil},
 		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, []float64{2, 2, 2, 2}},
 		{[]float64{1, 2}, []float64{1, 2, 3, 3, 2, 1}, []float64{5, 8, 9, 7, 4}},
 		{[]float64{1, 2}, []float64{1, 2, 3, 3, 2, 1, 1}, []float64{5, 8, 9, 7, 4, 3}},
@@ -62,7 +59,7 @@ func TestCrossCorrelate(t *testing.T) {
 		}
 
 		fft := fourier.NewFFT(mp.n)
-		out, err = mp.crossCorrelate(d.q, fft)
+		out = mp.crossCorrelate(d.q, fft)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -219,10 +216,7 @@ func TestCalculateDistanceProfile(t *testing.T) {
 		}
 
 		fft := fourier.NewFFT(mp.n)
-		dot, err := mp.crossCorrelate(mp.a[:mp.m], fft)
-		if err != nil {
-			t.Error(err)
-		}
+		dot := mp.crossCorrelate(mp.a[:mp.m], fft)
 
 		mprof = make([]float64, mp.n-mp.m+1)
 		err = mp.calculateDistanceProfile(dot, d.idx, mprof)

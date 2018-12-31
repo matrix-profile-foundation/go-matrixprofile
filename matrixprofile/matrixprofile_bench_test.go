@@ -68,10 +68,7 @@ func BenchmarkCrossCorrelate(b *testing.B) {
 
 	fft := fourier.NewFFT(mp.n)
 	for i := 0; i < b.N; i++ {
-		cc, err = mp.crossCorrelate(q, fft)
-		if err != nil {
-			b.Error(err)
-		}
+		cc = mp.crossCorrelate(q, fft)
 		if len(cc) < 1 {
 			b.Error("expected at least one value from cross correlation of a timeseries")
 		}
@@ -134,10 +131,7 @@ func BenchmarkCalculateDistanceProfile(b *testing.B) {
 	}
 
 	fft := fourier.NewFFT(mp.n)
-	dot, err := mp.crossCorrelate(mp.a[:mp.m], fft)
-	if err != nil {
-		b.Error(err)
-	}
+	dot := mp.crossCorrelate(mp.a[:mp.m], fft)
 
 	mprof := make([]float64, len(dot))
 

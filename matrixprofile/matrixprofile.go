@@ -86,7 +86,7 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 // the necessary values. Returns the a slice of floats for the cross-correlation
 // of the signal q and the mp.b signal. This makes an optimization where the query
 // length must be less than half the length of the timeseries, b.
-func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) ([]float64, error) {
+func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 {
 	qpad := make([]float64, mp.n)
 	for i := 0; i < len(q); i++ {
 		qpad[i] = q[mp.m-i-1]
@@ -105,7 +105,7 @@ func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) ([]float64
 	for i := 0; i < mp.n-mp.m+1; i++ {
 		dot[mp.m-1+i] = dot[mp.m-1+i] / float64(mp.n)
 	}
-	return dot[mp.m-1:], nil
+	return dot[mp.m-1:]
 }
 
 // mass calculates the Mueen's algorithm for similarity search (MASS)
@@ -117,10 +117,7 @@ func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) e
 		return err
 	}
 
-	dot, err := mp.crossCorrelate(qnorm, fft)
-	if err != nil {
-		return err
-	}
+	dot := mp.crossCorrelate(qnorm, fft)
 
 	if len(mp.bStd) != len(dot) {
 		return fmt.Errorf("length of rolling standard deviation, %d, is not the same as the cross correlation, %d", len(mp.bStd), len(dot))
@@ -373,10 +370,7 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	// save the first dot product of the first row that will be used by all future
 	// go routines
 	fft := fourier.NewFFT(mp.n)
-	cachedDot, err := mp.crossCorrelate(mp.a[:mp.m], fft)
-	if err != nil {
-		return err
-	}
+	cachedDot := mp.crossCorrelate(mp.a[:mp.m], fft)
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
@@ -436,13 +430,10 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 
 	// compute for this batch the first row's sliding dot product
 	fft := fourier.NewFFT(mp.n)
-	dot, err := mp.crossCorrelate(mp.a[idx*batchSize:idx*batchSize+mp.m], fft)
-	if err != nil {
-		return MPResult{nil, nil, err}
-	}
+	dot := mp.crossCorrelate(mp.a[idx*batchSize:idx*batchSize+mp.m], fft)
 
 	profile := make([]float64, len(dot))
-	err = mp.calculateDistanceProfile(dot, idx*batchSize, profile)
+	err := mp.calculateDistanceProfile(dot, idx*batchSize, profile)
 	if err != nil {
 		return MPResult{nil, nil, err}
 	}
