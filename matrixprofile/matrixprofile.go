@@ -4,11 +4,12 @@ package matrixprofile
 import (
 	"errors"
 	"fmt"
-	"gonum.org/v1/gonum/fourier"
 	"math"
 	"math/rand"
 	"sort"
 	"sync"
+
+	"gonum.org/v1/gonum/fourier"
 )
 
 // MatrixProfile is a struct that tracks the current matrix profile computation
@@ -207,9 +208,9 @@ func (mp *MatrixProfile) Stamp(sample float64, parallelism int) error {
 	}
 
 	batchSize := (len(mp.a)-mp.m+1)/parallelism + 1
-	results := make([]chan MPResult, parallelism)
+	results := make([]chan mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
-		results[i] = make(chan MPResult)
+		results[i] = make(chan mpResult)
 	}
 
 	// go routine to continually check for results on the slice of channels
@@ -243,15 +244,15 @@ func (mp *MatrixProfile) Stamp(sample float64, parallelism int) error {
 }
 
 // stampBatch processes a batch set of rows in a matrix profile calculation
-func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx []int, wg *sync.WaitGroup) MPResult {
+func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx []int, wg *sync.WaitGroup) mpResult {
 	defer wg.Done()
 	if idx*batchSize+mp.m > len(mp.a) {
 		// got an index larger than mp.a so ignore
-		return MPResult{}
+		return mpResult{}
 	}
 
 	// initialize this batch's matrix profile results
-	result := MPResult{
+	result := mpResult{
 		MP:  make([]float64, mp.n-mp.m+1),
 		Idx: make([]int, mp.n-mp.m+1),
 	}
@@ -269,7 +270,7 @@ func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx [
 		}
 		err = mp.distanceProfile(randIdx[idx*batchSize+i], profile, fft)
 		if err != nil {
-			return MPResult{nil, nil, err}
+			return mpResult{nil, nil, err}
 		}
 		for j := 0; j < len(profile); j++ {
 			if profile[j] <= result.MP[j] {
@@ -295,7 +296,7 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 		} else {
 			mp.b = append(mp.b, val)
 		}
-		mp.n += 1
+		mp.n++
 
 		// increase the size of the Matrix Profile and Index
 		mp.MP = append(mp.MP, math.Inf(1))
@@ -338,7 +339,9 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 	return nil
 }
 
-type MPResult struct {
+// mpResult is the output struct from a batch processing for STAMP and STOMP. This struct
+// can later be merged together in linear time or with a divide and conquer approach
+type mpResult struct {
 	MP  []float64
 	Idx []int
 	Err error
@@ -351,9 +354,9 @@ type MPResult struct {
 // allocations needed to compute an arbitrary timeseries length.
 func (mp *MatrixProfile) Stomp(parallelism int) error {
 	batchSize := (len(mp.a)-mp.m+1)/parallelism + 1
-	results := make([]chan MPResult, parallelism)
+	results := make([]chan mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
-		results[i] = make(chan MPResult)
+		results[i] = make(chan mpResult)
 	}
 
 	// go routine to continually check for results on the slice of channels
@@ -390,10 +393,10 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	return err
 }
 
-func (mp *MatrixProfile) mergeMPResults(results []chan MPResult) error {
+func (mp *MatrixProfile) mergeMPResults(results []chan mpResult) error {
 	var err error
 
-	resultSlice := make([]MPResult, len(results))
+	resultSlice := make([]mpResult, len(results))
 	for i := 0; i < len(results); i++ {
 		resultSlice[i] = <-results[i]
 
@@ -421,11 +424,11 @@ func (mp *MatrixProfile) mergeMPResults(results []chan MPResult) error {
 }
 
 // stompBatch processes a batch set of rows in matrix profile calculation. Each batch will comput its first row's dot product and build the subsequent matrix profile and matrix profile index using the stomp iterative algorithm. This also uses the very first row's dot product, cachedDot, to update the very first index of the current row's dot product.
-func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *sync.WaitGroup) MPResult {
+func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *sync.WaitGroup) mpResult {
 	defer wg.Done()
 	if idx*batchSize+mp.m > len(mp.a) {
 		// got an index larger than mp.a so ignore
-		return MPResult{}
+		return mpResult{}
 	}
 
 	// compute for this batch the first row's sliding dot product
@@ -435,11 +438,11 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 	profile := make([]float64, len(dot))
 	err := mp.calculateDistanceProfile(dot, idx*batchSize, profile)
 	if err != nil {
-		return MPResult{nil, nil, err}
+		return mpResult{nil, nil, err}
 	}
 
 	// initialize this batch's matrix profile results
-	result := MPResult{
+	result := mpResult{
 		MP:  make([]float64, mp.n-mp.m+1),
 		Idx: make([]int, mp.n-mp.m+1),
 	}
@@ -463,7 +466,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 		dot[0] = cachedDot[idx*batchSize+i]
 		err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile)
 		if err != nil {
-			return MPResult{nil, nil, err}
+			return mpResult{nil, nil, err}
 		}
 
 		// element wise min update of the matrix profile and matrix profile index
@@ -553,7 +556,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 // Discords finds the top k time series discords starting indexes from a computed
 // matrix profile. Each discovery of a discord will apply an exclusion zone around
 // the found index so that new discords can be discovered.
-func (mp MatrixProfile) Discords(k int, exclusion_zone int) []int {
+func (mp MatrixProfile) Discords(k int, exclusionZone int) []int {
 	mpCurrent := make([]float64, len(mp.MP))
 	copy(mpCurrent, mp.MP)
 
@@ -575,7 +578,7 @@ func (mp MatrixProfile) Discords(k int, exclusion_zone int) []int {
 			}
 		}
 		discords[i] = maxIdx
-		applyExclusionZone(mpCurrent, maxIdx, exclusion_zone)
+		applyExclusionZone(mpCurrent, maxIdx, exclusionZone)
 	}
 	return discords
 }
@@ -627,7 +630,7 @@ func (mp *MatrixProfile) ApplyAV(av []float64) error {
 	// check that all annotation vector values are between 0 and 1
 	for idx, val := range av {
 		if val < 0.0 || val > 1.0 {
-			return fmt.Errorf("got an annotation vector value of %.3f at index %d. must be between 0 and 1.", val, idx)
+			return fmt.Errorf("got an annotation vector value of %.3f at index %d. must be between 0 and 1", val, idx)
 		}
 	}
 
