@@ -586,23 +586,24 @@ func TestApplyAV(t *testing.T) {
 
 	var mp MatrixProfile
 	var err error
+	var out []float64
 	for _, d := range testdata {
 		newMP := make([]float64, len(mprof))
 		copy(newMP, mprof)
 		mp = MatrixProfile{MP: newMP}
-		err = mp.ApplyAV(d.av)
+		out, err = mp.ApplyAV(d.av)
 		if err != nil && d.expectedMP == nil {
 			// Expected error while applying av
 			continue
 		}
 
-		if len(mp.MP) != len(d.expectedMP) {
-			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
+		if len(out) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(out), d)
 			break
 		}
-		for i := 0; i < len(mp.MP); i++ {
-			if math.Abs(float64(mp.MP[i]-d.expectedMP[i])) > 1e-7 {
-				t.Errorf("Expected %v,\nbut got\n%v for %+v", d.expectedMP, mp.MP, d)
+		for i := 0; i < len(out); i++ {
+			if math.Abs(float64(out[i]-d.expectedMP[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for %+v", d.expectedMP, out, d)
 				break
 			}
 		}
