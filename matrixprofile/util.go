@@ -50,8 +50,8 @@ func movmeanstd(ts []float64, m int) ([]float64, []float64, error) {
 		return nil, nil, fmt.Errorf("length of slice must be greater than 1")
 	}
 
-	if m >= len(ts) {
-		return nil, nil, fmt.Errorf("m must be less than length of slice")
+	if m > len(ts) {
+		return nil, nil, fmt.Errorf("m cannot be greater than length of slice")
 	}
 
 	var i int
