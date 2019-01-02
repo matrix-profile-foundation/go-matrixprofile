@@ -64,23 +64,9 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		return nil, fmt.Errorf("subsequence length must be at least 2")
 	}
 
-	var err error
-	// precompute the mean and standard deviation for each window of size m for all
-	// sliding windows across the b timeseries
-	mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
-	if err != nil {
+	if err := mp.initCaches(); err != nil {
 		return nil, err
 	}
-
-	mp.aMean, mp.aStd, err = movmeanstd(mp.a, mp.m)
-	if err != nil {
-		return nil, err
-	}
-
-	// precompute the fourier transform of the b timeseries since it will
-	// be used multiple times while computing the matrix profile
-	fft := fourier.NewFFT(mp.n)
-	mp.bF = fft.Coefficients(nil, mp.b)
 
 	mp.MP = make([]float64, mp.n-mp.m+1)
 	mp.Idx = make([]int, mp.n-m+1)
@@ -89,7 +75,31 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	return &mp, err
+	return &mp, nil
+}
+
+// initCaches initializes cached data including the timeseries a and b rolling mean
+// and standard deviation and full fourier transform of timeseries b
+func (mp *MatrixProfile) initCaches() error {
+	var err error
+	// precompute the mean and standard deviation for each window of size m for all
+	// sliding windows across the b timeseries
+	mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
+	if err != nil {
+		return err
+	}
+
+	mp.aMean, mp.aStd, err = movmeanstd(mp.a, mp.m)
+	if err != nil {
+		return err
+	}
+
+	// precompute the fourier transform of the b timeseries since it will
+	// be used multiple times while computing the matrix profile
+	fft := fourier.NewFFT(mp.n)
+	mp.bF = fft.Coefficients(nil, mp.b)
+
+	return nil
 }
 
 // crossCorrelate computes the sliding dot product between two slices
@@ -190,8 +200,7 @@ func (mp *MatrixProfile) Stmp() error {
 
 	fft := fourier.NewFFT(mp.n)
 	for i := 0; i < mp.n-mp.m+1; i++ {
-		err = mp.distanceProfile(i, profile, fft)
-		if err != nil {
+		if err = mp.distanceProfile(i, profile, fft); err != nil {
 			return err
 		}
 
@@ -278,8 +287,7 @@ func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx [
 		if idx*batchSize+i >= len(randIdx) {
 			break
 		}
-		err = mp.distanceProfile(randIdx[idx*batchSize+i], profile, fft)
-		if err != nil {
+		if err = mp.distanceProfile(randIdx[idx*batchSize+i], profile, fft); err != nil {
 			return mpResult{nil, nil, err}
 		}
 		for j := 0; j < len(profile); j++ {
@@ -312,26 +320,14 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 		mp.MP = append(mp.MP, math.Inf(1))
 		mp.Idx = append(mp.Idx, math.MaxInt64)
 
-		// recalculate the moving mean standard deviation
-		// TODO: want to just calculate for that last window and append to bMean and bStd
-		mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
-		if err != nil {
+		if err = mp.initCaches(); err != nil {
 			return err
 		}
-		mp.aMean, mp.aStd, err = movmeanstd(mp.a, mp.m)
-		if err != nil {
-			return err
-		}
-
-		// recompute the b timeseries fourier transform. this will get slower over time as
-		// the b timeseries gets larger and larger
-		fft := fourier.NewFFT(mp.n)
-		mp.bF = fft.Coefficients(nil, mp.b)
 
 		// only compute the last distance profile
 		profile = make([]float64, len(mp.MP))
-		err = mp.distanceProfile(len(mp.a)-mp.m, profile, fft)
-		if err != nil {
+		fft := fourier.NewFFT(mp.n)
+		if err = mp.distanceProfile(len(mp.a)-mp.m, profile, fft); err != nil {
 			return err
 		}
 
@@ -450,8 +446,8 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 	dot := mp.crossCorrelate(mp.a[idx*batchSize:idx*batchSize+mp.m], fft)
 
 	profile := make([]float64, len(dot))
-	err := mp.calculateDistanceProfile(dot, idx*batchSize, profile)
-	if err != nil {
+	var err error
+	if err = mp.calculateDistanceProfile(dot, idx*batchSize, profile); err != nil {
 		return mpResult{nil, nil, err}
 	}
 
@@ -478,8 +474,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 			dot[j] = dot[j-1] - mp.b[j-1]*mp.a[idx*batchSize+i-1] + mp.b[j+mp.m-1]*mp.a[idx*batchSize+i+mp.m-1]
 		}
 		dot[0] = cachedDot[idx*batchSize+i]
-		err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile)
-		if err != nil {
+		if err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile); err != nil {
 			return mpResult{nil, nil, err}
 		}
 
@@ -507,6 +502,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 	if !mp.selfJoin {
 		return nil, errors.New("can only find top motifs if a self join is performed")
 	}
+	var err error
 
 	motifs := make([]MotifGroup, k)
 
@@ -538,8 +534,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 
 		fft := fourier.NewFFT(mp.n)
 		for _, idx := range initialMotif {
-			err := mp.distanceProfile(idx, prof, fft)
-			if err != nil {
+			if err = mp.distanceProfile(idx, prof, fft); err != nil {
 				return nil, err
 			}
 			for i, d := range prof {
