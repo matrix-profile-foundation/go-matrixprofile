@@ -17,6 +17,8 @@ func TestNew(t *testing.T) {
 		{[]float64{}, []float64{}, 2, true},
 		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, true},
 		{[]float64{1, 1, 1, 1, 1}, nil, 2, false},
+		{[]float64{1, 1, 1, 1, 1}, nil, 6, true},
+		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1, 1, 1, 1}, 3, true},
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, true},
 		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 2, false},
 		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 1, true},
@@ -53,9 +55,13 @@ func TestCrossCorrelate(t *testing.T) {
 
 	for _, d := range testdata {
 		mp, err = New(d.q, d.t, len(d.q))
-		if err != nil && d.expected == nil {
-			// Got an error while creating a new matrix profile
-			continue
+		if err != nil {
+			if d.expected == nil {
+				// Got an error while creating a new matrix profile
+				continue
+			} else {
+				t.Errorf("did not expect to get an error , %v, for %v", err, d)
+			}
 		}
 
 		fft := fourier.NewFFT(mp.n)
@@ -220,9 +226,13 @@ func TestCalculateDistanceProfile(t *testing.T) {
 
 		mprof = make([]float64, mp.n-mp.m+1)
 		err = mp.calculateDistanceProfile(dot, d.idx, mprof)
-		if err != nil && d.expectedMP == nil {
-			// Got an error while z normalizing and expected an error
-			continue
+		if err != nil {
+			if d.expectedMP == nil {
+				// Got an error while z normalizing and expected an error
+				continue
+			} else {
+				t.Errorf("Did not expect to get error, %v, for %v", err, d)
+			}
 		}
 		if d.expectedMP == nil {
 			t.Errorf("Expected an invalid distance profile calculation, %+v", d)
@@ -373,7 +383,7 @@ func TestStomp(t *testing.T) {
 		{[]float64{}, []float64{}, 2, 1, nil, nil},
 		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 1, nil, nil},
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
-		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, []float64{math.Inf(1), math.Inf(1), math.Inf(1), math.Inf(1)}, []int{0, math.MaxInt64, math.MaxInt64, math.MaxInt64}},
+		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, []float64{math.Inf(1), math.Inf(1), math.Inf(1), math.Inf(1)}, []int{math.MaxInt64, math.MaxInt64, math.MaxInt64, math.MaxInt64}},
 		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 1,
 			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
 			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
@@ -390,24 +400,30 @@ func TestStomp(t *testing.T) {
 
 	for _, d := range testdata {
 		mp, err = New(d.q, d.t, d.m)
-		if err != nil && d.expectedMP == nil {
-			// Got an error while creating a new matrix profile
-			continue
+		if err != nil {
+			if d.expectedMP == nil {
+				// Got an error while creating a new matrix profile
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v,  while creating new mp for %v", err, d)
+			}
 		}
 
 		err = mp.Stomp(d.p)
-		if err != nil && d.expectedMP == nil {
-			// Got an error while z normalizing and expected an error
-			continue
+		if err != nil {
+			if d.expectedMP == nil {
+				// Got an error while z normalizing and expected an error
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v, while calculating stomp for %v", err, d)
+				break
+			}
 		}
 		if d.expectedMP == nil {
 			t.Errorf("Expected an invalid STOMP calculation, %+v", d)
 			break
 		}
-		if err != nil {
-			t.Errorf("Did not expect error, %v, %+v", err, d)
-			break
-		}
+
 		if len(mp.MP) != len(d.expectedMP) {
 			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
 		}

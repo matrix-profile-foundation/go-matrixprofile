@@ -18,6 +18,8 @@ import (
 type MatrixProfile struct {
 	a        []float64    // query time series
 	b        []float64    // timeseries to perform full join with
+	aMean    []float64    // sliding mean of a with a window of m each
+	aStd     []float64    // sliding standard deviation of a with a window of m each
 	bMean    []float64    // sliding mean of b with a window of m each
 	bStd     []float64    // sliding standard deviation of b with a window of m each
 	bF       []complex128 // holds an existing calculation of the FFT of b timeseries
@@ -66,6 +68,14 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 	// precompute the mean and standard deviation for each window of size m for all
 	// sliding windows across the b timeseries
 	mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
+	if err != nil {
+		return nil, err
+	}
+
+	mp.aMean, mp.aStd, err = movmeanstd(mp.a, mp.m)
+	if err != nil {
+		return nil, err
+	}
 
 	// precompute the fourier transform of the b timeseries since it will
 	// be used multiple times while computing the matrix profile
@@ -92,7 +102,6 @@ func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 
 	for i := 0; i < len(q); i++ {
 		qpad[i] = q[mp.m-i-1]
 	}
-
 	qf := fft.Coefficients(nil, qpad)
 
 	// in place multiply the fourier transform of the b time series with
@@ -120,10 +129,6 @@ func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) e
 
 	dot := mp.crossCorrelate(qnorm, fft)
 
-	if len(mp.bStd) != len(dot) {
-		return fmt.Errorf("length of rolling standard deviation, %d, is not the same as the cross correlation, %d", len(mp.bStd), len(dot))
-	}
-
 	// converting cross correlation value to euclidian distance
 	for i := 0; i < len(dot); i++ {
 		profile[i] = math.Sqrt(math.Abs(2 * (float64(mp.m) - (dot[i] / mp.bStd[i]))))
@@ -136,8 +141,8 @@ func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) e
 // area for trivial nearest neighbors. Writes the euclidean distance between
 // the specified subsequence in mp.a with each subsequence in mp.b to profile
 func (mp MatrixProfile) distanceProfile(idx int, profile []float64, fft *fourier.FFT) error {
-	if idx+mp.m > len(mp.a) {
-		return fmt.Errorf("index %d with m %d asks for data beyond the length of a, %d", idx, mp.m, len(mp.a))
+	if idx > len(mp.a)-mp.m {
+		return fmt.Errorf("provided index  %d is beyond the length of timeseries %d minus the subsequence length %d", idx, len(mp.a), mp.m)
 	}
 
 	if err := mp.mass(mp.a[idx:idx+mp.m], profile, fft); err != nil {
@@ -155,19 +160,23 @@ func (mp MatrixProfile) distanceProfile(idx int, profile []float64, fft *fourier
 // distances and normalizes the output. Writes results back into the profile slice
 // of floats representing the distance profile.
 func (mp MatrixProfile) calculateDistanceProfile(dot []float64, idx int, profile []float64) error {
-	if idx > mp.n-mp.m {
-		return fmt.Errorf("provided index is beyond the length of the profile and dot product slices")
+	if idx > len(mp.a)-mp.m {
+		return fmt.Errorf("provided index %d is beyond the length of timeseries a %d minus the subsequence length %d", idx, len(mp.a), mp.m)
 	}
+
 	if len(profile) != len(dot) {
 		return fmt.Errorf("profile length, %d, is not the same as the dot product length, %d", len(profile), len(dot))
 	}
+
 	// converting cross correlation value to euclidian distance
 	for i := 0; i < len(dot); i++ {
-		profile[i] = math.Sqrt(2 * float64(mp.m) * math.Abs(1-(dot[i]-float64(mp.m)*mp.bMean[i]*mp.bMean[idx])/(float64(mp.m)*mp.bStd[i]*mp.bStd[idx])))
+		profile[i] = math.Sqrt(2 * float64(mp.m) * math.Abs(1-(dot[i]-float64(mp.m)*mp.bMean[i]*mp.aMean[idx])/(float64(mp.m)*mp.bStd[i]*mp.aStd[idx])))
 	}
 
-	// sets the distance in the exclusion zone to +Inf
-	applyExclusionZone(profile, idx, mp.m/2)
+	if mp.selfJoin {
+		// sets the distance in the exclusion zone to +Inf
+		applyExclusionZone(profile, idx, mp.m/2)
+	}
 	return nil
 }
 
@@ -306,6 +315,10 @@ func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
 		// recalculate the moving mean standard deviation
 		// TODO: want to just calculate for that last window and append to bMean and bStd
 		mp.bMean, mp.bStd, err = movmeanstd(mp.b, mp.m)
+		if err != nil {
+			return err
+		}
+		mp.aMean, mp.aStd, err = movmeanstd(mp.a, mp.m)
 		if err != nil {
 			return err
 		}
@@ -462,7 +475,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 			break
 		}
 		for j := mp.n - mp.m; j > 0; j-- {
-			dot[j] = dot[j-1] - mp.a[j-1]*mp.a[idx*batchSize+i-1] + mp.a[j+mp.m-1]*mp.a[idx*batchSize+i+mp.m-1]
+			dot[j] = dot[j-1] - mp.b[j-1]*mp.a[idx*batchSize+i-1] + mp.b[j+mp.m-1]*mp.a[idx*batchSize+i+mp.m-1]
 		}
 		dot[0] = cachedDot[idx*batchSize+i]
 		err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile)

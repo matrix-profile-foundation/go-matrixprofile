@@ -53,18 +53,23 @@ func TestMovmeanstd(t *testing.T) {
 		{[]float64{}, 4, nil, nil},
 		{[]float64{}, 0, nil, nil},
 		{[]float64{1, 1, 1, 1}, 0, nil, nil},
+		{[]float64{1, 1, 1, 1}, 4, []float64{1}, []float64{0}},
 		{[]float64{1, 1, 1, 1}, 2, []float64{1, 1, 1}, []float64{0, 0, 0}},
 		{[]float64{-1, -1, -1, -1}, 2, []float64{-1, -1, -1}, []float64{0, 0, 0}},
 		{[]float64{1, -1, -1, 1}, 2, []float64{0, -1, 0}, []float64{1, 0, 1}},
-		{[]float64{1, -1, -1, 1}, 4, nil, nil},
 		{[]float64{1, 2, 4, 8}, 2, []float64{1.5, 3, 6}, []float64{0.5, 1, 2}},
 	}
 
 	for _, d := range testdata {
 		mean, std, err = movmeanstd(d.data, d.m)
-		if err != nil && d.expectedStd == nil && d.expectedMean == nil {
-			// Got an error while calculating and expected an error
-			continue
+		if err != nil {
+			if d.expectedStd == nil && d.expectedMean == nil {
+				// Got an error while calculating and expected an error
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v for %v", err, d)
+				break
+			}
 		}
 		if d.expectedStd == nil {
 			t.Errorf("Expected an invalid moving standard deviation, %v", d)
