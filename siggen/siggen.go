@@ -1,3 +1,4 @@
+// Package siggen provides basic timeseries generation wrappers
 package siggen
 
 import (
