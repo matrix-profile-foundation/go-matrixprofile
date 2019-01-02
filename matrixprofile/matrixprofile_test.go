@@ -18,7 +18,7 @@ func TestNew(t *testing.T) {
 		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, true},
 		{[]float64{1, 1, 1, 1, 1}, nil, 2, false},
 		{[]float64{1, 1, 1, 1, 1}, nil, 6, true},
-		{[]float64{1, 1, 1, 1, 1}, []float64{1, 1, 1, 1, 1, 1, 1, 1}, 6, true},
+		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1, 1, 1, 1}, 3, true},
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, true},
 		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 2, false},
 		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 1, true},
