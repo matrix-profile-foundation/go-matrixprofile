@@ -119,6 +119,28 @@ func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discord
 }
 
 func Example() {
+	sig := []float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}
+
+	mp, err := New(sig, nil, 4)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = mp.Stomp(1); err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Signal:         %.3f\n", sig)
+	fmt.Printf("Matrix Profile: %.3f\n", mp.MP)
+	fmt.Printf("Profile Index:  %5d\n", mp.Idx)
+
+	// Output:
+	// Signal:         [0.000 0.990 1.000 0.000 0.000 0.980 1.000 0.000 0.000 0.960 1.000 0.000]
+	// Matrix Profile: [0.014 0.014 0.029 0.029 0.014 0.014 0.029 0.029 0.029]
+	// Profile Index:  [    4     5     6     7     0     1     2     3     4]
+}
+
+func ExampleCaseStudy() {
 	sin := siggen.Sin(1, 5, 0, 0, 100, 2)
 	sin2 := siggen.Sin(0.25, 10, 0, 0.75, 100, 0.25)
 	saw := siggen.Sawtooth(0.5, 7, 0, 0, 100, 1)
