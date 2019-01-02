@@ -140,7 +140,7 @@ func Example() {
 	// Profile Index:  [    4     5     6     7     0     1     2     3     4]
 }
 
-func ExampleCaseStudy() {
+func Example_CaseStudy() {
 	sin := siggen.Sin(1, 5, 0, 0, 100, 2)
 	sin2 := siggen.Sin(0.25, 10, 0, 0.75, 100, 0.25)
 	saw := siggen.Sawtooth(0.5, 7, 0, 0, 100, 1)
