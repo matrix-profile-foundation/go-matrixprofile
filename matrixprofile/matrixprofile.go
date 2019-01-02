@@ -129,10 +129,6 @@ func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) e
 
 	dot := mp.crossCorrelate(qnorm, fft)
 
-	if len(mp.bStd) != len(dot) {
-		return fmt.Errorf("length of rolling standard deviation, %d, is not the same as the cross correlation, %d", len(mp.bStd), len(dot))
-	}
-
 	// converting cross correlation value to euclidian distance
 	for i := 0; i < len(dot); i++ {
 		profile[i] = math.Sqrt(math.Abs(2 * (float64(mp.m) - (dot[i] / mp.bStd[i]))))
