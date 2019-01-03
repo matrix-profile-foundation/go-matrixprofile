@@ -1,6 +1,6 @@
 language: go
 
-script: go test -v ./... -race -coverprofile=coverage.txt -covermode=atomic
+script: make travis-ci
 
 go:
   - "1.10"
