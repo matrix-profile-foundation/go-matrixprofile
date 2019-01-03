@@ -6,7 +6,7 @@
 
 # go-matrixprofile
 
-Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series segmentation and motif discovery after computing the matrix profile.
+Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series discords, time series segmentation, and motif discovery after computing the matrix profile. Currently implements STMP, STAMP, STAMPI, and STOMP. STAMP and STOMP can run with multiple go routines for increased parallelization.
 
 ## Contents
 - [Installation](#installation)
@@ -23,6 +23,7 @@ Golang library for computing a matrix profiles and matrix profile indexes. Featu
 ## Installation
 ```sh
 $ go get -u github.com/aouyang1/go-matrixprofile/matrixprofile
+$ cd $GOPATH/src/github.com/aouyang1/go-matrixprofile
 $ make setup
 ```
 
@@ -156,3 +157,5 @@ Copyright (c) 2018 Austin Ouyang
 Chin-Chia Michael Yeh, Yan Zhu, Liudmila Ulanova, Nurjahan Begum, Yifei Ding, Hoang Anh Dau, Diego Furtado Silva, Abdullah Mueen, Eamonn Keogh (2016). [Matrix Profile I: All Pairs Similarity Joins for Time Series: A Unifying View that Includes Motifs, Discords and Shapelets](https://www.cs.ucr.edu/~eamonn/PID4481997_extend_Matrix%20Profile_I.pdf). IEEE ICDM 2016.
 
 Yan Zhu, Zachary Zimmerman, Nader Shakibay Senobari, Chin-Chia Michael Yeh, Gareth Funning, Abdullah Mueen, Philip Berisk and Eamonn Keogh (2016). [Matrix Profile II: Exploiting a Novel Algorithm and GPUs to break the one Hundred Million Barrier for Time Series Motifs and Joins](https://www.cs.ucr.edu/~eamonn/STOMP_GPU_final_submission_camera_ready.pdf). IEEE ICDM 2016.
+
+Hoang Anh Dau and Eamonn Keogh (2017). [Matrix Profile V: A Generic Technique to Incorporate Domain Knowledge into Motif Discovery](https://www.cs.ucr.edu/~eamonn/guided-motif-KDD17-new-format-10-pages-v005.pdf). KDD 2017.
