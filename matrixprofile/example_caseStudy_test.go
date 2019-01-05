@@ -122,10 +122,10 @@ func Example_caseStudy() {
 	sin := siggen.Sin(1, 5, 0, 0, 100, 2)
 	sin2 := siggen.Sin(0.25, 10, 0, 0.75, 100, 0.25)
 	saw := siggen.Sawtooth(0.5, 7, 0, 0, 100, 1)
-	noise := siggen.Noise(0.3, len(sin2)*4)
-	sig := siggen.Append(sin, sin2, sin, noise, sin2, noise, sin2, noise, saw)
+	line := siggen.Line(0, 0, len(sin2)*4)
+	sig := siggen.Append(sin, sin2, sin, line, sin2, line, sin2, line, saw)
 
-	noise = siggen.Noise(0.1, len(sig))
+	noise := siggen.Noise(0.1, len(sig))
 	sig = siggen.Add(sig, noise)
 
 	var m, k int
