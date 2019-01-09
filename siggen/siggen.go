@@ -28,6 +28,26 @@ func Sawtooth(amp, freq, phase, offset, sampleRate, durationSec float64) []float
 	return out
 }
 
+// Square produces a square wave with a given amplitude,
+// frequency, phase, sampleRate and duration in seconds
+func Square(amp, freq, phase, offset, sampleRate, durationSec float64) []float64 {
+	nsamp := int(sampleRate * durationSec)
+	out := make([]float64, nsamp)
+	var val float64
+	for i := 0; i < nsamp; i++ {
+		val = math.Sin(2*math.Pi*freq*float64(i)/sampleRate + phase)
+		switch {
+		case val > 0:
+			out[i] = amp + offset
+		case val < 0:
+			out[i] = -amp + offset
+		default:
+			out[i] = offset
+		}
+	}
+	return out
+}
+
 // Line creates a line given a slope, offset and number of data points
 func Line(slope, offset float64, n int) []float64 {
 	out := make([]float64, n)

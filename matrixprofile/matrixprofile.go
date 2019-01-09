@@ -403,36 +403,6 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	return err
 }
 
-func (mp *MatrixProfile) mergeMPResults(results []chan mpResult) error {
-	var err error
-
-	resultSlice := make([]mpResult, len(results))
-	for i := 0; i < len(results); i++ {
-		resultSlice[i] = <-results[i]
-
-		// if an error is encountered set the variable so that it can be checked
-		// for at the end of processing. Tracks the last error emitted by any
-		// batch
-		if resultSlice[i].Err != nil {
-			err = resultSlice[i].Err
-			continue
-		}
-
-		// continues to the next loop if the result returned is empty but
-		// had no errors
-		if resultSlice[i].MP == nil || resultSlice[i].Idx == nil {
-			continue
-		}
-		for j := 0; j < len(resultSlice[i].MP); j++ {
-			if resultSlice[i].MP[j] <= mp.MP[j] {
-				mp.MP[j] = resultSlice[i].MP[j]
-				mp.Idx[j] = resultSlice[i].Idx[j]
-			}
-		}
-	}
-	return err
-}
-
 // stompBatch processes a batch set of rows in matrix profile calculation. Each batch will comput its first row's dot product and build the subsequent matrix profile and matrix profile index using the stomp iterative algorithm. This also uses the very first row's dot product, cachedDot, to update the very first index of the current row's dot product.
 func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *sync.WaitGroup) mpResult {
 	defer wg.Done()
@@ -487,6 +457,38 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 		}
 	}
 	return result
+}
+
+// mergeMPResults reads from a slice of channels for Matrix Profile results and
+// updates the matrix profile in the struct
+func (mp *MatrixProfile) mergeMPResults(results []chan mpResult) error {
+	var err error
+
+	resultSlice := make([]mpResult, len(results))
+	for i := 0; i < len(results); i++ {
+		resultSlice[i] = <-results[i]
+
+		// if an error is encountered set the variable so that it can be checked
+		// for at the end of processing. Tracks the last error emitted by any
+		// batch
+		if resultSlice[i].Err != nil {
+			err = resultSlice[i].Err
+			continue
+		}
+
+		// continues to the next loop if the result returned is empty but
+		// had no errors
+		if resultSlice[i].MP == nil || resultSlice[i].Idx == nil {
+			continue
+		}
+		for j := 0; j < len(resultSlice[i].MP); j++ {
+			if resultSlice[i].MP[j] <= mp.MP[j] {
+				mp.MP[j] = resultSlice[i].MP[j]
+				mp.Idx[j] = resultSlice[i].Idx[j]
+			}
+		}
+	}
+	return err
 }
 
 // MotifGroup stores a list of indices representing a similar motif along

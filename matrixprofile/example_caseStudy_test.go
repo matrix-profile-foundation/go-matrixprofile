@@ -118,14 +118,64 @@ func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discord
 	return err
 }
 
+func PlotKMP(sigPts, mpPts []plotter.XYs, filename string) error {
+	var err error
+	rows, cols := len(sigPts)*2, 1
+
+	plots := make([][]*plot.Plot, rows)
+
+	for i := 0; i < len(sigPts)*2; i++ {
+		plots[i] = make([]*plot.Plot, cols)
+	}
+
+	for i := 0; i < len(sigPts); i++ {
+		plots[i][0], err = CreatePlot([]plotter.XYs{sigPts[i]}, nil, fmt.Sprintf("signal%d", i))
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := 0; i < len(sigPts); i++ {
+		plots[len(sigPts)+i][0], err = CreatePlot([]plotter.XYs{mpPts[i]}, nil, fmt.Sprintf("mp%d", i))
+		if err != nil {
+			return err
+		}
+	}
+
+	img := vgimg.New(vg.Points(600), vg.Points(600))
+	dc := draw.New(img)
+
+	t := draw.Tiles{
+		Rows: rows,
+		Cols: cols,
+	}
+
+	canvases := plot.Align(plots, t, dc)
+	for j := 0; j < rows; j++ {
+		for i := 0; i < cols; i++ {
+			if plots[j][i] != nil {
+				plots[j][i].Draw(canvases[j][i])
+			}
+		}
+	}
+
+	w, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	png := vgimg.PngCanvas{Canvas: img}
+	_, err = png.WriteTo(w)
+	return err
+}
 func Example_caseStudy() {
 	sin := siggen.Sin(1, 5, 0, 0, 100, 2)
 	sin2 := siggen.Sin(0.25, 10, 0, 0.75, 100, 0.25)
 	saw := siggen.Sawtooth(0.5, 7, 0, 0, 100, 1)
-	noise := siggen.Noise(0.3, len(sin2)*4)
-	sig := siggen.Append(sin, sin2, sin, noise, sin2, noise, sin2, noise, saw)
+	line := siggen.Line(0, 0, len(sin2)*4)
+	sig := siggen.Append(sin, sin2, sin, line, sin2, line, sin2, line, saw)
 
-	noise = siggen.Noise(0.1, len(sig))
+	noise := siggen.Noise(0.1, len(sig))
 	sig = siggen.Add(sig, noise)
 
 	var m, k int
@@ -182,4 +232,53 @@ func Example_caseStudy() {
 
 	fmt.Println("Saved png file result to mp_sine.png")
 	// Output: Saved png file result to mp_sine.png
+}
+
+func Example_kDimensionalCaseStudy() {
+	sin := siggen.Sin(1, 4, 0, 0, 100, 0.25)
+	saw := siggen.Sawtooth(1, 4, 0, 0, 100, 0.25)
+	square := siggen.Square(1, 4, 0, 0, 100, 0.25)
+	line := siggen.Line(0, 0, len(sin)*4)
+	line2 := siggen.Line(0, 0, len(sin)*3)
+	sig := make([][]float64, 3)
+	sig[0] = siggen.Append(line, line, line, saw, line2, saw, line2)
+	sig[1] = siggen.Append(line, sin, line2, sin, line2, sin, line2, sin, line2)
+	sig[2] = siggen.Append(line, square, line2, square, line2, square, line2, square, line2)
+
+	noise := siggen.Noise(0.1, len(sig[0]))
+	sig[0] = siggen.Add(sig[0], noise)
+
+	noise = siggen.Noise(0.1, len(sig[0]))
+	sig[1] = siggen.Add(sig[1], noise)
+
+	noise = siggen.Noise(0.1, len(sig[0]))
+	sig[2] = siggen.Add(sig[2], noise)
+
+	var m int
+	m = 25
+	mp, err := NewK(sig, m)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = mp.MStomp(); err != nil {
+		panic(err)
+	}
+
+	sigPts := make([]plotter.XYs, 3)
+	sigPts[0] = Points(sig[0], len(sig[0]))
+	sigPts[1] = Points(sig[1], len(sig[0]))
+	sigPts[2] = Points(sig[2], len(sig[0]))
+
+	mpPts := make([]plotter.XYs, 3)
+	mpPts[0] = Points(mp.MP[0], len(sig[0]))
+	mpPts[1] = Points(mp.MP[1], len(sig[0]))
+	mpPts[2] = Points(mp.MP[2], len(sig[0]))
+
+	if err = PlotKMP(sigPts, mpPts, "../mp_kdim.png"); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Saved png file result to mp_kdim.png")
+	// Output: Saved png file result to mp_kdim.png
 }
