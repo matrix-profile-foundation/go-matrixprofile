@@ -25,6 +25,27 @@ func TestSin(t *testing.T) {
 	}
 }
 
+func TestSquare(t *testing.T) {
+	testdata := []struct {
+		fs        float64
+		duration  float64
+		expectedN int
+	}{
+		{0, 10, 0},
+		{100, 1, 100},
+		{100, 1.5, 150},
+		{100, 0, 0},
+	}
+
+	var out []float64
+	for _, d := range testdata {
+		out = Square(1, 5, 0, 0, d.fs, d.duration)
+		if len(out) != d.expectedN {
+			t.Errorf("expected output length, %d, but got, %d, for %v", d.expectedN, len(out), d)
+		}
+	}
+}
+
 func TestSawtooth(t *testing.T) {
 	testdata := []struct {
 		fs        float64
@@ -44,7 +65,6 @@ func TestSawtooth(t *testing.T) {
 			t.Errorf("expected output length, %d, but got, %d, for %v", d.expectedN, len(out), d)
 		}
 	}
-
 }
 
 func TestLine(t *testing.T) {

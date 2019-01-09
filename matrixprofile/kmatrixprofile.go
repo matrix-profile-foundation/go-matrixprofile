@@ -3,6 +3,7 @@ package matrixprofile
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"gonum.org/v1/gonum/fourier"
 )
@@ -21,7 +22,7 @@ type KMatrixProfile struct {
 	Idx   [][]int        // matrix profile index
 }
 
-// NewK creates a matrix profile struct specifically to be used with the k dimensional
+// New creates a matrix profile struct specifically to be used with the k dimensional
 // matrix profile computation. The number of rows represents the number of dimensions,
 // and each row holds a series of points of equal length as each other.
 func NewK(t [][]float64, m int) (*KMatrixProfile, error) {
@@ -50,17 +51,16 @@ func NewK(t [][]float64, m int) (*KMatrixProfile, error) {
 		return nil, fmt.Errorf("subsequence length must be at least 2")
 	}
 
-	if err := mp.initCaches(); err != nil {
-		return nil, err
-	}
-
+	mp.tMean = make([][]float64, len(t))
+	mp.tStd = make([][]float64, len(t))
+	mp.tF = make([][]complex128, len(t))
 	mp.MP = make([][]float64, len(t))
-	for d := 0; d < len(t); d++ {
-		mp.MP[d] = make([]float64, mp.n-mp.m+1)
-	}
-
 	mp.Idx = make([][]int, len(t))
 	for d := 0; d < len(t); d++ {
+		mp.tMean[d] = make([]float64, mp.n-mp.m+1)
+		mp.tStd[d] = make([]float64, mp.n-mp.m+1)
+		mp.tF[d] = make([]complex128, mp.n-mp.m+1)
+		mp.MP[d] = make([]float64, mp.n-mp.m+1)
 		mp.Idx[d] = make([]int, mp.n-mp.m+1)
 	}
 
@@ -69,6 +69,10 @@ func NewK(t [][]float64, m int) (*KMatrixProfile, error) {
 			mp.MP[d][i] = math.Inf(1)
 			mp.Idx[d][i] = math.MaxInt64
 		}
+	}
+
+	if err := mp.initCaches(); err != nil {
+		return nil, err
 	}
 
 	return &mp, nil
@@ -95,4 +99,111 @@ func (mp *KMatrixProfile) initCaches() error {
 	}
 
 	return nil
+}
+
+// MStomp computes the k dimensional matrix profile
+func (mp *KMatrixProfile) MStomp() error {
+	var err error
+
+	// save the first dot product of the first row that will be used by all future
+	// go routines
+	cachedDots := make([][]float64, len(mp.t))
+	fft := fourier.NewFFT(mp.n)
+	mp.crossCorrelate(0, fft, cachedDots)
+
+	var D [][]float64
+	D = make([][]float64, len(mp.t))
+	for d := 0; d < len(D); d++ {
+		D[d] = make([]float64, mp.n-mp.m+1)
+	}
+
+	dots := make([][]float64, len(mp.t))
+	for d := 0; d < len(dots); d++ {
+		dots[d] = make([]float64, mp.n-mp.m+1)
+		copy(dots[d], cachedDots[d])
+	}
+
+	for idx := 0; idx < mp.n-mp.m+1; idx++ {
+		for d := 0; d < len(dots); d++ {
+			if idx > 0 {
+				for j := mp.n - mp.m; j > 0; j-- {
+					dots[d][j] = dots[d][j-1] - mp.t[d][j-1]*mp.t[d][idx-1] + mp.t[d][j+mp.m-1]*mp.t[d][idx+mp.m-1]
+				}
+				dots[d][0] = cachedDots[d][idx]
+			}
+
+			for i := 0; i < mp.n-mp.m+1; i++ {
+				D[d][i] = math.Sqrt(2 * float64(mp.m) * math.Abs(1-(dots[d][i]-float64(mp.m)*mp.tMean[d][i]*mp.tMean[d][idx])/(float64(mp.m)*mp.tStd[d][i]*mp.tStd[d][idx])))
+			}
+			// sets the distance in the exclusion zone to +Inf
+			applyExclusionZone(D[d], idx, mp.m/2)
+		}
+		mp.columnWiseSort(D)
+		mp.columnWiseCumSum(D)
+		for d := 0; d < len(D); d++ {
+			for i := 0; i < mp.n-mp.m+1; i++ {
+				if D[d][i]/(float64(d)+1) < mp.MP[d][i] {
+					mp.MP[d][i] = D[d][i] / (float64(d) + 1)
+					mp.Idx[d][i] = idx
+				}
+			}
+		}
+	}
+
+	return err
+}
+
+// crossCorrelate computes the sliding dot product between two slices
+// given a query and time series. Uses fast fourier transforms to compute
+// the necessary values. Returns the a slice of floats for the cross-correlation
+// of the signal q and the mp.b signal. This makes an optimization where the query
+// length must be less than half the length of the timeseries, b.
+func (mp KMatrixProfile) crossCorrelate(idx int, fft *fourier.FFT, D [][]float64) {
+	qpad := make([]float64, mp.n)
+	var qf []complex128
+	var dot []float64
+
+	for d := 0; d < len(D); d++ {
+		for i := 0; i < mp.m; i++ {
+			qpad[i] = mp.t[d][idx+mp.m-i-1]
+		}
+		qf = fft.Coefficients(nil, qpad)
+
+		// in place multiply the fourier transform of the b time series with
+		// the subsequence fourier transform and store in the subsequence fft slice
+		for i := 0; i < len(qf); i++ {
+			qf[i] = mp.tF[d][i] * qf[i]
+		}
+
+		dot = fft.Sequence(nil, qf)
+
+		for i := 0; i < mp.n-mp.m+1; i++ {
+			dot[mp.m-1+i] = dot[mp.m-1+i] / float64(mp.n)
+		}
+		D[d] = dot[mp.m-1:]
+	}
+}
+
+func (mp KMatrixProfile) columnWiseSort(D [][]float64) {
+	dist := make([]float64, len(D))
+	for i := 0; i < mp.n-mp.m+1; i++ {
+		for d := 0; d < len(D); d++ {
+			dist[d] = D[d][i]
+		}
+		sort.Float64s(dist)
+		for d := 0; d < len(D); d++ {
+			D[d][i] = dist[d]
+		}
+	}
+}
+
+func (mp KMatrixProfile) columnWiseCumSum(D [][]float64) {
+	for d := 0; d < len(D); d++ {
+		// change D to be a cumulative sum of distances across dimensions
+		if d > 0 {
+			for i := 0; i < mp.n-mp.m+1; i++ {
+				D[d][i] += D[d-1][i]
+			}
+		}
+	}
 }

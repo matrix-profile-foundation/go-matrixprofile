@@ -403,48 +403,6 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	return err
 }
 
-// MStomp computes the k dimensional matrix profile
-func (mp *MatrixProfile) MStomp(parallelism int) error {
-	// save the first dot product of the first row that will be used by all future
-	// go routines
-	fft := fourier.NewFFT(mp.n)
-	cachedDot := mp.crossCorrelate(mp.a[:mp.m], fft)
-
-	batchSize := (len(mp.a)-mp.m+1)/parallelism + 1
-	results := make([]chan mpResult, parallelism)
-	for i := 0; i < parallelism; i++ {
-		results[i] = make(chan mpResult)
-	}
-
-	// go routine to continually check for results on the slice of channels
-	// for each batch kicked off. This merges the results of the batched go
-	// routines by picking the lowest value in each batch's matrix profile and
-	// updating the matrix profile index.
-	var err error
-	done := make(chan bool)
-	go func() {
-		err = mp.mergeMPResults(results)
-		done <- true
-	}()
-
-	// kick off multiple go routines to process a batch of rows returning back
-	// the matrix profile for that batch and any error encountered
-	var wg sync.WaitGroup
-	wg.Add(parallelism)
-	for batch := 0; batch < parallelism; batch++ {
-		go func(idx int) {
-			result := mp.stompBatch(idx, batchSize, cachedDot, &wg)
-			results[idx] <- result
-		}(batch)
-	}
-	wg.Wait()
-
-	// waits for all results to be read and merged before returning success
-	<-done
-
-	return err
-}
-
 // stompBatch processes a batch set of rows in matrix profile calculation. Each batch will comput its first row's dot product and build the subsequent matrix profile and matrix profile index using the stomp iterative algorithm. This also uses the very first row's dot product, cachedDot, to update the very first index of the current row's dot product.
 func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *sync.WaitGroup) mpResult {
 	defer wg.Done()
