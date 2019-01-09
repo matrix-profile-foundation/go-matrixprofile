@@ -94,9 +94,9 @@ subsequence length: 25
 $ make example
 go test ./... -run=Example
 ok      github.com/aouyang1/go-matrixprofile/matrixprofile      0.260s
-ok      github.com/aouyang1/go-matrixprofile/siggen     0.007s [no tests to run]make example
+ok      github.com/aouyang1/go-matrixprofile/siggen     0.007s [no tests to run]
 ```
-A png file will be saved in the top level directory of the repository as `mp_sine.png`
+A png file will be saved in the top level directory of the repository as `mp_sine.png` and `mp_kdim.png`
 
 ## Benchmarks
 Benchmark name                      | NumReps |    Time/Rep    |  Memory/Rep  |     Alloc/Rep   |
