@@ -138,8 +138,10 @@ func (mp *KMatrixProfile) MStomp() error {
 			// sets the distance in the exclusion zone to +Inf
 			applyExclusionZone(D[d], idx, mp.m/2)
 		}
+
 		mp.columnWiseSort(D)
 		mp.columnWiseCumSum(D)
+
 		for d := 0; d < len(D); d++ {
 			for i := 0; i < mp.n-mp.m+1; i++ {
 				if D[d][i]/(float64(d)+1) < mp.MP[d][i] {
