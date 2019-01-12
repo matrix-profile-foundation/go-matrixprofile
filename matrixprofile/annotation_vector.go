@@ -7,9 +7,9 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
-// MakeCompEstAV creates an annotation vector that is based on the complexity estimation
-// of the signal.
-func MakeCompEstAV(d []float64, m int) []float64 {
+// MakeCompexityAV creates an annotation vector that is based on the complexity
+// estimation of the signal.
+func MakeCompexityAV(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	var ce, minAV, maxAV float64
 	minAV = math.Inf(1)
@@ -65,9 +65,7 @@ func MakeClippingAV(d []float64, m int) []float64 {
 				numClip++
 			}
 		}
-		if numClip > 1 {
-			av[i] = 1.0 - (float64(numClip)-minVal)/maxVal
-		}
+		av[i] = 1.0 - (float64(numClip)-minVal)/(maxVal-minVal)
 	}
 	return av
 }
