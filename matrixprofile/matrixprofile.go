@@ -564,10 +564,10 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 	return motifs, nil
 }
 
-// Discords finds the top k time series discords starting indexes from a computed
+// TopKDiscords finds the top k time series discords starting indexes from a computed
 // matrix profile. Each discovery of a discord will apply an exclusion zone around
 // the found index so that new discords can be discovered.
-func (mp MatrixProfile) Discords(k int, exclusionZone int) []int {
+func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) []int {
 	mpCurrent := make([]float64, len(mp.MP))
 	copy(mpCurrent, mp.MP)
 

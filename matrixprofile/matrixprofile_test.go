@@ -494,7 +494,7 @@ func TestStampUpdate(t *testing.T) {
 	}
 }
 
-func TestDiscords(t *testing.T) {
+func TestTopKDiscords(t *testing.T) {
 	mprof := []float64{1, 2, 3, 4}
 
 	testdata := []struct {
@@ -512,7 +512,7 @@ func TestDiscords(t *testing.T) {
 
 	for _, d := range testdata {
 		mp := MatrixProfile{MP: d.mp}
-		discords := mp.Discords(d.k, d.exzone)
+		discords := mp.TopKDiscords(d.k, d.exzone)
 		if len(discords) != len(d.expectedDiscords) {
 			t.Errorf("Got a length of %d discords, but expected %d, for %v", len(discords), len(d.expectedDiscords), d)
 		}
