@@ -125,34 +125,3 @@ func arcCurve(mpIdx []int) []float64 {
 func iac(x float64, n int) float64 {
 	return -math.Pow(math.Sqrt(2/float64(n))*(x-float64(n)/2.0), 2.0) + float64(n)/2.0
 }
-
-// MakeCompEstAV creates an annotation vector that is based on the complexity estimation
-// of the signal.
-func MakeCompEstAV(d []float64, m int) []float64 {
-	av := make([]float64, len(d)-m+1)
-	var ce, minAV, maxAV float64
-	minAV = math.Inf(1)
-	maxAV = math.Inf(-1)
-	for i := 0; i < len(d)-m+1; i++ {
-		ce = 0.0
-		for j := 1; j < m; j++ {
-			ce += (d[i+j] - d[i+j-1]) * (d[i+j] - d[i+j-1])
-		}
-		av[i] = math.Sqrt(ce)
-		if av[i] < minAV {
-			minAV = av[i]
-		}
-		if av[i] > maxAV {
-			maxAV = av[i]
-		}
-	}
-	for i := 0; i < len(d)-m+1; i++ {
-		if maxAV == 0 {
-			av[i] = 0
-		} else {
-			av[i] = (av[i] - minAV) / maxAV
-		}
-	}
-
-	return av
-}

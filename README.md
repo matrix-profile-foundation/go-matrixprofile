@@ -6,7 +6,21 @@
 
 # go-matrixprofile
 
-Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series discords, time series segmentation, and motif discovery after computing the matrix profile. Currently implements STMP, STAMP, STAMPI, and STOMP. STAMP and STOMP can run with multiple go routines for increased parallelization.
+Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series discords, time series segmentation, and motif discovery after computing the matrix profile.
+
+Features:
+* STMP
+* STAMP (parallelized)
+* STAMPI
+* STOMP (parallelized)
+* mSTOMP
+* TopKMotifs - finds the top K motifs from a computed matrix profile
+* TopKDiscords - finds the top K discords from a computed matrix profile
+* Segement - computes the corrected arc curve for time series segmentation
+* Annotation Vectors
+** Complexity
+** Mean Standard Deviation
+** Clipping
 
 ## Contents
 - [Installation](#installation)
