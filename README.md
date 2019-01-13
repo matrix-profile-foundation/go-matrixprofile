@@ -18,9 +18,9 @@ Features:
 * TopKDiscords - finds the top K discords from a computed matrix profile
 * Segement - computes the corrected arc curve for time series segmentation
 * Annotation Vectors
-** Complexity
-** Mean Standard Deviation
-** Clipping
+  * Complexity
+  * Mean Standard Deviation
+  * Clipping
 
 ## Contents
 - [Installation](#installation)
