@@ -133,7 +133,7 @@ func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 
 // between a specified query and timeseries. Writes the euclidean distance
 // of the query to every subsequence in mp.b to profile.
 func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) error {
-	qnorm, err := zNormalize(q)
+	qnorm, err := ZNormalize(q)
 	if err != nil {
 		return err
 	}

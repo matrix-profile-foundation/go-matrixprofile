@@ -20,7 +20,7 @@ func TestZNormalize(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		out, err = zNormalize(d.data)
+		out, err = ZNormalize(d.data)
 		if err != nil && d.expected == nil {
 			// Got an error and expected an error
 			continue

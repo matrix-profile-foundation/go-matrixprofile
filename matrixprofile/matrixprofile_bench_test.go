@@ -26,7 +26,7 @@ func BenchmarkZNormalize(b *testing.B) {
 	var err error
 	var qnorm []float64
 	for i := 0; i < b.N; i++ {
-		qnorm, err = zNormalize(q)
+		qnorm, err = ZNormalize(q)
 		if err != nil {
 			b.Error(err)
 		}

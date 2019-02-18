@@ -7,9 +7,9 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
-// zNormalize computes a z-normalized version of a slice of floats.
+// ZNormalize computes a z-normalized version of a slice of floats.
 // This is represented by y[i] = (x[i] - mean(x))/std(x)
-func zNormalize(ts []float64) ([]float64, error) {
+func ZNormalize(ts []float64) ([]float64, error) {
 	var i int
 
 	if len(ts) == 0 {
