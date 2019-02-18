@@ -6,7 +6,7 @@
 
 # go-matrixprofile
 
-Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series discords, time series segmentation, and motif discovery after computing the matrix profile.
+Golang library for computing a matrix profiles and matrix profile indexes. Features also include time series discords, time series segmentation, and motif discovery after computing the matrix profile. Visit [The UCR Matrix Profile Page](https://www.cs.ucr.edu/~eamonn/MatrixProfile.html) for more details into matrix profiles.
 
 Features:
 * STMP
