@@ -513,7 +513,8 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 	mpCurrent := make([]float64, len(mp.MP))
 	copy(mpCurrent, mp.MP)
 
-	prof := make([]float64, mp.n-mp.m+1)
+	prof := make([]float64, len(mp.MP))  // stores minimum matrix profile distance between motif pairs
+	prof_ := make([]float64, len(mp.MP)) // stores second matrix profile distance
 	for j := 0; j < k; j++ {
 		// find minimum distance and index location
 		motifDistance := math.Inf(1)
@@ -537,27 +538,37 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		motifSet[mp.Idx[minIdx]] = struct{}{}
 
 		fft := fourier.NewFFT(mp.n)
-		for _, idx := range initialMotif {
-			if err = mp.distanceProfile(idx, prof, fft); err != nil {
-				return nil, err
-			}
-			// kill off any indices around the initial motif pair since they are
-			// trivial solutions
-			applyExclusionZone(prof, initialMotif[0], mp.m/2)
-			applyExclusionZone(prof, initialMotif[1], mp.m/2)
+		if err = mp.distanceProfile(initialMotif[0], prof, fft); err != nil {
+			return nil, err
+		}
+		if err = mp.distanceProfile(initialMotif[1], prof_, fft); err != nil {
+			return nil, err
+		}
 
-			// keep looking for the closest index to the current motif. Each
-			// index found will have an exclusion zone applied as to remove
-			// trivial solutions. This eventually exits when there's nothing
-			// found within the radius distance.
-			for {
-				minDistIdx = floats.MinIdx(prof)
-				if prof[minDistIdx] < motifDistance*r {
-					motifSet[minDistIdx] = struct{}{}
-					applyExclusionZone(prof, minDistIdx, mp.m/2)
-				} else {
-					break
-				}
+		// keep the smallest distance between the two distance profiles
+		for i, d := range prof {
+			if prof_[i] < d {
+				prof[i] = prof_[i]
+			}
+		}
+
+		// kill off any indices around the initial motif pair since they are
+		// trivial solutions
+		applyExclusionZone(prof, initialMotif[0], mp.m/2)
+		applyExclusionZone(prof, initialMotif[1], mp.m/2)
+
+		// keep looking for the closest index to the current motif. Each
+		// index found will have an exclusion zone applied as to remove
+		// trivial solutions. This eventually exits when there's nothing
+		// found within the radius distance.
+		for {
+			minDistIdx = floats.MinIdx(prof)
+
+			if prof[minDistIdx] < motifDistance*r {
+				motifSet[minDistIdx] = struct{}{}
+				applyExclusionZone(prof, minDistIdx, mp.m/2)
+			} else {
+				break
 			}
 		}
 
