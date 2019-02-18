@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 
+	"gonum.org/v1/gonum/floats"
 	"gonum.org/v1/gonum/fourier"
 )
 
@@ -505,6 +506,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		return nil, errors.New("can only find top motifs if a self join is performed")
 	}
 	var err error
+	var minDistIdx int
 
 	motifs := make([]MotifGroup, k)
 
@@ -539,9 +541,22 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 			if err = mp.distanceProfile(idx, prof, fft); err != nil {
 				return nil, err
 			}
-			for i, d := range prof {
-				if d < motifDistance*r {
-					motifSet[i] = struct{}{}
+			// kill off any indices around the initial motif pair since they are
+			// trivial solutions
+			applyExclusionZone(prof, initialMotif[0], mp.m/2)
+			applyExclusionZone(prof, initialMotif[1], mp.m/2)
+
+			// keep looking for the closest index to the current motif. Each
+			// index found will have an exclusion zone applied as to remove
+			// trivial solutions. This eventually exits when there's nothing
+			// found within the radius distance.
+			for {
+				minDistIdx = floats.MinIdx(prof)
+				if prof[minDistIdx] < motifDistance*r {
+					motifSet[minDistIdx] = struct{}{}
+					applyExclusionZone(prof, minDistIdx, mp.m/2)
+				} else {
+					break
 				}
 			}
 		}
