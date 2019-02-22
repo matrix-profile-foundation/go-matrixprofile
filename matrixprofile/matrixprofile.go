@@ -531,10 +531,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		}
 
 		// filter out all indexes that have a distance within r*motifDistance
-		//motifSet := make(map[int]struct{})
 		motifLoc := []int{minIdx, mp.Idx[minIdx]}
-		//motifSet[minIdx] = struct{}{}
-		//motifSet[mp.Idx[minIdx]] = struct{}{}
 
 		fft := fourier.NewFFT(mp.n)
 		if err = mp.distanceProfile(motifLoc[0], prof, fft); err != nil {
