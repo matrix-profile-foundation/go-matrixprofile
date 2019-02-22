@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"sort"
 	"sync"
 
 	"gonum.org/v1/gonum/floats"
@@ -532,16 +531,16 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		}
 
 		// filter out all indexes that have a distance within r*motifDistance
-		motifSet := make(map[int]struct{})
-		initialMotif := []int{minIdx, mp.Idx[minIdx]}
-		motifSet[minIdx] = struct{}{}
-		motifSet[mp.Idx[minIdx]] = struct{}{}
+		//motifSet := make(map[int]struct{})
+		motifLoc := []int{minIdx, mp.Idx[minIdx]}
+		//motifSet[minIdx] = struct{}{}
+		//motifSet[mp.Idx[minIdx]] = struct{}{}
 
 		fft := fourier.NewFFT(mp.n)
-		if err = mp.distanceProfile(initialMotif[0], prof, fft); err != nil {
+		if err = mp.distanceProfile(motifLoc[0], prof, fft); err != nil {
 			return nil, err
 		}
-		if err = mp.distanceProfile(initialMotif[1], prof_, fft); err != nil {
+		if err = mp.distanceProfile(motifLoc[1], prof_, fft); err != nil {
 			return nil, err
 		}
 
@@ -554,8 +553,8 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 
 		// kill off any indices around the initial motif pair since they are
 		// trivial solutions
-		applyExclusionZone(prof, initialMotif[0], mp.m/2)
-		applyExclusionZone(prof, initialMotif[1], mp.m/2)
+		applyExclusionZone(prof, motifLoc[0], mp.m/2)
+		applyExclusionZone(prof, motifLoc[1], mp.m/2)
 
 		// keep looking for the closest index to the current motif. Each
 		// index found will have an exclusion zone applied as to remove
@@ -565,7 +564,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 			minDistIdx = floats.MinIdx(prof)
 
 			if prof[minDistIdx] < motifDistance*r {
-				motifSet[minDistIdx] = struct{}{}
+				motifLoc = append(motifLoc, minDistIdx)
 				applyExclusionZone(prof, minDistIdx, mp.m/2)
 			} else {
 				break
@@ -575,16 +574,14 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		// store the found motif indexes and create an exclusion zone around
 		// each index in the current matrix profile
 		motifs[j] = MotifGroup{
-			Idx:     make([]int, 0, len(motifSet)),
+			Idx:     make([]int, 0, len(motifLoc)),
 			MinDist: motifDistance,
 		}
-		for idx := range motifSet {
-			motifs[j].Idx = append(motifs[j].Idx, idx)
-			applyExclusionZone(mpCurrent, idx, mp.m/2)
+		for _, loc := range motifLoc {
+			motifs[j].Idx = append(motifs[j].Idx, loc)
+			applyExclusionZone(mpCurrent, loc, mp.m/2)
 		}
 
-		// sorts the indices in ascending order
-		sort.IntSlice(motifs[j].Idx).Sort()
 	}
 
 	return motifs, nil

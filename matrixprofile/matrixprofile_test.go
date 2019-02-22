@@ -2,6 +2,7 @@ package matrixprofile
 
 import (
 	"math"
+	"sort"
 	"testing"
 
 	"gonum.org/v1/gonum/fourier"
@@ -565,6 +566,10 @@ func TestTopKMotifs(t *testing.T) {
 				continue
 			}
 			t.Error(err)
+		}
+
+		for i := range motifs {
+			sort.Ints(motifs[i].Idx)
 		}
 
 		for i, mg := range motifs {
