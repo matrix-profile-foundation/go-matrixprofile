@@ -106,7 +106,7 @@ func (mp *MatrixProfile) initCaches() error {
 // crossCorrelate computes the sliding dot product between two slices
 // given a query and time series. Uses fast fourier transforms to compute
 // the necessary values. Returns the a slice of floats for the cross-correlation
-// of the signal q and the  mp.Bsignal. This makes an optimization where the query
+// of the signal q and the mp.B signal. This makes an optimization where the query
 // length must be less than half the length of the timeseries, b.
 func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 {
 	qpad := make([]float64, mp.N)
@@ -131,7 +131,7 @@ func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 
 
 // mass calculates the Mueen's algorithm for similarity search (MASS)
 // between a specified query and timeseries. Writes the euclidean distance
-// of the query to every subsequence in  mp.Bto profile.
+// of the query to every subsequence in mp.B to profile.
 func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) error {
 	qnorm, err := ZNormalize(q)
 	if err != nil {
@@ -150,7 +150,7 @@ func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) e
 // distanceProfile computes the distance profile between a and b time series.
 // If b is set to nil then it assumes a self join and will create an exclusion
 // area for trivial nearest neighbors. Writes the euclidean distance between
-// the specified subsequence in mp.A with each subsequence in  mp.Bto profile
+// the specified subsequence in mp.A with each subsequence in mp.B to profile
 func (mp MatrixProfile) distanceProfile(idx int, profile []float64, fft *fourier.FFT) error {
 	if idx > len(mp.A)-mp.M {
 		return fmt.Errorf("provided index  %d is beyond the length of timeseries %d minus the subsequence length %d", idx, len(mp.A), mp.M)
