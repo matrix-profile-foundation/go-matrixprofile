@@ -30,9 +30,11 @@ func TestNew(t *testing.T) {
 		_, err := New(d.a, d.b, d.m)
 		if d.expectedErr && err == nil {
 			t.Errorf("Expected an error, but got none for %v", d)
+			return
 		}
 		if !d.expectedErr && err != nil {
 			t.Errorf("Expected no error, but got %v for %v", err, d)
+			return
 		}
 	}
 }
@@ -62,10 +64,11 @@ func TestCrossCorrelate(t *testing.T) {
 				continue
 			} else {
 				t.Errorf("did not expect to get an error , %v, for %v", err, d)
+				return
 			}
 		}
 
-		fft := fourier.NewFFT(mp.n)
+		fft := fourier.NewFFT(mp.N)
 		out = mp.crossCorrelate(d.q, fft)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
@@ -73,12 +76,15 @@ func TestCrossCorrelate(t *testing.T) {
 		}
 		if d.expected == nil {
 			t.Errorf("Expected an invalid cross correlation calculation, %v", d)
+			return
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v", err)
+			return
 		}
 		if len(out) != len(d.expected) {
 			t.Errorf("Expected %d elements, but got %d, %v", len(d.expected), len(out), d)
+			return
 		}
 		for i := 0; i < len(out); i++ {
 			if math.Abs(out[i]-d.expected[i]) > 1e-7 {
@@ -116,8 +122,8 @@ func TestMass(t *testing.T) {
 			// Got an error while creating a new matrix profile
 			continue
 		}
-		out = make([]float64, mp.n-mp.m+1)
-		fft := fourier.NewFFT(mp.n)
+		out = make([]float64, mp.N-mp.M+1)
+		fft := fourier.NewFFT(mp.N)
 		err = mp.mass(d.q, out, fft)
 		if err != nil && d.expected == nil {
 			// Got an error while z normalizing and expected an error
@@ -125,12 +131,15 @@ func TestMass(t *testing.T) {
 		}
 		if d.expected == nil {
 			t.Errorf("Expected an invalid mass calculation, %v", d)
+			return
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v", err)
+			return
 		}
 		if len(out) != len(d.expected) {
 			t.Errorf("Expected %d elements, but got %d, %v", len(d.expected), len(out), d)
+			return
 		}
 		for i := 0; i < len(out); i++ {
 			if math.IsNaN(out[i]) {
@@ -171,8 +180,8 @@ func TestDistanceProfile(t *testing.T) {
 			continue
 		}
 
-		mprof = make([]float64, mp.n-mp.m+1)
-		fft := fourier.NewFFT(mp.n)
+		mprof = make([]float64, mp.N-mp.M+1)
+		fft := fourier.NewFFT(mp.N)
 		err = mp.distanceProfile(d.idx, mprof, fft)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
@@ -180,12 +189,15 @@ func TestDistanceProfile(t *testing.T) {
 		}
 		if d.expectedMP == nil {
 			t.Errorf("Expected an invalid distance profile calculation, %+v", d)
+			return
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v\n%+v", err, d)
+			return
 		}
 		if len(mprof) != len(d.expectedMP) {
 			t.Errorf("Expected %d elements, but got %d\n%+v", len(d.expectedMP), len(mprof), d)
+			return
 		}
 		for i := 0; i < len(mprof); i++ {
 			if math.Abs(mprof[i]-d.expectedMP[i]) > 1e-7 {
@@ -222,10 +234,10 @@ func TestCalculateDistanceProfile(t *testing.T) {
 			continue
 		}
 
-		fft := fourier.NewFFT(mp.n)
-		dot := mp.crossCorrelate(mp.a[:mp.m], fft)
+		fft := fourier.NewFFT(mp.N)
+		dot := mp.crossCorrelate(mp.A[:mp.M], fft)
 
-		mprof = make([]float64, mp.n-mp.m+1)
+		mprof = make([]float64, mp.N-mp.M+1)
 		err = mp.calculateDistanceProfile(dot, d.idx, mprof)
 		if err != nil {
 			if d.expectedMP == nil {
@@ -233,16 +245,20 @@ func TestCalculateDistanceProfile(t *testing.T) {
 				continue
 			} else {
 				t.Errorf("Did not expect to get error, %v, for %v", err, d)
+				return
 			}
 		}
 		if d.expectedMP == nil {
 			t.Errorf("Expected an invalid distance profile calculation, %+v", d)
+			return
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v\n%+v", err, d)
+			return
 		}
 		if len(mprof) != len(d.expectedMP) {
 			t.Errorf("Expected %d elements, but got %d\n%+v", len(d.expectedMP), len(mprof), d)
+			return
 		}
 		for i := 0; i < len(mprof); i++ {
 			if math.Abs(mprof[i]-d.expectedMP[i]) > 1e-7 {
@@ -288,12 +304,15 @@ func TestStmp(t *testing.T) {
 		}
 		if d.expectedMP == nil {
 			t.Errorf("Expected an invalid STMP calculation, %+v", d)
+			return
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v, %+v", err, d)
+			return
 		}
 		if len(mp.MP) != len(d.expectedMP) {
 			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
+			return
 		}
 		for i := 0; i < len(mp.MP); i++ {
 			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
@@ -346,12 +365,15 @@ func TestStamp(t *testing.T) {
 		}
 		if d.expectedMP == nil {
 			t.Errorf("Expected an invalid STAMP calculation, %+v", d)
+			return
 		}
 		if err != nil {
 			t.Errorf("Did not expect error, %v, %+v", err, d)
+			return
 		}
 		if len(mp.MP) != len(d.expectedMP) {
 			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
+			return
 		}
 		for i := 0; i < len(mp.MP); i++ {
 			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
@@ -407,6 +429,7 @@ func TestStomp(t *testing.T) {
 				continue
 			} else {
 				t.Errorf("Did not expect an error, %v,  while creating new mp for %v", err, d)
+				return
 			}
 		}
 
@@ -427,6 +450,7 @@ func TestStomp(t *testing.T) {
 
 		if len(mp.MP) != len(d.expectedMP) {
 			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
+			return
 		}
 		for i := 0; i < len(mp.MP); i++ {
 			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
@@ -462,14 +486,17 @@ func TestStampUpdate(t *testing.T) {
 	mp, err = New(a, nil, 4)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	if err = mp.Stomp(1); err != nil {
 		t.Error(err)
+		return
 	}
 
 	for _, d := range testdata {
 		if err = mp.StampUpdate(d.vals); err != nil {
 			t.Error(err)
+			return
 		}
 		outMP = make([]float64, len(mp.MP))
 		outIdx = make([]int, len(mp.Idx))
@@ -478,6 +505,7 @@ func TestStampUpdate(t *testing.T) {
 
 		if err = mp.Stomp(1); err != nil {
 			t.Error(err)
+			return
 		}
 
 		for i := 0; i < len(mp.MP); i++ {
@@ -516,10 +544,12 @@ func TestTopKDiscords(t *testing.T) {
 		discords := mp.TopKDiscords(d.k, d.exzone)
 		if len(discords) != len(d.expectedDiscords) {
 			t.Errorf("Got a length of %d discords, but expected %d, for %v", len(discords), len(d.expectedDiscords), d)
+			return
 		}
 		for i, idx := range discords {
 			if idx != d.expectedDiscords[i] {
 				t.Errorf("expected index, %d, but got %d, for %v", d.expectedDiscords[i], idx, d)
+				return
 			}
 		}
 	}
@@ -537,7 +567,7 @@ func TestTopKMotifs(t *testing.T) {
 	}{
 		{
 			a, nil, 3,
-			[][]int{{0, 14}, {0, 7, 14}, {3, 10}},
+			[][]int{{0, 14}, {0, 7}, {3, 10}},
 			[]float64{0.1459619228330262, 0.3352336136782056, 0.46369664551715467},
 		},
 		{
@@ -547,7 +577,7 @@ func TestTopKMotifs(t *testing.T) {
 		},
 		{
 			a, nil, 5,
-			[][]int{{0, 14}, {0, 7, 14}, {3, 10}, {}, {}},
+			[][]int{{0, 14}, {0, 7}, {3, 10}, {}, {}},
 			[]float64{0.1459619228330262, 0.3352336136782056, 0.46369664551715467, 0, 0},
 		},
 	}
@@ -556,9 +586,11 @@ func TestTopKMotifs(t *testing.T) {
 		mp, err := New(d.a, d.b, 7)
 		if err != nil {
 			t.Error(err)
+			return
 		}
 		if err = mp.Stmp(); err != nil {
 			t.Error(err)
+			return
 		}
 		motifs, err := mp.TopKMotifs(d.k, 2)
 		if err != nil {
@@ -566,6 +598,7 @@ func TestTopKMotifs(t *testing.T) {
 				continue
 			}
 			t.Error(err)
+			return
 		}
 
 		for i := range motifs {
@@ -575,15 +608,18 @@ func TestTopKMotifs(t *testing.T) {
 		for i, mg := range motifs {
 			if len(mg.Idx) != len(d.expectedMotifs[i]) {
 				t.Errorf("expected %d motifs for group %d, but got %d for %v", len(d.expectedMotifs[i]), i, len(mg.Idx), d)
+				return
 			}
 
 			for j, idx := range mg.Idx {
 				if idx != d.expectedMotifs[i][j] {
 					t.Errorf("expected index, %d for group %d, but got %d for %v", d.expectedMotifs[i][j], i, idx, d)
+					return
 				}
 			}
 			if math.Abs(mg.MinDist-d.expectedMinDist[i]) > 1e-7 {
 				t.Errorf("expected minimum distance, %v for group %d, but got %v for %v", d.expectedMinDist[i], i, mg.MinDist, d)
+				return
 			}
 		}
 	}

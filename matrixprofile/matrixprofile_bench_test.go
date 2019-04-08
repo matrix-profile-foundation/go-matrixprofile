@@ -66,7 +66,7 @@ func BenchmarkCrossCorrelate(b *testing.B) {
 		b.Error(err)
 	}
 
-	fft := fourier.NewFFT(mp.n)
+	fft := fourier.NewFFT(mp.N)
 	for i := 0; i < b.N; i++ {
 		cc = mp.crossCorrelate(q, fft)
 		if len(cc) < 1 {
@@ -85,8 +85,8 @@ func BenchmarkMass(b *testing.B) {
 		b.Error(err)
 	}
 
-	mprof := make([]float64, mp.n-mp.m+1)
-	fft := fourier.NewFFT(mp.n)
+	mprof := make([]float64, mp.N-mp.M+1)
+	fft := fourier.NewFFT(mp.N)
 	for i := 0; i < b.N; i++ {
 		q = sig[:32]
 		err = mp.mass(q, mprof, fft)
@@ -108,8 +108,8 @@ func BenchmarkDistanceProfile(b *testing.B) {
 		b.Error(err)
 	}
 
-	mprof := make([]float64, mp.n-mp.m+1)
-	fft := fourier.NewFFT(mp.n)
+	mprof := make([]float64, mp.N-mp.M+1)
+	fft := fourier.NewFFT(mp.N)
 	for i := 0; i < b.N; i++ {
 		err = mp.distanceProfile(0, mprof, fft)
 		if err != nil {
@@ -130,8 +130,8 @@ func BenchmarkCalculateDistanceProfile(b *testing.B) {
 		b.Error(err)
 	}
 
-	fft := fourier.NewFFT(mp.n)
-	dot := mp.crossCorrelate(mp.a[:mp.m], fft)
+	fft := fourier.NewFFT(mp.N)
+	dot := mp.crossCorrelate(mp.A[:mp.M], fft)
 
 	mprof := make([]float64, len(dot))
 
