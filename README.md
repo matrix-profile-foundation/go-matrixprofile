@@ -187,3 +187,5 @@ Copyright (c) 2018 Austin Ouyang
 [3] Hoang Anh Dau and Eamonn Keogh (2017). [Matrix Profile V: A Generic Technique to Incorporate Domain Knowledge into Motif Discovery](https://www.cs.ucr.edu/~eamonn/guided-motif-KDD17-new-format-10-pages-v005.pdf). KDD 2017.
 
 [4] Chin-Chia Michael Yeh, Nickolas Kavantzas, Eamonn Keogh (2017).[Matrix Profile VI: Meaningful Multidimensional Motif Discovery](https://www.cs.ucr.edu/%7Eeamonn/Motif_Discovery_ICDM.pdf). ICDM 2017.
+
+[5] Shaghayegh Gharghabi, Yifei Ding, Chin-Chia Michael Yeh, Kaveh Kamgar, Liudmila Ulanova, Eamonn Keogh (2017). [Matrix Profile VIII: Domain Agnostic Online Semantic Segmentation at Superhuman Performance Levels](https://www.cs.ucr.edu/%7Eeamonn/Segmentation_ICDM.pdf). ICDM 2017.
