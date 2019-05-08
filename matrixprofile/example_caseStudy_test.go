@@ -199,7 +199,7 @@ func Example_caseStudy() {
 		panic(err)
 	}
 
-	discords := mp.TopKDiscords(3, mp.M/2)
+	discords, err := mp.TopKDiscords(3, mp.M/2)
 	if err != nil {
 		panic(err)
 	}

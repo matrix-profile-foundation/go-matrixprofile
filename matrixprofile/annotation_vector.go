@@ -7,6 +7,23 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
+var (
+	DefaultAV    = "default"
+	ComplexityAV = "complexity"
+	MeanStdAV    = "meanstd"
+	ClippingAV   = "clipping"
+)
+
+// MakeDefaultAV creates a default annotation vector of all ones resulting in
+// no change to the matrix profile when applied
+func MakeDefaultAV(d []float64, m int) []float64 {
+	av := make([]float64, len(d)-m+1)
+	for i := 0; i < len(av); i++ {
+		av[i] = 1.0
+	}
+	return av
+}
+
 // MakeCompexityAV creates an annotation vector that is based on the complexity
 // estimation of the signal.
 func MakeCompexityAV(d []float64, m int) []float64 {

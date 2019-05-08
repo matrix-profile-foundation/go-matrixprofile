@@ -525,6 +525,8 @@ func TestStampUpdate(t *testing.T) {
 
 func TestTopKDiscords(t *testing.T) {
 	mprof := []float64{1, 2, 3, 4}
+	a := []float64{1, 2, 3, 4, 5, 6}
+	m := 3
 
 	testdata := []struct {
 		mp               []float64
@@ -536,12 +538,15 @@ func TestTopKDiscords(t *testing.T) {
 		{mprof, 4, 1, []int{3, 1, math.MaxInt64, math.MaxInt64}},
 		{mprof, 10, 1, []int{3, 1, math.MaxInt64, math.MaxInt64}},
 		{mprof, 0, 1, []int{}},
-		{[]float64{}, 3, 1, []int{}},
 	}
 
 	for _, d := range testdata {
-		mp := MatrixProfile{MP: d.mp}
-		discords := mp.TopKDiscords(d.k, d.exzone)
+		mp := MatrixProfile{A: a, M: m, MP: d.mp, AV: DefaultAV}
+		discords, err := mp.TopKDiscords(d.k, d.exzone)
+		if err != nil {
+			t.Errorf("Got error %v on %v", err, d)
+			return
+		}
 		if len(discords) != len(d.expectedDiscords) {
 			t.Errorf("Got a length of %d discords, but expected %d, for %v", len(discords), len(d.expectedDiscords), d)
 			return
@@ -664,5 +669,39 @@ func TestApplyAV(t *testing.T) {
 				break
 			}
 		}
+	}
+}
+
+func TestGetAV(t *testing.T) {
+	for _, avtype := range []string{DefaultAV, ComplexityAV, MeanStdAV, ClippingAV} {
+		mp, err := New([]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, nil, 4)
+		if err != nil {
+			t.Errorf("Failed to initialize Matrix Profile on %s", avtype)
+			return
+		}
+		mp.AV = avtype
+		av, err := mp.GetAV()
+		if err != nil {
+			t.Errorf("Received error on fetching annotation vector")
+			return
+		}
+
+		if len(av) != len(mp.A)-mp.M+1 {
+			t.Errorf("Expected %d values from annotation vector but got %d for %s", len(mp.A)-mp.M+1, len(av), avtype)
+			return
+		}
+	}
+
+	mp, err := New([]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, nil, 4)
+	if err != nil {
+		t.Error("Failed to initialize Matrix Profile on bad annotation vector")
+		return
+	}
+
+	mp.AV = ""
+	_, err = mp.GetAV()
+	if err == nil {
+		t.Errorf("Expected an error on invalid annotation vector type")
+		return
 	}
 }

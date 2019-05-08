@@ -29,6 +29,7 @@ type MatrixProfile struct {
 	SelfJoin bool         // indicates whether a self join is performed with an exclusion zone
 	MP       []float64    // matrix profile
 	Idx      []int        // matrix profile index
+	AV       string       // type of annotation vector which defaults to all ones
 }
 
 // New creates a matrix profile struct with a given timeseries length n and
@@ -75,6 +76,8 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		mp.MP[i] = math.Inf(1)
 		mp.Idx[i] = math.MaxInt64
 	}
+
+	mp.AV = DefaultAV
 
 	return &mp, nil
 }
@@ -510,10 +513,16 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 
 	motifs := make([]MotifGroup, k)
 
-	mpCurrent := make([]float64, len(mp.MP))
-	copy(mpCurrent, mp.MP)
+	av, err := mp.GetAV()
+	if err != nil {
+		return nil, err
+	}
+	mpCurrent, err := mp.ApplyAV(av)
+	if err != nil {
+		return nil, err
+	}
 
-	prof := make([]float64, len(mp.MP)) // stores minimum matrix profile distance between motif pairs
+	prof := make([]float64, len(mpCurrent)) // stores minimum matrix profile distance between motif pairs
 	fft := fourier.NewFFT(mp.N)
 	for j := 0; j < k; j++ {
 		// find minimum distance and index location
@@ -588,9 +597,15 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 // TopKDiscords finds the top k time series discords starting indexes from a computed
 // matrix profile. Each discovery of a discord will apply an exclusion zone around
 // the found index so that new discords can be discovered.
-func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) []int {
-	mpCurrent := make([]float64, len(mp.MP))
-	copy(mpCurrent, mp.MP)
+func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) ([]int, error) {
+	av, err := mp.GetAV()
+	if err != nil {
+		return nil, err
+	}
+	mpCurrent, err := mp.ApplyAV(av)
+	if err != nil {
+		return nil, err
+	}
 
 	// if requested k is larger than length of the matrix profile, cap it
 	if k > len(mpCurrent) {
@@ -612,7 +627,7 @@ func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) []int {
 		discords[i] = maxIdx
 		applyExclusionZone(mpCurrent, maxIdx, exclusionZone)
 	}
-	return discords
+	return discords, nil
 }
 
 // Segment finds the the index where there may be a potential timeseries
@@ -646,7 +661,7 @@ func (mp MatrixProfile) Segment() (int, float64, []float64) {
 
 // ApplyAV applies an annotation vector to the current matrix profile. Annotation vector
 // values must be between 0 and 1.
-func (mp *MatrixProfile) ApplyAV(av []float64) ([]float64, error) {
+func (mp MatrixProfile) ApplyAV(av []float64) ([]float64, error) {
 	if len(av) != len(mp.MP) {
 		return nil, fmt.Errorf("annotation vector length, %d, does not match matrix profile length, %d", len(av), len(mp.MP))
 	}
@@ -674,4 +689,22 @@ func (mp *MatrixProfile) ApplyAV(av []float64) ([]float64, error) {
 	}
 
 	return out, nil
+}
+
+func (mp MatrixProfile) GetAV() ([]float64, error) {
+	var av []float64
+	switch mp.AV {
+	case DefaultAV:
+		av = MakeDefaultAV(mp.A, mp.M)
+	case ComplexityAV:
+		av = MakeCompexityAV(mp.A, mp.M)
+	case MeanStdAV:
+		av = MakeMeanStdAV(mp.A, mp.M)
+	case ClippingAV:
+		av = MakeClippingAV(mp.A, mp.M)
+	default:
+		return nil, fmt.Errorf("invalid annotation vector specified with matrix profile, %s", mp.AV)
+	}
+
+	return av, nil
 }
