@@ -88,8 +88,8 @@ func TestMakeClippingAV(t *testing.T) {
 		expected []float64
 	}{
 		{[]float64{3, 3, 3, 3, 3, 3}, 3, []float64{0, 0, 0, 0}},
-		{[]float64{0, 1, 2, 3, 4, 5}, 3, []float64{0.8, 1, 1, 0.8}},
-		{[]float64{0, 3, 0, 2, 0, 1}, 3, []float64{0, 1.0 / 3.0, 1.0 / 3.0, 2.0 / 3.0}},
+		{[]float64{0, 1, 2, 3, 4, 5}, 3, []float64{0, 1, 1, 0}},
+		{[]float64{0, 3, 0, 2, 0, 1}, 3, []float64{0, 0.5, 0.5, 1}},
 	}
 	for _, d := range testdata {
 		out := MakeClippingAV(d.d, d.m)

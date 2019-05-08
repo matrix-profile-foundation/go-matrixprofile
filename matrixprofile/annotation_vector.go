@@ -82,7 +82,18 @@ func MakeClippingAV(d []float64, m int) []float64 {
 				numClip++
 			}
 		}
-		av[i] = 1.0 - (float64(numClip)-minVal)/(maxVal-minVal)
+		av[i] = float64(numClip)
 	}
+
+	minVal = floats.Min(av)
+	for i := 0; i < len(av); i++ {
+		av[i] -= minVal
+	}
+
+	maxVal = floats.Max(av)
+	for i := 0; i < len(av); i++ {
+		av[i] = 1 - av[i]/maxVal
+	}
+
 	return av
 }
