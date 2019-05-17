@@ -524,7 +524,9 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 
 	prof := make([]float64, len(mpCurrent)) // stores minimum matrix profile distance between motif pairs
 	fft := fourier.NewFFT(mp.N)
-	for j := 0; j < k; j++ {
+	var j int
+
+	for j = 0; j < k; j++ {
 		// find minimum distance and index location
 		motifDistance := math.Inf(1)
 		minIdx := math.MaxInt64
@@ -591,7 +593,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		sort.IntSlice(motifs[j].Idx).Sort()
 	}
 
-	return motifs, nil
+	return motifs[:j], nil
 }
 
 // TopKDiscords finds the top k time series discords starting indexes from a computed
@@ -615,7 +617,9 @@ func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) ([]int, error) {
 	discords := make([]int, k)
 	var maxVal float64
 	var maxIdx int
-	for i := 0; i < k; i++ {
+	var i int
+
+	for i = 0; i < k; i++ {
 		maxVal = 0
 		maxIdx = math.MaxInt64
 		for j, val := range mpCurrent {
@@ -624,10 +628,15 @@ func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) ([]int, error) {
 				maxIdx = j
 			}
 		}
+
+		if maxIdx == math.MaxInt64 {
+			break
+		}
+
 		discords[i] = maxIdx
 		applyExclusionZone(mpCurrent, maxIdx, exclusionZone)
 	}
-	return discords, nil
+	return discords[:i], nil
 }
 
 // Segment finds the the index where there may be a potential timeseries

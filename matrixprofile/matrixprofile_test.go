@@ -535,8 +535,8 @@ func TestTopKDiscords(t *testing.T) {
 		expectedDiscords []int
 	}{
 		{mprof, 4, 0, []int{3, 3, 3, 3}},
-		{mprof, 4, 1, []int{3, 1, math.MaxInt64, math.MaxInt64}},
-		{mprof, 10, 1, []int{3, 1, math.MaxInt64, math.MaxInt64}},
+		{mprof, 4, 1, []int{3, 1}},
+		{mprof, 10, 1, []int{3, 1}},
 		{mprof, 0, 1, []int{}},
 	}
 
