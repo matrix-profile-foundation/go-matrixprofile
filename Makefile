@@ -6,10 +6,10 @@ usage:
 	@echo "make setup     : Installs all needed dependencies"
 	@echo "make travis-ci : Travis CI specific testing"
 
-all: test bench
+all: test bench example
 
 test:
-	go test -race -cover ./...
+	go test -race -cover -run=Test ./...
 
 bench:
 	go test ./... -run=XX -bench=. -test.benchmem

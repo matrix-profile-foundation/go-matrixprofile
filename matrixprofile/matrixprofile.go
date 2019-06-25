@@ -367,11 +367,6 @@ type mpResult struct {
 // dot product is available. This should also greatly reduce the number of memory
 // allocations needed to compute an arbitrary timeseries length.
 func (mp *MatrixProfile) Stomp(parallelism int) error {
-	// save the first dot product of the first row that will be used by all future
-	// go routines
-	fft := fourier.NewFFT(mp.N)
-	cachedDot := mp.crossCorrelate(mp.A[:mp.M], fft)
-
 	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
 	results := make([]chan mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
@@ -395,7 +390,7 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
 		go func(idx int) {
-			result := mp.stompBatch(idx, batchSize, cachedDot, &wg)
+			result := mp.stompBatch(idx, batchSize, &wg)
 			results[idx] <- result
 		}(batch)
 	}
@@ -407,8 +402,12 @@ func (mp *MatrixProfile) Stomp(parallelism int) error {
 	return err
 }
 
-// stompBatch processes a batch set of rows in matrix profile calculation. Each batch will comput its first row's dot product and build the subsequent matrix profile and matrix profile index using the stomp iterative algorithm. This also uses the very first row's dot product, cachedDot, to update the very first index of the current row's dot product.
-func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *sync.WaitGroup) mpResult {
+// stompBatch processes a batch set of rows in matrix profile calculation. Each batch
+// will compute its first row's dot product and build the subsequent matrix profile and
+// matrix profile index using the stomp iterative algorithm. This also uses the very
+// first row's dot product to update the very first index of the current row's
+// dot product.
+func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) mpResult {
 	defer wg.Done()
 	if idx*batchSize+mp.M > len(mp.A) {
 		// got an index larger than mp.A so ignore
@@ -438,6 +437,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 
 	// iteratively update for this batch each row's matrix profile and matrix
 	// profile index
+	var nextDotZero float64
 	for i := 1; i < batchSize; i++ {
 		if idx*batchSize+i-1 >= len(mp.A) || idx*batchSize+i+mp.M-1 >= len(mp.A) {
 			// looking for an index beyond the length of mp.A so ignore and move one
@@ -447,7 +447,15 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, cachedDot []float64, wg *
 		for j := mp.N - mp.M; j > 0; j-- {
 			dot[j] = dot[j-1] - mp.B[j-1]*mp.A[idx*batchSize+i-1] + mp.B[j+mp.M-1]*mp.A[idx*batchSize+i+mp.M-1]
 		}
-		dot[0] = cachedDot[idx*batchSize+i]
+
+		// recompute the first cross correlation since the algorithm is only valid for
+		// points after it. Previous optimization of using a precomputed cache ONLY applies
+		// if we're doing a self-join and is invalidated with AB-joins of different time series
+		nextDotZero = 0
+		for k := 0; k < mp.M; k++ {
+			nextDotZero += mp.A[idx*batchSize+i+k] * mp.B[k]
+		}
+		dot[0] = nextDotZero
 		if err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile); err != nil {
 			return mpResult{nil, nil, err}
 		}
@@ -704,13 +712,13 @@ func (mp MatrixProfile) GetAV() ([]float64, error) {
 	var av []float64
 	switch mp.AV {
 	case DefaultAV:
-		av = MakeDefaultAV(mp.A, mp.M)
+		av = MakeDefaultAV(mp.B, mp.M)
 	case ComplexityAV:
-		av = MakeCompexityAV(mp.A, mp.M)
+		av = MakeCompexityAV(mp.B, mp.M)
 	case MeanStdAV:
-		av = MakeMeanStdAV(mp.A, mp.M)
+		av = MakeMeanStdAV(mp.B, mp.M)
 	case ClippingAV:
-		av = MakeClippingAV(mp.A, mp.M)
+		av = MakeClippingAV(mp.B, mp.M)
 	default:
 		return nil, fmt.Errorf("invalid annotation vector specified with matrix profile, %s", mp.AV)
 	}

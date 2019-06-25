@@ -541,7 +541,7 @@ func TestTopKDiscords(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp := MatrixProfile{A: a, M: m, MP: d.mp, AV: DefaultAV}
+		mp := MatrixProfile{A: a, B: a, M: m, MP: d.mp, AV: DefaultAV}
 		discords, err := mp.TopKDiscords(d.k, d.exzone)
 		if err != nil {
 			t.Errorf("Got error %v on %v", err, d)
