@@ -407,6 +407,10 @@ func TestStomp(t *testing.T) {
 		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 1, nil, nil},
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
 		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, []float64{math.Inf(1), math.Inf(1), math.Inf(1), math.Inf(1)}, []int{math.MaxInt64, math.MaxInt64, math.MaxInt64, math.MaxInt64}},
+		{[]float64{1, 1, 1, 1, 1, 1, 1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, []float64{math.Inf(1), math.Inf(1), math.Inf(1), math.Inf(1)}, []int{math.MaxInt64, math.MaxInt64, math.MaxInt64, math.MaxInt64}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, []float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, 4, 1,
+			[]float64{0, 0, 0, 0, 0, 0, 0, 0, 0},
+			[]int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
 		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 1,
 			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
 			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
@@ -541,7 +545,7 @@ func TestTopKDiscords(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp := MatrixProfile{A: a, M: m, MP: d.mp, AV: DefaultAV}
+		mp := MatrixProfile{A: a, B: a, M: m, MP: d.mp, AV: DefaultAV}
 		discords, err := mp.TopKDiscords(d.k, d.exzone)
 		if err != nil {
 			t.Errorf("Got error %v on %v", err, d)
