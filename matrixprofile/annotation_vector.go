@@ -8,10 +8,19 @@ import (
 )
 
 var (
-	DefaultAV    = "default"
+	// DefaultAV is the default annotation vector of all ones
+	DefaultAV = "default"
+
+	// ComplexityAV is the annotation vector that focuses on areas of high "complexity"
 	ComplexityAV = "complexity"
-	MeanStdAV    = "meanstd"
-	ClippingAV   = "clipping"
+
+	// MeanStdAV is the annotation vector focusing on areas where the signal is within a
+	// standard deviation of the mean
+	MeanStdAV = "meanstd"
+
+	// ClippingAV is the annotation vector reducing the importance of areas showing clipping
+	// effects on the positive and negative regime
+	ClippingAV = "clipping"
 )
 
 // MakeDefaultAV creates a default annotation vector of all ones resulting in

@@ -708,6 +708,7 @@ func (mp MatrixProfile) ApplyAV(av []float64) ([]float64, error) {
 	return out, nil
 }
 
+// GetAV returns the annotation vector given the matrix profile configured AV field
 func (mp MatrixProfile) GetAV() ([]float64, error) {
 	var av []float64
 	switch mp.AV {

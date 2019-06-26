@@ -22,7 +22,7 @@ type KMatrixProfile struct {
 	Idx   [][]int        // matrix profile index
 }
 
-// New creates a matrix profile struct specifically to be used with the k dimensional
+// NewK creates a matrix profile struct specifically to be used with the k dimensional
 // matrix profile computation. The number of rows represents the number of dimensions,
 // and each row holds a series of points of equal length as each other.
 func NewK(t [][]float64, m int) (*KMatrixProfile, error) {

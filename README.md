@@ -171,8 +171,7 @@ $ make test
 * Python: [github.com/target/matrixprofile-ts](https://github.com/target/matrixprofile-ts)
 
 ## Contact
-* Austin Ouyang
-* aouyang1@gmail.com
+* Austin Ouyang (aouyang1@gmail.com)
 
 ## License
 The MIT License (MIT). See [LICENSE](https://github.com/aouyang1/go-matrixprofile/blob/master/LICENSE) for more details.
