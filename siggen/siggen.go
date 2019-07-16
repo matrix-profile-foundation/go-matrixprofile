@@ -48,6 +48,33 @@ func Square(amp, freq, phase, offset, sampleRate, durationSec float64) []float64
 	return out
 }
 
+// Rect creates a rectangular signal with the specified
+// width and offset from center.
+func Rect(amp, offset, width, sampleRate, durationSec float64) []float64 {
+	nsamp := int(sampleRate * durationSec)
+	out := make([]float64, nsamp)
+	start := int((offset - width/2.0) / sampleRate)
+	end := int((offset + width/2.0) / sampleRate)
+	if start < 0 {
+		start = 0
+	}
+	if start > nsamp-1 {
+		start = nsamp - 1
+	}
+	if end < 0 {
+		end = 0
+	}
+	if end > nsamp-1 {
+		end = nsamp - 1
+	}
+
+	for i := start; i < end; i++ {
+		out[i] = amp
+	}
+
+	return out
+}
+
 // Line creates a line given a slope, offset and number of data points
 func Line(slope, offset float64, n int) []float64 {
 	out := make([]float64, n)

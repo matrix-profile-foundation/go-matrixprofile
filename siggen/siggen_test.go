@@ -85,6 +85,27 @@ func TestLine(t *testing.T) {
 	}
 }
 
+func TestRect(t *testing.T) {
+	testdata := []struct {
+		fs        float64
+		duration  float64
+		expectedN int
+	}{
+		{0, 10, 0},
+		{100, 1, 100},
+		{100, 1.5, 150},
+		{100, 0, 0},
+	}
+
+	var out []float64
+	for _, d := range testdata {
+		out = Rect(0.2, 1, 0.25, d.fs, d.duration)
+		if len(out) != d.expectedN {
+			t.Errorf("expected output length, %d, but got, %d, for %v", d.expectedN, len(out), d)
+		}
+	}
+}
+
 func TestNoise(t *testing.T) {
 	testdata := []struct {
 		n         int
