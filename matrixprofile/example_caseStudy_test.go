@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/aouyang1/go-matrixprofile/siggen"
+	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"

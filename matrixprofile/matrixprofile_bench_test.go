@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/aouyang1/go-matrixprofile/siggen"
+	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
 	"gonum.org/v1/gonum/fourier"
 )
 
