@@ -575,13 +575,20 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		// index found will have an exclusion zone applied as to remove
 		// trivial solutions. This eventually exits when there's nothing
 		// found within the radius distance.
-		for {
+		for iter := 0; iter < len(prof); iter++ {
 			minDistIdx = floats.MinIdx(prof)
+
+			// hit an exclusion zone
+			if prof[minDistIdx] == math.Inf(1) {
+				continue
+			}
 
 			if prof[minDistIdx] < motifDistance*r {
 				motifSet[minDistIdx] = struct{}{}
 				applyExclusionZone(prof, minDistIdx, mp.M/2)
 			} else {
+				// the closest distance in the profile is greater than the desired
+				// distance so break
 				break
 			}
 		}

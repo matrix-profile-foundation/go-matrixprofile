@@ -570,29 +570,35 @@ func TestTopKMotifs(t *testing.T) {
 	testdata := []struct {
 		a               []float64
 		b               []float64
+		m               int
 		k               int
 		expectedMotifs  [][]int
 		expectedMinDist []float64
 	}{
 		{
-			a, nil, 3,
+			a, nil, 7, 3,
 			[][]int{{0, 14}, {0, 7}, {3, 10}},
 			[]float64{0.1459619228330262, 0.3352336136782056, 0.46369664551715467},
 		},
 		{
-			a, a, 3,
+			a, a, 7, 3,
 			nil,
 			nil,
 		},
 		{
-			a, nil, 5,
+			a, nil, 7, 5,
 			[][]int{{0, 14}, {0, 7}, {3, 10}, {}, {}},
 			[]float64{0.1459619228330262, 0.3352336136782056, 0.46369664551715467, 0, 0},
+		},
+		{
+			[]float64{0, 1, 0, 0, 1, 0, 0}, nil, 3, 2,
+			[][]int{{0, 3}, {1, 4}},
+			[]float64{5.1619136559035694e-08, 0},
 		},
 	}
 
 	for _, d := range testdata {
-		mp, err := New(d.a, d.b, 7)
+		mp, err := New(d.a, d.b, d.m)
 		if err != nil {
 			t.Error(err)
 			return
@@ -616,7 +622,7 @@ func TestTopKMotifs(t *testing.T) {
 
 		for i, mg := range motifs {
 			if len(mg.Idx) != len(d.expectedMotifs[i]) {
-				t.Errorf("expected %d motifs for group %d, but got %d for %v", len(d.expectedMotifs[i]), i, len(mg.Idx), d)
+				t.Errorf("expected %d motifs for group %d, but got %d, %v, for %v", len(d.expectedMotifs[i]), i, len(mg.Idx), mg.Idx, d)
 				return
 			}
 
