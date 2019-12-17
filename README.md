@@ -45,7 +45,7 @@ $ make setup
 
 ## Quick start
 ```sh
-$ cat example_mp.go
+$ cat example_test.go
 ```
 ```go
 package main
