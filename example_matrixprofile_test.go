@@ -3,6 +3,7 @@ package matrixprofile
 import (
 	"fmt"
 
+	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
 )
 
@@ -34,7 +35,10 @@ func ExampleMatrixProfile_Stmp() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	if err = mp.Stmp(); err != nil {
+	o := NewOptions()
+	o.Method = method.STMP
+
+	if err = mp.Compute(o); err != nil {
 		panic(err)
 	}
 }
@@ -67,7 +71,11 @@ func ExampleMatrixProfile_Stamp() {
 	// run the STAMP algorithm with self join and a sample of 0.2 of
 	// all subsequences. The matrix profile will be stored in mp.MP
 	// and the matrix profile index will be stored in mp.Idx
-	if err = mp.Stamp(0.2, 2); err != nil {
+	o := NewOptions()
+	o.Method = method.STAMP
+	o.Sample = 0.2
+
+	if err = mp.Compute(o); err != nil {
 		panic(err)
 	}
 
@@ -101,7 +109,7 @@ func ExampleMatrixProfile_Stomp() {
 	// run the STOMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	if err = mp.Stomp(1); err != nil {
+	if err = mp.Compute(NewOptions()); err != nil {
 		panic(err)
 	}
 }
@@ -134,7 +142,10 @@ func ExampleMatrixProfile_Segment() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	if err = mp.Stmp(); err != nil {
+	o := NewOptions()
+	o.Method = method.STMP
+
+	if err = mp.Compute(o); err != nil {
 		panic(err)
 	}
 
@@ -173,7 +184,10 @@ func ExampleMatrixProfile_TopKMotifs() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	if err = mp.Stmp(); err != nil {
+	o := NewOptions()
+	o.Method = method.STMP
+
+	if err = mp.Compute(o); err != nil {
 		panic(err)
 	}
 

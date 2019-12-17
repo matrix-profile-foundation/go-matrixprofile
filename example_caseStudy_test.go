@@ -188,7 +188,7 @@ func Example_caseStudy() {
 		panic(err)
 	}
 
-	if err = mp.Stomp(2); err != nil {
+	if err = mp.Compute(NewOptions()); err != nil {
 		panic(err)
 	}
 

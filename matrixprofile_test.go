@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"gonum.org/v1/gonum/fourier"
 )
 
@@ -270,7 +271,7 @@ func TestCalculateDistanceProfile(t *testing.T) {
 
 }
 
-func TestStmp(t *testing.T) {
+func TestComputeStmp(t *testing.T) {
 	var err error
 	var mp *MatrixProfile
 
@@ -297,7 +298,10 @@ func TestStmp(t *testing.T) {
 			continue
 		}
 
-		err = mp.Stmp()
+		o := NewOptions()
+		o.Method = method.STMP
+
+		err = mp.Compute(o)
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -329,7 +333,7 @@ func TestStmp(t *testing.T) {
 	}
 }
 
-func TestStamp(t *testing.T) {
+func TestComputeStamp(t *testing.T) {
 	var err error
 	var mp *MatrixProfile
 
@@ -358,7 +362,12 @@ func TestStamp(t *testing.T) {
 			continue
 		}
 
-		err = mp.Stamp(d.sample, 2)
+		o := NewOptions()
+		o.Method = method.STAMP
+		o.Sample = d.sample
+
+		err = mp.Compute(o)
+
 		if err != nil && d.expectedMP == nil {
 			// Got an error while z normalizing and expected an error
 			continue
@@ -391,7 +400,7 @@ func TestStamp(t *testing.T) {
 	}
 }
 
-func TestStomp(t *testing.T) {
+func TestComputeStomp(t *testing.T) {
 	var err error
 	var mp *MatrixProfile
 
@@ -437,7 +446,7 @@ func TestStomp(t *testing.T) {
 			}
 		}
 
-		err = mp.Stomp(d.p)
+		err = mp.Compute(NewOptions())
 		if err != nil {
 			if d.expectedMP == nil {
 				// Got an error while z normalizing and expected an error
@@ -471,7 +480,7 @@ func TestStomp(t *testing.T) {
 	}
 }
 
-func TestStampUpdate(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	var err error
 	var outMP []float64
 	var outIdx []int
@@ -492,13 +501,13 @@ func TestStampUpdate(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if err = mp.Stomp(1); err != nil {
+	if err = mp.Compute(NewOptions()); err != nil {
 		t.Error(err)
 		return
 	}
 
 	for _, d := range testdata {
-		if err = mp.StampUpdate(d.vals); err != nil {
+		if err = mp.Update(d.vals); err != nil {
 			t.Error(err)
 			return
 		}
@@ -507,7 +516,7 @@ func TestStampUpdate(t *testing.T) {
 		copy(outMP, mp.MP)
 		copy(outIdx, mp.Idx)
 
-		if err = mp.Stomp(1); err != nil {
+		if err = mp.stomp(1); err != nil {
 			t.Error(err)
 			return
 		}
@@ -603,7 +612,8 @@ func TestTopKMotifs(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		if err = mp.Stmp(); err != nil {
+
+		if err = mp.Compute(NewOptions()); err != nil {
 			t.Error(err)
 			return
 		}

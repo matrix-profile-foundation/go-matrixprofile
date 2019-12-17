@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"gonum.org/v1/gonum/floats"
 	"gonum.org/v1/gonum/fourier"
 )
@@ -194,11 +195,11 @@ func (mp MatrixProfile) calculateDistanceProfile(dot []float64, idx int, profile
 	return nil
 }
 
-// Stmp computes the full matrix profile given two time series as inputs.
+// stmp computes the full matrix profile given two time series as inputs.
 // If the second time series is set to nil then a self join on the first
 // will be performed. Stores the matrix profile and matrix profile index
 // in the struct.
-func (mp *MatrixProfile) Stmp() error {
+func (mp *MatrixProfile) stmp() error {
 	var err error
 	profile := make([]float64, mp.N-mp.M+1)
 
@@ -219,14 +220,14 @@ func (mp *MatrixProfile) Stmp() error {
 	return nil
 }
 
-// Stamp uses random ordering to compute the matrix profile. User can specify the
+// stamp uses random ordering to compute the matrix profile. User can specify the
 // sample to be anything between 0 and 1 so that the computation early terminates
 // and provides the current computed matrix profile. 1 represents the exact matrix
 // profile. This should compute far faster at the cost of an approximation of the
 // matrix profile. Stores the matrix profile and matrix profile index in the struct.
-func (mp *MatrixProfile) Stamp(sample float64, parallelism int) error {
-	if sample == 0.0 {
-		return fmt.Errorf("must provide a non zero sampling")
+func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
+	if sample <= 0.0 {
+		return fmt.Errorf("must provide a sampling greater than 0 and at most 1, sample: %.3f", sample)
 	}
 
 	randIdx := rand.Perm(len(mp.A) - mp.M + 1)
@@ -304,9 +305,9 @@ func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx [
 	return result
 }
 
-// StampUpdate updates a matrix profile and matrix profile index in place providing streaming
+// Update updates a matrix profile and matrix profile index in place providing streaming
 // like behavior.
-func (mp *MatrixProfile) StampUpdate(newValues []float64) error {
+func (mp *MatrixProfile) Update(newValues []float64) error {
 	var err error
 
 	var profile []float64
@@ -361,12 +362,12 @@ type mpResult struct {
 	Err error
 }
 
-// Stomp is an optimization on the STAMP approach reducing the runtime from O(n^2logn)
+// stomp is an optimization on the STAMP approach reducing the runtime from O(n^2logn)
 // down to O(n^2). This is an ordered approach, since the sliding dot product or cross
 // correlation can be easily updated for the next sliding window, if the previous window
 // dot product is available. This should also greatly reduce the number of memory
 // allocations needed to compute an arbitrary timeseries length.
-func (mp *MatrixProfile) Stomp(parallelism int) error {
+func (mp *MatrixProfile) stomp(parallelism int) error {
 	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
 	results := make([]chan mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
@@ -501,6 +502,33 @@ func (mp *MatrixProfile) mergeMPResults(results []chan mpResult) error {
 		}
 	}
 	return err
+}
+
+type Options struct {
+	Method      method.Method
+	Sample      float64
+	Parallelism int
+}
+
+func NewOptions() Options {
+	return Options{
+		Method:      method.STOMP,
+		Parallelism: 4,
+	}
+}
+
+// Compute calculate the matrixprofile given a set of input options. This defaults to using
+// STOMP unless specified differently
+func (mp *MatrixProfile) Compute(opt Options) error {
+	switch opt.Method {
+	case method.STOMP:
+		return mp.stomp(opt.Parallelism)
+	case method.STAMP:
+		return mp.stamp(opt.Sample, opt.Parallelism)
+	case method.STMP:
+		return mp.stmp()
+	}
+	return nil
 }
 
 // MotifGroup stores a list of indices representing a similar motif along

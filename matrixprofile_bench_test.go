@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
 	"gonum.org/v1/gonum/fourier"
 )
@@ -157,6 +158,9 @@ func BenchmarkStmp(b *testing.B) {
 		{"m128_pts1k", 128},
 	}
 
+	o := NewOptions()
+	o.Method = method.STMP
+
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			mp, err := New(sig, nil, bm.m)
@@ -165,7 +169,7 @@ func BenchmarkStmp(b *testing.B) {
 			}
 
 			for i := 0; i < b.N; i++ {
-				err = mp.Stmp()
+				err = mp.Compute(o)
 				if err != nil {
 					b.Error(err)
 				}
@@ -185,9 +189,14 @@ func BenchmarkStamp(b *testing.B) {
 		b.Error(err)
 	}
 
+	o := NewOptions()
+	o.Method = method.STAMP
+	o.Sample = 1.0
+	o.Parallelism = 2
+
 	b.Run("m32_p2_pts1k", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			err = mp.Stamp(1.0, 2)
+			err = mp.Compute(o)
 			if err != nil {
 				b.Error(err)
 			}
@@ -214,6 +223,8 @@ func BenchmarkStomp(b *testing.B) {
 		{"m128_p2_pts8192", 128, 2, 8192, 10},
 	}
 
+	o := NewOptions()
+
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			sig := setupData(bm.numPoints)
@@ -223,8 +234,9 @@ func BenchmarkStomp(b *testing.B) {
 			}
 
 			b.N = bm.reps
+			o.Parallelism = bm.parallelism
 			for i := 0; i < b.N; i++ {
-				err = mp.Stomp(bm.parallelism)
+				err = mp.Compute(o)
 				if err != nil {
 					b.Error(err)
 				}
@@ -236,14 +248,14 @@ func BenchmarkStomp(b *testing.B) {
 	}
 }
 
-func BenchmarkStampUpdate(b *testing.B) {
+func BenchmarkUpdate(b *testing.B) {
 	sig := setupData(5000)
 	mp, err := New(sig, nil, 32)
 	if err != nil {
 		b.Error(err)
 	}
 
-	err = mp.Stomp(2)
+	err = mp.Compute(NewOptions())
 	if err != nil {
 		b.Error(err)
 	}
@@ -253,6 +265,6 @@ func BenchmarkStampUpdate(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		err = mp.StampUpdate([]float64{rand.Float64() - 0.5})
+		err = mp.Update([]float64{rand.Float64() - 0.5})
 	}
 }
