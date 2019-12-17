@@ -6,6 +6,7 @@ import (
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
+	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 	"gonum.org/v1/gonum/fourier"
 )
 
@@ -27,7 +28,7 @@ func BenchmarkZNormalize(b *testing.B) {
 	var err error
 	var qnorm []float64
 	for i := 0; i < b.N; i++ {
-		qnorm, err = ZNormalize(q)
+		qnorm, err = util.ZNormalize(q)
 		if err != nil {
 			b.Error(err)
 		}
@@ -42,7 +43,7 @@ func BenchmarkMovmeanstd(b *testing.B) {
 	var err error
 	var mean, std []float64
 	for i := 0; i < b.N; i++ {
-		mean, std, err = movmeanstd(sig, 32)
+		mean, std, err = util.MovMeanStd(sig, 32)
 		if err != nil {
 			b.Error(err)
 		}

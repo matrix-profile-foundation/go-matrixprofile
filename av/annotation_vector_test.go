@@ -1,11 +1,11 @@
-package matrixprofile
+package av
 
 import (
 	"math"
 	"testing"
 )
 
-func TestMakeDefaultAV(t *testing.T) {
+func TestMakeDefault(t *testing.T) {
 	testdata := []struct {
 		d        []float64
 		m        int
@@ -14,7 +14,7 @@ func TestMakeDefaultAV(t *testing.T) {
 		{[]float64{0, 1, 2, 3, 4, 5}, 3, []float64{1, 1, 1, 1}},
 	}
 	for _, d := range testdata {
-		out := MakeDefaultAV(d.d, d.m)
+		out := MakeDefault(d.d, d.m)
 
 		if len(out) != len(d.expected) {
 			t.Errorf("Expected length %d, but got %d for %v", len(d.expected), len(out), d)
@@ -29,7 +29,7 @@ func TestMakeDefaultAV(t *testing.T) {
 	}
 }
 
-func TestMakeCompexityAV(t *testing.T) {
+func TestMakeCompexity(t *testing.T) {
 	testdata := []struct {
 		d        []float64
 		m        int
@@ -40,7 +40,7 @@ func TestMakeCompexityAV(t *testing.T) {
 		{[]float64{0, 3, 0, 2, 0, 1}, 3, []float64{0.47295372330527, 0.32279030890406757, 0.13962038997193682, 0}},
 	}
 	for _, d := range testdata {
-		out := MakeCompexityAV(d.d, d.m)
+		out := MakeCompexity(d.d, d.m)
 
 		if len(out) != len(d.expected) {
 			t.Errorf("Expected length %d, but got %d for %v", len(d.expected), len(out), d)
@@ -55,7 +55,7 @@ func TestMakeCompexityAV(t *testing.T) {
 	}
 }
 
-func TestMakeMeanStdAV(t *testing.T) {
+func TestMakeMeanStd(t *testing.T) {
 	testdata := []struct {
 		d        []float64
 		m        int
@@ -66,7 +66,7 @@ func TestMakeMeanStdAV(t *testing.T) {
 		{[]float64{0, 3, 0, 2, 0, 1}, 3, []float64{0, 0, 1, 1}},
 	}
 	for _, d := range testdata {
-		out := MakeMeanStdAV(d.d, d.m)
+		out := MakeMeanStd(d.d, d.m)
 
 		if len(out) != len(d.expected) {
 			t.Errorf("Expected length %d, but got %d for %v", len(d.expected), len(out), d)
@@ -81,7 +81,7 @@ func TestMakeMeanStdAV(t *testing.T) {
 	}
 }
 
-func TestMakeClippingAV(t *testing.T) {
+func TestMakeClipping(t *testing.T) {
 	testdata := []struct {
 		d        []float64
 		m        int
@@ -92,7 +92,7 @@ func TestMakeClippingAV(t *testing.T) {
 		{[]float64{0, 3, 0, 2, 0, 1}, 3, []float64{0, 0.5, 0.5, 1}},
 	}
 	for _, d := range testdata {
-		out := MakeClippingAV(d.d, d.m)
+		out := MakeClipping(d.d, d.m)
 
 		if len(out) != len(d.expected) {
 			t.Errorf("Expected length %d, but got %d for %v", len(d.expected), len(out), d)

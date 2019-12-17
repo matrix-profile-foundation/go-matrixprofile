@@ -1,4 +1,4 @@
-package matrixprofile
+package util
 
 import (
 	"fmt"
@@ -40,13 +40,13 @@ func ZNormalize(ts []float64) ([]float64, error) {
 	return out, nil
 }
 
-// movmeanstd computes the mean and standard deviation of each sliding
+// MovMeanStd computes the mean and standard deviation of each sliding
 // window of m over a slice of floats. This is done by one pass through
 // the data and keeping track of the cumulative sum and cumulative sum
 // squared.  s between these at intervals of m provide a total of O(n)
 // calculations for the standard deviation of each window of size m for
 // the time series ts.
-func movmeanstd(ts []float64, m int) ([]float64, []float64, error) {
+func MovMeanStd(ts []float64, m int) ([]float64, []float64, error) {
 	if m <= 1 {
 		return nil, nil, fmt.Errorf("length of slice must be greater than 1")
 	}
@@ -79,9 +79,9 @@ func movmeanstd(ts []float64, m int) ([]float64, []float64, error) {
 	return mean, std, nil
 }
 
-// applyExclusionZone performs an in place operation on a given matrix
+// ApplyExclusionZone performs an in place operation on a given matrix
 // profile setting distances around an index to +Inf
-func applyExclusionZone(profile []float64, idx, zoneSize int) {
+func ApplyExclusionZone(profile []float64, idx, zoneSize int) {
 	startIdx := 0
 	if idx-zoneSize > startIdx {
 		startIdx = idx - zoneSize
@@ -95,11 +95,11 @@ func applyExclusionZone(profile []float64, idx, zoneSize int) {
 	}
 }
 
-// arcCurve computes the arc curve (histogram) which is uncorrected for.
+// ArcCurve computes the arc curve (histogram) which is uncorrected for.
 // This loops through the matrix profile index and increments the
 // counter for each index that the destination index passes through
 // start from the index in the matrix profile index.
-func arcCurve(mpIdx []int) []float64 {
+func ArcCurve(mpIdx []int) []float64 {
 	histo := make([]float64, len(mpIdx))
 	for i, idx := range mpIdx {
 		switch {
@@ -119,9 +119,9 @@ func arcCurve(mpIdx []int) []float64 {
 	return histo
 }
 
-// iac represents the ideal arc curve with a maximum of n/2 and 0 values
+// Iac represents the ideal arc curve with a maximum of n/2 and 0 values
 // at 0 and n-1. The derived equation to ensure the requirements is
 // -(sqrt(2/n)*(x-n/2))^2 + n/2 = y
-func iac(x float64, n int) float64 {
+func Iac(x float64, n int) float64 {
 	return -math.Pow(math.Sqrt(2/float64(n))*(x-float64(n)/2.0), 2.0) + float64(n)/2.0
 }

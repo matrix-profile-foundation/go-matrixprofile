@@ -1,4 +1,4 @@
-package matrixprofile
+package util
 
 import (
 	"math"
@@ -61,7 +61,7 @@ func TestMovmeanstd(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mean, std, err = movmeanstd(d.data, d.m)
+		mean, std, err = MovMeanStd(d.data, d.m)
 		if err != nil {
 			if d.expectedStd == nil && d.expectedMean == nil {
 				// Got an error while calculating and expected an error
@@ -113,7 +113,7 @@ func TestArcCurve(t *testing.T) {
 
 	var histo []float64
 	for _, d := range testdata {
-		histo = arcCurve(d.mpIdx)
+		histo = ArcCurve(d.mpIdx)
 		if len(histo) != len(d.expectedHisto) {
 			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedHisto), len(histo), d)
 		}
@@ -139,52 +139,8 @@ func TestIac(t *testing.T) {
 
 	var out float64
 	for _, d := range testdata {
-		if out = iac(d.x, d.n); out != d.expected {
+		if out = Iac(d.x, d.n); out != d.expected {
 			t.Errorf("Expected %.3f but got %.3f", d.expected, out)
-		}
-	}
-}
-
-func TestSegment(t *testing.T) {
-	testdata := []struct {
-		mpIdx         []int
-		expectedIdx   int
-		expectedVal   float64
-		expectedHisto []float64
-	}{
-		{[]int{}, 0, 0, nil},
-		{[]int{1, 1, 1, 1, 1}, 0, 0, nil},
-		{[]int{4, 5, 6, 0, 2, 1, 0}, 5, 0.7, []float64{1, 1, 1, 1, 1, 0.7, 1}},
-		{[]int{4, 5, 12, 0, 2, 1, 0}, 5, 0.35, []float64{1, 1, 1, 1, 0.875, 0.35, 1}},
-		{[]int{4, 5, -1, 0, 2, 1, 0}, 5, 0.35, []float64{1, 1, 1, 1, 0.875, 0.35, 1}},
-		{[]int{4, 5, 6, 2, 2, 1, 0}, 5, 0.7, []float64{1, 1, 1, 1, 1, 0.7, 1}},
-		{[]int{2, 3, 0, 0, 6, 3, 4}, 3, 0, []float64{1, 1, 0.7, 0, 0.29166666, 0.7, 1}},
-	}
-
-	var minIdx int
-	var minVal float64
-	var histo []float64
-	for _, d := range testdata {
-		mp := MatrixProfile{Idx: d.mpIdx}
-		minIdx, minVal, histo = mp.Segment()
-		if histo != nil && d.expectedHisto == nil {
-			// Failed to compute histogram
-			continue
-		}
-		if minIdx != d.expectedIdx {
-			t.Errorf("Expected %d min index but got %d, %+v", d.expectedIdx, minIdx, d)
-		}
-		if minVal != d.expectedVal {
-			t.Errorf("Expected %.3f min index value but got %.3f, %+v", d.expectedVal, minVal, d)
-		}
-		if len(histo) != len(d.expectedHisto) {
-			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedHisto), len(histo), d)
-		}
-		for i := 0; i < len(histo); i++ {
-			if math.Abs(float64(histo[i]-d.expectedHisto[i])) > 1e-7 {
-				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedHisto, histo, d)
-				break
-			}
 		}
 	}
 }

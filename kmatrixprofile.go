@@ -5,6 +5,7 @@ import (
 	"math"
 	"sort"
 
+	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 	"gonum.org/v1/gonum/fourier"
 )
 
@@ -85,7 +86,7 @@ func (mp *KMatrixProfile) initCaches() error {
 	// precompute the mean and standard deviation for each window of size m for all
 	// sliding windows across the b timeseries
 	for d := 0; d < len(mp.t); d++ {
-		mp.tMean[d], mp.tStd[d], err = movmeanstd(mp.t[d], mp.m)
+		mp.tMean[d], mp.tStd[d], err = util.MovMeanStd(mp.t[d], mp.m)
 		if err != nil {
 			return err
 		}
@@ -136,7 +137,7 @@ func (mp *KMatrixProfile) MStomp() error {
 				D[d][i] = math.Sqrt(2 * float64(mp.m) * math.Abs(1-(dots[d][i]-float64(mp.m)*mp.tMean[d][i]*mp.tMean[d][idx])/(float64(mp.m)*mp.tStd[d][i]*mp.tStd[d][idx])))
 			}
 			// sets the distance in the exclusion zone to +Inf
-			applyExclusionZone(D[d], idx, mp.m/2)
+			util.ApplyExclusionZone(D[d], idx, mp.m/2)
 		}
 
 		mp.columnWiseSort(D)

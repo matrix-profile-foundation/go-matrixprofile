@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/matrix-profile-foundation/go-matrixprofile/av"
 	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"gonum.org/v1/gonum/fourier"
 )
@@ -554,7 +555,7 @@ func TestTopKDiscords(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp := MatrixProfile{A: a, B: a, M: m, MP: d.mp, AV: DefaultAV}
+		mp := MatrixProfile{A: a, B: a, M: m, MP: d.mp, AV: av.Default}
 		discords, err := mp.TopKDiscords(d.k, d.exzone)
 		if err != nil {
 			t.Errorf("Got error %v on %v", err, d)
@@ -650,20 +651,60 @@ func TestTopKMotifs(t *testing.T) {
 	}
 }
 
+func TestSegment(t *testing.T) {
+	testdata := []struct {
+		mpIdx         []int
+		expectedIdx   int
+		expectedVal   float64
+		expectedHisto []float64
+	}{
+		{[]int{}, 0, 0, nil},
+		{[]int{1, 1, 1, 1, 1}, 0, 0, nil},
+		{[]int{4, 5, 6, 0, 2, 1, 0}, 5, 0.7, []float64{1, 1, 1, 1, 1, 0.7, 1}},
+		{[]int{4, 5, 12, 0, 2, 1, 0}, 5, 0.35, []float64{1, 1, 1, 1, 0.875, 0.35, 1}},
+		{[]int{4, 5, -1, 0, 2, 1, 0}, 5, 0.35, []float64{1, 1, 1, 1, 0.875, 0.35, 1}},
+		{[]int{4, 5, 6, 2, 2, 1, 0}, 5, 0.7, []float64{1, 1, 1, 1, 1, 0.7, 1}},
+		{[]int{2, 3, 0, 0, 6, 3, 4}, 3, 0, []float64{1, 1, 0.7, 0, 0.29166666, 0.7, 1}},
+	}
+
+	var minIdx int
+	var minVal float64
+	var histo []float64
+	for _, d := range testdata {
+		mp := MatrixProfile{Idx: d.mpIdx}
+		minIdx, minVal, histo = mp.Segment()
+		if histo != nil && d.expectedHisto == nil {
+			// Failed to compute histogram
+			continue
+		}
+		if minIdx != d.expectedIdx {
+			t.Errorf("Expected %d min index but got %d, %+v", d.expectedIdx, minIdx, d)
+		}
+		if minVal != d.expectedVal {
+			t.Errorf("Expected %.3f min index value but got %.3f, %+v", d.expectedVal, minVal, d)
+		}
+		if len(histo) != len(d.expectedHisto) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedHisto), len(histo), d)
+		}
+		for i := 0; i < len(histo); i++ {
+			if math.Abs(float64(histo[i]-d.expectedHisto[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for\n%+v", d.expectedHisto, histo, d)
+				break
+			}
+		}
+	}
+}
+
 func TestApplyAV(t *testing.T) {
 	mprof := []float64{4, 6, 10, 2, 1, 0, 1, 2, 0, 0, 1, 2, 6}
 
 	testdata := []struct {
-		av         []float64
+		b          []float64
+		m          int
+		av         av.AV
 		expectedMP []float64
 	}{
-		{[]float64{}, nil},
-		{[]float64{1, 1, 1, 1, 1}, nil},
-		{[]float64{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, mprof},
-		{[]float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, []float64{14, 16, 20, 12, 11, 10, 11, 12, 10, 10, 11, 12, 16}},
-		{[]float64{1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1}, []float64{4, 6, 10, 2, 1, 0, 1, 2, 10, 10, 1, 2, 6}},
-		{[]float64{1, 1, 1, 1, 1, 1, 1.01, 1, 0, 0, 1, 1, 1}, nil},
-		{[]float64{1, 1, 1, 1, 1, 1, 1, 1, -0.01, 0, 1, 1, 1}, nil},
+		{[]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, 4, av.Default, mprof},
 	}
 
 	var mp MatrixProfile
@@ -672,11 +713,10 @@ func TestApplyAV(t *testing.T) {
 	for _, d := range testdata {
 		newMP := make([]float64, len(mprof))
 		copy(newMP, mprof)
-		mp = MatrixProfile{MP: newMP}
-		out, err = mp.ApplyAV(d.av)
-		if err != nil && d.expectedMP == nil {
-			// Expected error while applying av
-			continue
+		mp = MatrixProfile{B: d.b, M: d.m, MP: newMP, AV: d.av}
+		out, err = mp.applyAV()
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		if len(out) != len(d.expectedMP) {
@@ -689,39 +729,5 @@ func TestApplyAV(t *testing.T) {
 				break
 			}
 		}
-	}
-}
-
-func TestGetAV(t *testing.T) {
-	for _, avtype := range []string{DefaultAV, ComplexityAV, MeanStdAV, ClippingAV} {
-		mp, err := New([]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, nil, 4)
-		if err != nil {
-			t.Errorf("Failed to initialize Matrix Profile on %s", avtype)
-			return
-		}
-		mp.AV = avtype
-		av, err := mp.GetAV()
-		if err != nil {
-			t.Errorf("Received error on fetching annotation vector")
-			return
-		}
-
-		if len(av) != len(mp.A)-mp.M+1 {
-			t.Errorf("Expected %d values from annotation vector but got %d for %s", len(mp.A)-mp.M+1, len(av), avtype)
-			return
-		}
-	}
-
-	mp, err := New([]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, nil, 4)
-	if err != nil {
-		t.Error("Failed to initialize Matrix Profile on bad annotation vector")
-		return
-	}
-
-	mp.AV = ""
-	_, err = mp.GetAV()
-	if err == nil {
-		t.Errorf("Expected an error on invalid annotation vector type")
-		return
 	}
 }

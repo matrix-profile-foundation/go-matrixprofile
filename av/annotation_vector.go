@@ -1,31 +1,26 @@
-package matrixprofile
+package av
 
 import (
 	"math"
 
 	"gonum.org/v1/gonum/floats"
 	"gonum.org/v1/gonum/stat"
+
+	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 )
 
-var (
-	// DefaultAV is the default annotation vector of all ones
-	DefaultAV = "default"
+type AV int
 
-	// ComplexityAV is the annotation vector that focuses on areas of high "complexity"
-	ComplexityAV = "complexity"
-
-	// MeanStdAV is the annotation vector focusing on areas where the signal is within a
-	// standard deviation of the mean
-	MeanStdAV = "meanstd"
-
-	// ClippingAV is the annotation vector reducing the importance of areas showing clipping
-	// effects on the positive and negative regime
-	ClippingAV = "clipping"
+const (
+	Default    = iota // Default is the default annotation vector of all ones
+	Complexity        // Complexity is the annotation vector that focuses on areas of high "complexity"
+	MeanStd           // MeanStd is the annotation vector focusing on areas where the signal is within a standard deviation of the mean
+	Clipping          // Clipping is the annotation vector reducing the importance of areas showing clipping effects on the positive and negative regime
 )
 
-// MakeDefaultAV creates a default annotation vector of all ones resulting in
+// MakeDefault creates a default annotation vector of all ones resulting in
 // no change to the matrix profile when applied
-func MakeDefaultAV(d []float64, m int) []float64 {
+func MakeDefault(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	for i := 0; i < len(av); i++ {
 		av[i] = 1.0
@@ -33,9 +28,9 @@ func MakeDefaultAV(d []float64, m int) []float64 {
 	return av
 }
 
-// MakeCompexityAV creates an annotation vector that is based on the complexity
+// MakeCompexity creates an annotation vector that is based on the complexity
 // estimation of the signal.
-func MakeCompexityAV(d []float64, m int) []float64 {
+func MakeCompexity(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	var ce, minAV, maxAV float64
 	minAV = math.Inf(1)
@@ -64,11 +59,11 @@ func MakeCompexityAV(d []float64, m int) []float64 {
 	return av
 }
 
-// MakeMeanStdAV creates an annotation vector by setting any values above the mean
+// MakeMeanStd creates an annotation vector by setting any values above the mean
 // of the standard deviation vector to 0 and below to 1.
-func MakeMeanStdAV(d []float64, m int) []float64 {
+func MakeMeanStd(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
-	_, std, _ := movmeanstd(d, m)
+	_, std, _ := util.MovMeanStd(d, m)
 	mu := stat.Mean(std, nil)
 	for i := 0; i < len(d)-m+1; i++ {
 		if std[i] < mu {
@@ -78,9 +73,9 @@ func MakeMeanStdAV(d []float64, m int) []float64 {
 	return av
 }
 
-// MakeClippingAV creates an annotation vector by setting subsequences with more
+// MakeClipping creates an annotation vector by setting subsequences with more
 // clipping on the positive or negative side of the signal to lower importance.
-func MakeClippingAV(d []float64, m int) []float64 {
+func MakeClipping(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	maxVal, minVal := floats.Max(d), floats.Min(d)
 	var numClip int

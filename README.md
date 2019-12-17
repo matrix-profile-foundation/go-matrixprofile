@@ -53,7 +53,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/matrix-profile-foundation/go-matrixprofile/matrixprofile"
+	"github.com/matrix-profile-foundation/go-matrixprofile"
 )
 
 func main() {
@@ -64,7 +64,7 @@ func main() {
 		panic(err)
 	}
 
-	if err = mp.Stomp(1); err != nil {
+	if err = mp.Compute(matrixprofile.NewOptions()); err != nil {
 		panic(err)
 	}
 

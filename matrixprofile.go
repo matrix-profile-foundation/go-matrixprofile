@@ -9,7 +9,9 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/matrix-profile-foundation/go-matrixprofile/av"
 	"github.com/matrix-profile-foundation/go-matrixprofile/method"
+	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 	"gonum.org/v1/gonum/floats"
 	"gonum.org/v1/gonum/fourier"
 )
@@ -30,7 +32,7 @@ type MatrixProfile struct {
 	SelfJoin bool         // indicates whether a self join is performed with an exclusion zone
 	MP       []float64    // matrix profile
 	Idx      []int        // matrix profile index
-	AV       string       // type of annotation vector which defaults to all ones
+	AV       av.AV        // type of annotation vector which defaults to all ones
 }
 
 // New creates a matrix profile struct with a given timeseries length n and
@@ -78,7 +80,7 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	mp.AV = DefaultAV
+	mp.AV = av.Default
 
 	return &mp, nil
 }
@@ -89,12 +91,12 @@ func (mp *MatrixProfile) initCaches() error {
 	var err error
 	// precompute the mean and standard deviation for each window of size m for all
 	// sliding windows across the b timeseries
-	mp.BMean, mp.BStd, err = movmeanstd(mp.B, mp.M)
+	mp.BMean, mp.BStd, err = util.MovMeanStd(mp.B, mp.M)
 	if err != nil {
 		return err
 	}
 
-	mp.AMean, mp.AStd, err = movmeanstd(mp.A, mp.M)
+	mp.AMean, mp.AStd, err = util.MovMeanStd(mp.A, mp.M)
 	if err != nil {
 		return err
 	}
@@ -137,7 +139,7 @@ func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 
 // between a specified query and timeseries. Writes the euclidean distance
 // of the query to every subsequence in mp.B to profile.
 func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) error {
-	qnorm, err := ZNormalize(q)
+	qnorm, err := util.ZNormalize(q)
 	if err != nil {
 		return err
 	}
@@ -166,7 +168,7 @@ func (mp MatrixProfile) distanceProfile(idx int, profile []float64, fft *fourier
 
 	// sets the distance in the exclusion zone to +Inf
 	if mp.SelfJoin {
-		applyExclusionZone(profile, idx, mp.M/2)
+		util.ApplyExclusionZone(profile, idx, mp.M/2)
 	}
 	return nil
 }
@@ -190,7 +192,7 @@ func (mp MatrixProfile) calculateDistanceProfile(dot []float64, idx int, profile
 
 	if mp.SelfJoin {
 		// sets the distance in the exclusion zone to +Inf
-		applyExclusionZone(profile, idx, mp.M/2)
+		util.ApplyExclusionZone(profile, idx, mp.M/2)
 	}
 	return nil
 }
@@ -549,11 +551,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 
 	motifs := make([]MotifGroup, k)
 
-	av, err := mp.GetAV()
-	if err != nil {
-		return nil, err
-	}
-	mpCurrent, err := mp.ApplyAV(av)
+	mpCurrent, err := mp.applyAV()
 	if err != nil {
 		return nil, err
 	}
@@ -590,12 +588,12 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 
 		// kill off any indices around the initial motif pair since they are
 		// trivial solutions
-		applyExclusionZone(prof, initialMotif[0], mp.M/2)
-		applyExclusionZone(prof, initialMotif[1], mp.M/2)
+		util.ApplyExclusionZone(prof, initialMotif[0], mp.M/2)
+		util.ApplyExclusionZone(prof, initialMotif[1], mp.M/2)
 		if j > 0 {
 			for k := j; k >= 0; k-- {
 				for _, idx := range motifs[k].Idx {
-					applyExclusionZone(prof, idx, mp.M/2)
+					util.ApplyExclusionZone(prof, idx, mp.M/2)
 				}
 			}
 		}
@@ -608,7 +606,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 
 			if prof[minDistIdx] < motifDistance*r {
 				motifSet[minDistIdx] = struct{}{}
-				applyExclusionZone(prof, minDistIdx, mp.M/2)
+				util.ApplyExclusionZone(prof, minDistIdx, mp.M/2)
 			} else {
 				// the closest distance in the profile is greater than the desired
 				// distance so break
@@ -624,7 +622,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 		}
 		for idx := range motifSet {
 			motifs[j].Idx = append(motifs[j].Idx, idx)
-			applyExclusionZone(mpCurrent, idx, mp.M/2)
+			util.ApplyExclusionZone(mpCurrent, idx, mp.M/2)
 		}
 
 		// sorts the indices in ascending order
@@ -638,11 +636,7 @@ func (mp MatrixProfile) TopKMotifs(k int, r float64) ([]MotifGroup, error) {
 // matrix profile. Each discovery of a discord will apply an exclusion zone around
 // the found index so that new discords can be discovered.
 func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) ([]int, error) {
-	av, err := mp.GetAV()
-	if err != nil {
-		return nil, err
-	}
-	mpCurrent, err := mp.ApplyAV(av)
+	mpCurrent, err := mp.applyAV()
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +666,7 @@ func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) ([]int, error) {
 		}
 
 		discords[i] = maxIdx
-		applyExclusionZone(mpCurrent, maxIdx, exclusionZone)
+		util.ApplyExclusionZone(mpCurrent, maxIdx, exclusionZone)
 	}
 	return discords[:i], nil
 }
@@ -684,13 +678,13 @@ func (mp MatrixProfile) TopKDiscords(k int, exclusionZone int) ([]int, error) {
 // segmentation of timeseries using matrix profiles which can be found
 // https://www.cs.ucr.edu/%7Eeamonn/Segmentation_ICDM.pdf
 func (mp MatrixProfile) Segment() (int, float64, []float64) {
-	histo := arcCurve(mp.Idx)
+	histo := util.ArcCurve(mp.Idx)
 
 	for i := 0; i < len(histo); i++ {
 		if i == 0 || i == len(histo)-1 {
 			histo[i] = math.Min(1.0, float64(len(histo)))
 		} else {
-			histo[i] = math.Min(1.0, histo[i]/iac(float64(i), len(histo)))
+			histo[i] = math.Min(1.0, histo[i]/util.Iac(float64(i), len(histo)))
 		}
 	}
 
@@ -706,11 +700,25 @@ func (mp MatrixProfile) Segment() (int, float64, []float64) {
 	return minIdx, float64(minVal), histo
 }
 
-// ApplyAV applies an annotation vector to the current matrix profile. Annotation vector
+// applyAV applies an annotation vector to the current matrix profile. Annotation vector
 // values must be between 0 and 1.
-func (mp MatrixProfile) ApplyAV(av []float64) ([]float64, error) {
-	if len(av) != len(mp.MP) {
-		return nil, fmt.Errorf("annotation vector length, %d, does not match matrix profile length, %d", len(av), len(mp.MP))
+func (mp MatrixProfile) applyAV() ([]float64, error) {
+	var avec []float64
+	switch mp.AV {
+	case av.Default:
+		avec = av.MakeDefault(mp.B, mp.M)
+	case av.Complexity:
+		avec = av.MakeCompexity(mp.B, mp.M)
+	case av.MeanStd:
+		avec = av.MakeMeanStd(mp.B, mp.M)
+	case av.Clipping:
+		avec = av.MakeClipping(mp.B, mp.M)
+	default:
+		return nil, fmt.Errorf("invalid annotation vector specified with matrix profile, %d", mp.AV)
+	}
+
+	if len(avec) != len(mp.MP) {
+		return nil, fmt.Errorf("annotation vector length, %d, does not match matrix profile length, %d", len(avec), len(mp.MP))
 	}
 
 	// find the maximum matrix profile value
@@ -722,7 +730,7 @@ func (mp MatrixProfile) ApplyAV(av []float64) ([]float64, error) {
 	}
 
 	// check that all annotation vector values are between 0 and 1
-	for idx, val := range av {
+	for idx, val := range avec {
 		if val < 0.0 || val > 1.0 {
 			return nil, fmt.Errorf("got an annotation vector value of %.3f at index %d. must be between 0 and 1", val, idx)
 		}
@@ -731,28 +739,9 @@ func (mp MatrixProfile) ApplyAV(av []float64) ([]float64, error) {
 	// applies the matrix profile correction. 1 results in no change to the matrix profile and
 	// 0 results in lifting the current matrix profile value by the maximum matrix profile value
 	out := make([]float64, len(mp.MP))
-	for idx, val := range av {
+	for idx, val := range avec {
 		out[idx] = mp.MP[idx] + (1-val)*maxMP
 	}
 
 	return out, nil
-}
-
-// GetAV returns the annotation vector given the matrix profile configured AV field
-func (mp MatrixProfile) GetAV() ([]float64, error) {
-	var av []float64
-	switch mp.AV {
-	case DefaultAV:
-		av = MakeDefaultAV(mp.B, mp.M)
-	case ComplexityAV:
-		av = MakeCompexityAV(mp.B, mp.M)
-	case MeanStdAV:
-		av = MakeMeanStdAV(mp.B, mp.M)
-	case ClippingAV:
-		av = MakeClippingAV(mp.B, mp.M)
-	default:
-		return nil, fmt.Errorf("invalid annotation vector specified with matrix profile, %s", mp.AV)
-	}
-
-	return av, nil
 }
