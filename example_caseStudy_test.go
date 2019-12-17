@@ -3,7 +3,6 @@ package matrixprofile
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
 	"gonum.org/v1/plot"
@@ -50,72 +49,6 @@ func CreatePlot(pts []plotter.XYs, labels []string, title string) (*plot.Plot, e
 		}
 	}
 	return p, err
-}
-
-func PlotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discordPts []plotter.XYs, discordLabels []string, filename string) error {
-	var err error
-	rows, cols := len(motifPts), 2
-	if rows < 4 {
-		rows = 4
-	}
-	plots := make([][]*plot.Plot, rows)
-
-	for i := 0; i < len(motifPts); i++ {
-		plots[i] = make([]*plot.Plot, cols)
-	}
-
-	plots[0][0], err = CreatePlot([]plotter.XYs{sigPts}, nil, "signal")
-	if err != nil {
-		return err
-	}
-
-	plots[1][0], err = CreatePlot([]plotter.XYs{mpPts}, nil, "matrix profile")
-	if err != nil {
-		return err
-	}
-
-	plots[2][0], err = CreatePlot([]plotter.XYs{cacPts}, nil, "corrected arc curve")
-	if err != nil {
-		return err
-	}
-
-	plots[3][0], err = CreatePlot(discordPts, discordLabels, "discords")
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < len(motifPts); i++ {
-		plots[i][1], err = CreatePlot(motifPts[i], nil, fmt.Sprintf("motif %d", i))
-		if err != nil {
-			return err
-		}
-	}
-
-	img := vgimg.New(vg.Points(1200), vg.Points(600))
-	dc := draw.New(img)
-
-	t := draw.Tiles{
-		Rows: rows,
-		Cols: cols,
-	}
-
-	canvases := plot.Align(plots, t, dc)
-	for j := 0; j < rows; j++ {
-		for i := 0; i < cols; i++ {
-			if plots[j][i] != nil {
-				plots[j][i].Draw(canvases[j][i])
-			}
-		}
-	}
-
-	w, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-
-	png := vgimg.PngCanvas{Canvas: img}
-	_, err = png.WriteTo(w)
-	return err
 }
 
 func PlotKMP(sigPts, mpPts []plotter.XYs, filename string) error {
@@ -188,49 +121,16 @@ func Example_caseStudy() {
 		panic(err)
 	}
 
-	if err = mp.Compute(NewOptions()); err != nil {
+	o := NewOptions()
+	o.KMotifs = k
+	o.RMotifs = r
+	o.OutputFilename = "mp_sine.png"
+
+	if err = mp.Analyze(o); err != nil {
 		panic(err)
 	}
 
-	_, _, cac := mp.Segment()
-
-	motifs, err := mp.TopKMotifs(k, r)
-	if err != nil {
-		panic(err)
-	}
-
-	discords, err := mp.TopKDiscords(3, mp.M/2)
-	if err != nil {
-		panic(err)
-	}
-
-	sigPts := Points(sig, len(sig))
-	mpPts := Points(mp.MP, len(sig))
-	cacPts := Points(cac, len(sig))
-	motifPts := make([][]plotter.XYs, k)
-	discordPts := make([]plotter.XYs, k)
-	discordLabels := make([]string, k)
-
-	for i := 0; i < k; i++ {
-		motifPts[i] = make([]plotter.XYs, len(motifs[i].Idx))
-	}
-
-	for i := 0; i < k; i++ {
-		for j, idx := range motifs[i].Idx {
-			motifPts[i][j] = Points(sig[idx:idx+m], m)
-		}
-	}
-
-	for i, idx := range discords {
-		discordPts[i] = Points(sig[idx:idx+m], m)
-		discordLabels[i] = strconv.Itoa(idx)
-	}
-
-	if err = PlotMP(sigPts, mpPts, cacPts, motifPts, discordPts, discordLabels, "../mp_sine.png"); err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Saved png file result to mp_sine.png")
+	fmt.Printf("Saved png file result to %s\n", o.OutputFilename)
 	// Output: Saved png file result to mp_sine.png
 }
 
@@ -275,7 +175,7 @@ func Example_kDimensionalCaseStudy() {
 	mpPts[1] = Points(mp.MP[1], len(sig[0]))
 	mpPts[2] = Points(mp.MP[2], len(sig[0]))
 
-	if err = PlotKMP(sigPts, mpPts, "../mp_kdim.png"); err != nil {
+	if err = PlotKMP(sigPts, mpPts, "mp_kdim.png"); err != nil {
 		panic(err)
 	}
 
