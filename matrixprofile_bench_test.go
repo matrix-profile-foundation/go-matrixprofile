@@ -229,7 +229,49 @@ func BenchmarkStomp(b *testing.B) {
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			sig := setupData(bm.numPoints)
-			mp, err := New(sig, nil, 32)
+			mp, err := New(sig, nil, bm.m)
+			if err != nil {
+				b.Error(err)
+			}
+
+			b.N = bm.reps
+			o.Parallelism = bm.parallelism
+			for i := 0; i < b.N; i++ {
+				err = mp.Compute(o)
+				if err != nil {
+					b.Error(err)
+				}
+				if len(mp.MP) < 1 || len(mp.Idx) < 1 {
+					b.Error("expected at least one value from matrix profile and matrix profile index")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkMpx(b *testing.B) {
+	benchmarks := []struct {
+		name        string
+		m           int
+		parallelism int
+		numPoints   int
+		reps        int
+	}{
+		{"m32_p1_pts1024", 32, 1, 1024, 50},
+		{"m128_p1_pts1024", 128, 1, 1024, 50},
+		{"m128_p2_pts1024", 128, 2, 1024, 100},
+		{"m128_p2_pts2048", 128, 2, 2048, 20},
+		{"m128_p2_pts4096", 128, 2, 4096, 10},
+		{"m128_p2_pts8192", 128, 2, 8192, 10},
+	}
+
+	o := NewOptions()
+	o.Method = method.MPX
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			sig := setupData(bm.numPoints)
+			mp, err := New(sig, nil, bm.m)
 			if err != nil {
 				b.Error(err)
 			}

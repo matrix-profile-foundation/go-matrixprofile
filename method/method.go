@@ -6,4 +6,5 @@ const (
 	STOMP = iota
 	STAMP
 	STMP
+	MPX
 )

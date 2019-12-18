@@ -144,3 +144,37 @@ func TestIac(t *testing.T) {
 		}
 	}
 }
+
+func TestMuInvN(t *testing.T) {
+	testdata := []struct {
+		a           []float64
+		w           int
+		expectedMu  []float64
+		expectedSig []float64
+	}{
+		{[]float64{2, 2, 2, 2, 2, 2}, 3, []float64{2, 2, 2, 2}, []float64{math.Inf(1), math.Inf(1), math.Inf(1), math.Inf(1)}},
+		{[]float64{2, 4, 3, 5, 4, 6}, 3, []float64{3, 4, 4, 5}, []float64{math.Sqrt(2) / 2, math.Sqrt(2) / 2, math.Sqrt(2) / 2, math.Sqrt(2) / 2}},
+	}
+
+	for _, d := range testdata {
+		mu, sig := MuInvN(d.a, d.w)
+		if len(mu) != len(d.expectedMu) {
+			t.Errorf("Expected %d elements of mu but got %d", len(d.expectedMu), len(mu))
+			continue
+		}
+		if len(sig) != len(d.expectedSig) {
+			t.Errorf("Expected %d elements of sig but got %d", len(d.expectedSig), len(sig))
+			continue
+		}
+		for i := 0; i < len(mu); i++ {
+			if mu[i] != d.expectedMu[i] {
+				t.Errorf("Expected mu: %.3f, but got %.3f", d.expectedMu, mu)
+				break
+			}
+			if math.Abs(sig[i]-d.expectedSig[i]) > 1e-9 {
+				t.Errorf("Expected sig: %.9f, but got %.9f", d.expectedSig, sig)
+				break
+			}
+		}
+	}
+}

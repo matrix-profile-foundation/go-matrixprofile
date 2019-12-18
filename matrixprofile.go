@@ -482,6 +482,59 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) mpRes
 	return result
 }
 
+// mpxBatch processes a batch set of rows in matrix profile calculation.
+func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) mpResult {
+	defer wg.Done()
+	if idx*batchSize+mp.M/4 > mp.N-mp.M+1 {
+		// got an index larger than mp.A so ignore
+		return mpResult{}
+	}
+
+	profile := make([]float64, mp.N-mp.M+1)
+	for i := 0; i < len(profile); i++ {
+		profile[i] = -1
+	}
+	index := make([]int, mp.N-mp.M+1)
+
+	var c_cmp float64
+	for diag := idx*batchSize + mp.M/4; diag < (idx+1)*batchSize+mp.M/4; diag++ {
+		if diag >= mp.N-mp.M+1 {
+			break
+		}
+		var c float64
+		for i := 0; i < mp.M; i++ {
+			c += (mp.A[diag+i] - mu[diag]) * (mp.A[i] - mu[0])
+		}
+		for offset := 0; offset < mp.N-mp.M-diag+1; offset++ {
+			c += df[offset]*dg[offset+diag] + df[offset+diag]*dg[offset]
+			c_cmp = c * (sig[offset] * sig[offset+diag])
+			if c_cmp > profile[offset] {
+				if c_cmp > 1 {
+					c_cmp = 1
+				}
+				profile[offset] = c_cmp
+				index[offset] = offset + diag
+			}
+			if c_cmp > profile[offset+diag] {
+				if c_cmp > 1 {
+					c_cmp = 1
+				}
+				profile[offset+diag] = c_cmp
+				index[offset+diag] = offset
+			}
+		}
+	}
+
+	for i := 0; i < len(profile); i++ {
+		profile[i] = math.Sqrt(2 * float64(mp.M) * (1 - profile[i]))
+	}
+
+	return mpResult{
+		MP:  profile,
+		Idx: index,
+	}
+}
+
 // mergeMPResults reads from a slice of channels for Matrix Profile results and
 // updates the matrix profile in the struct
 func (mp *MatrixProfile) mergeMPResults(results []chan mpResult) error {
@@ -511,6 +564,55 @@ func (mp *MatrixProfile) mergeMPResults(results []chan mpResult) error {
 			}
 		}
 	}
+	return err
+}
+
+func (mp *MatrixProfile) mpx(parallelism int) error {
+	if !mp.SelfJoin {
+		return errors.New("MPX method only permits self joins")
+	}
+	diagMax := mp.N - mp.M + 1
+	batchSize := (diagMax-mp.M/4+1)/parallelism + 1
+	results := make([]chan mpResult, parallelism)
+	for i := 0; i < parallelism; i++ {
+		results[i] = make(chan mpResult)
+	}
+
+	// go routine to continually check for results on the slice of channels
+	// for each batch kicked off. This merges the results of the batched go
+	// routines by picking the lowest value in each batch's matrix profile and
+	// updating the matrix profile index.
+	var err error
+	done := make(chan bool)
+	go func() {
+		err = mp.mergeMPResults(results)
+		done <- true
+	}()
+
+	mu, sig := util.MuInvN(mp.A, mp.M)
+
+	df := make([]float64, diagMax)
+	dg := make([]float64, diagMax)
+	for i := 0; i < len(df)-1; i++ {
+		df[i+1] = 0.5 * (mp.A[mp.M+i] - mp.A[i])
+		dg[i+1] = (mp.A[mp.M+i] - mu[1+i]) + (mp.A[i] - mu[i])
+	}
+
+	// kick off multiple go routines to process a batch of rows returning back
+	// the matrix profile for that batch and any error encountered
+	var wg sync.WaitGroup
+	wg.Add(parallelism)
+	for batch := 0; batch < parallelism; batch++ {
+		go func(idx int) {
+			result := mp.mpxBatch(idx, mu, sig, df, dg, batchSize, &wg)
+			results[idx] <- result
+		}(batch)
+	}
+	wg.Wait()
+
+	// waits for all results to be read and merged before returning success
+	<-done
+
 	return err
 }
 
@@ -546,6 +648,8 @@ func (mp *MatrixProfile) Compute(opt Options) error {
 		return mp.stamp(opt.Sample, opt.Parallelism)
 	case method.STMP:
 		return mp.stmp()
+	case method.MPX:
+		return mp.mpx(opt.Parallelism)
 	}
 	return nil
 }

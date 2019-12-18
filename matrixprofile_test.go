@@ -481,6 +481,86 @@ func TestComputeStomp(t *testing.T) {
 	}
 }
 
+func TestComputeMpx(t *testing.T) {
+	var err error
+	var mp *MatrixProfile
+
+	testdata := []struct {
+		q             []float64
+		t             []float64
+		m             int
+		p             int
+		expectedMP    []float64
+		expectedMPIdx []int
+	}{
+		{[]float64{}, []float64{}, 2, 1, nil, nil},
+		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 1, nil, nil},
+		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
+		{[]float64{1, 1}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 1,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 2,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 100,
+			[]float64{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963},
+			[]int{4, 5, 6, 7, 0, 1, 2, 3, 4}},
+	}
+
+	for _, d := range testdata {
+		mp, err = New(d.q, d.t, d.m)
+		if err != nil {
+			if d.expectedMP == nil {
+				// Got an error while creating a new matrix profile
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v,  while creating new mp for %v", err, d)
+				return
+			}
+		}
+
+		o := NewOptions()
+		o.Method = method.MPX
+		o.Parallelism = d.p
+
+		err = mp.Compute(o)
+		if err != nil {
+			if d.expectedMP == nil {
+				// Got an error while z normalizing and expected an error
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v, while calculating mpx for %v", err, d)
+				break
+			}
+		}
+		if d.expectedMP == nil {
+			t.Errorf("Expected an invalid mpx calculation, %+v", d)
+			break
+		}
+
+		if len(mp.MP) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
+			return
+		}
+		for i := 0; i < len(mp.MP); i++ {
+			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
+				t.Errorf("Expected\n%.4f, but got\n%.4f for\n%+v", d.expectedMP, mp.MP, d)
+				break
+			}
+		}
+		for i := 0; i < len(mp.Idx); i++ {
+			if math.Abs(float64(mp.Idx[i]-d.expectedMPIdx[i])) > 1e-7 {
+				t.Errorf("Expected %d,\nbut got\n%v for\n%+v", d.expectedMPIdx, mp.Idx, d)
+				break
+			}
+		}
+	}
+}
+
 func TestUpdate(t *testing.T) {
 	var err error
 	var outMP []float64
