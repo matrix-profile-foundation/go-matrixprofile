@@ -14,6 +14,7 @@ Features:
 * STAMPI
 * STOMP (parallelized)
 * mSTOMP
+* MPX (parallelized)
 * TopKMotifs - finds the top K motifs from a computed matrix profile
 * TopKDiscords - finds the top K discords from a computed matrix profile
 * Segement - computes the corrected arc curve for time series segmentation
@@ -119,24 +120,33 @@ A png file will be saved in the top level directory of the repository as `mp_sin
 ## Benchmarks
 Benchmark name                      | NumReps |    Time/Rep    |  Memory/Rep  |     Alloc/Rep   |
 -----------------------------------:|--------:|---------------:|-------------:|----------------:|
-BenchmarkMStomp-4                   |       50|  34214278 ns/op|  7320233 B/op| 226597 allocs/op|
-BenchmarkZNormalize-4               | 10000000|       192 ns/op|      256 B/op|      1 allocs/op|
-BenchmarkMovmeanstd-4               |    50000|     26181 ns/op|    65537 B/op|      4 allocs/op|
-BenchmarkCrossCorrelate-4           |    10000|    144817 ns/op|    49179 B/op|      3 allocs/op|
-BenchmarkMass-4                     |    10000|    151626 ns/op|    49444 B/op|      4 allocs/op|
-BenchmarkDistanceProfile-4          |    10000|    152649 ns/op|    49444 B/op|      4 allocs/op|
-BenchmarkCalculateDistanceProfile-4 |   200000|     10825 ns/op|        2 B/op|      0 allocs/op|
-BenchmarkStmp/m32_pts1k-4           |        5| 304208563 ns/op| 97396022 B/op|   7883 allocs/op|
-BenchmarkStmp/m128_pts1k-4          |        5| 289090801 ns/op| 94091318 B/op|   7499 allocs/op|
-BenchmarkStamp/m32_p2_pts1k-4       |       10| 164346009 ns/op| 97498451 B/op|   7897 allocs/op|
-BenchmarkStomp/m32_p1_pts1k-4       |       50|  34757074 ns/op|   252571 B/op|     22 allocs/op|
-BenchmarkStomp/m128_p1_pts1k-4      |       50|  35568253 ns/op|   252348 B/op|     21 allocs/op|
-BenchmarkStomp/m128_p2_pts1k-4      |      100|  18485672 ns/op|   397347 B/op|     31 allocs/op|
-BenchmarkStomp/m128_p2_pts2k-4      |       20|  73567121 ns/op|   816958 B/op|     32 allocs/op|
-BenchmarkStomp/m128_p2_pts5k-4      |       10| 470744655 ns/op|  2114579 B/op|     33 allocs/op|
-BenchmarkStampUpdate-4              |       10| 130760106 ns/op|  1933241 B/op|     25 allocs/op|
+BenchmarkMStomp-4                   |       50|  28559842 ns/op|  7335193 B/op| 227071 allocs/op|
+BenchmarkZNormalize-4               | 10000000|       159 ns/op|      256 B/op|      1 allocs/op|
+BenchmarkMovmeanstd-4               |    50000|     26689 ns/op|    65537 B/op|      4 allocs/op|
+BenchmarkCrossCorrelate-4           |    10000|    138444 ns/op|    49180 B/op|      3 allocs/op|
+BenchmarkMass-4                     |    10000|    144664 ns/op|    49444 B/op|      4 allocs/op|
+BenchmarkDistanceProfile-4          |    10000|    147884 ns/op|    49444 B/op|      4 allocs/op|
+BenchmarkCalculateDistanceProfile-4 |   200000|      8959 ns/op|        2 B/op|      0 allocs/op|
+BenchmarkStmp/m32_pts1k-4           |        5| 300883003 ns/op| 97396006 B/op|   7883 allocs/op|
+BenchmarkStmp/m128_pts1k-4          |        5| 297214441 ns/op| 94091148 B/op|   7498 allocs/op|
+BenchmarkStamp/m32_p2_pts1k-4       |       10| 193601139 ns/op| 97498281 B/op|   7898 allocs/op|
+BenchmarkStomp/m_32_p1_pts1024-4    |       50|  42061763 ns/op|   156119 B/op|     16 allocs/op|
+BenchmarkStomp/m128_p1_pts1024-4    |       50|  37975960 ns/op|   156124 B/op|     16 allocs/op|
+BenchmarkStomp/m128_p2_pts1024-4    |      100|  24062106 ns/op|   302562 B/op|     25 allocs/op|
+BenchmarkStomp/m128_p2_pts2048-4    |       20|  99007571 ns/op|   638441 B/op|     26 allocs/op|
+BenchmarkStomp/m128_p2_pts4096-4    |       10| 403500289 ns/op|  1318713 B/op|     27 allocs/op|
+BenchmarkStomp/m128_p2_pts8192-4    |       10|1775433560 ns/op|  2616211 B/op|     27 allocs/op|
+BenchmarkStomp/m128_p4_pts8192-4    |       10|1742241625 ns/op|  4992480 B/op|     48 allocs/op|
+BenchmarkMpx/m_32_p1_pts1024-4      |       50|  14109571 ns/op|   137484 B/op|     15 allocs/op|
+BenchmarkMpx/m128_p1_pts1024-4      |       50|  22611401 ns/op|   137484 B/op|     15 allocs/op|
+BenchmarkMpx/m128_p2_pts1024-4      |      100|  21189096 ns/op|   167374 B/op|     19 allocs/op|
+BenchmarkMpx/m128_p2_pts2048-4      |       20|  63714124 ns/op|   359726 B/op|     20 allocs/op|
+BenchmarkMpx/m128_p2_pts4096-4      |       10| 203365439 ns/op|   777936 B/op|     21 allocs/op|
+BenchmarkMpx/m128_p2_pts8192-4      |       10| 703186642 ns/op|  1551251 B/op|     21 allocs/op|
+BenchmarkMpx/m128_p4_pts8192-4      |       10| 640190693 ns/op|  2075916 B/op|     29 allocs/op|
+BenchmarkStampUpdate-4              |       10| 173804923 ns/op|  2031161 B/op|     24 allocs/op|
 
-Ran on a 2018 MacBookAir on Jan 08, 2019
+Ran on a 2018 MacBookAir on Dec 18, 2019
 ```sh
     Processor: 1.6 GHz Intel Core i5
        Memory: 8GB 2133 MHz LPDDR3
