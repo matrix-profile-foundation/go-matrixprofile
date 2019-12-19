@@ -243,9 +243,9 @@ func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
 	randIdx := rand.Perm(len(mp.A) - mp.M + 1)
 
 	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
-	results := make([]chan mpResult, parallelism)
+	results := make([]chan *mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
-		results[i] = make(chan mpResult)
+		results[i] = make(chan *mpResult)
 	}
 
 	// go routine to continually check for results on the slice of channels
@@ -265,8 +265,7 @@ func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
 		go func(idx int) {
-			result := mp.stampBatch(idx, batchSize, sample, randIdx, &wg)
-			results[idx] <- result
+			results[idx] <- mp.stampBatch(idx, batchSize, sample, randIdx, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -278,15 +277,15 @@ func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
 }
 
 // stampBatch processes a batch set of rows in a matrix profile calculation
-func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx []int, wg *sync.WaitGroup) mpResult {
+func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx []int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	if idx*batchSize+mp.M > len(mp.A) {
 		// got an index larger than mp.A so ignore
-		return mpResult{}
+		return &mpResult{}
 	}
 
 	// initialize this batch's matrix profile results
-	result := mpResult{
+	result := &mpResult{
 		MP:  make([]float64, mp.N-mp.M+1),
 		Idx: make([]int, mp.N-mp.M+1),
 	}
@@ -303,7 +302,7 @@ func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx [
 			break
 		}
 		if err = mp.distanceProfile(randIdx[idx*batchSize+i], profile, fft); err != nil {
-			return mpResult{nil, nil, err}
+			return &mpResult{nil, nil, err}
 		}
 		for j := 0; j < len(profile); j++ {
 			if profile[j] <= result.MP[j] {
@@ -379,9 +378,9 @@ type mpResult struct {
 // allocations needed to compute an arbitrary timeseries length.
 func (mp *MatrixProfile) stomp(parallelism int) error {
 	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
-	results := make([]chan mpResult, parallelism)
+	results := make([]chan *mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
-		results[i] = make(chan mpResult)
+		results[i] = make(chan *mpResult)
 	}
 
 	// go routine to continually check for results on the slice of channels
@@ -401,8 +400,7 @@ func (mp *MatrixProfile) stomp(parallelism int) error {
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
 		go func(idx int) {
-			result := mp.stompBatch(idx, batchSize, &wg)
-			results[idx] <- result
+			results[idx] <- mp.stompBatch(idx, batchSize, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -418,11 +416,11 @@ func (mp *MatrixProfile) stomp(parallelism int) error {
 // matrix profile index using the stomp iterative algorithm. This also uses the very
 // first row's dot product to update the very first index of the current row's
 // dot product.
-func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) mpResult {
+func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	if idx*batchSize+mp.M > len(mp.A) {
 		// got an index larger than mp.A so ignore
-		return mpResult{}
+		return &mpResult{}
 	}
 
 	// compute for this batch the first row's sliding dot product
@@ -432,11 +430,11 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) mpRes
 	profile := make([]float64, len(dot))
 	var err error
 	if err = mp.calculateDistanceProfile(dot, idx*batchSize, profile); err != nil {
-		return mpResult{nil, nil, err}
+		return &mpResult{nil, nil, err}
 	}
 
 	// initialize this batch's matrix profile results
-	result := mpResult{
+	result := &mpResult{
 		MP:  make([]float64, mp.N-mp.M+1),
 		Idx: make([]int, mp.N-mp.M+1),
 	}
@@ -468,7 +466,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) mpRes
 		}
 		dot[0] = nextDotZero
 		if err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile); err != nil {
-			return mpResult{nil, nil, err}
+			return &mpResult{nil, nil, err}
 		}
 
 		// element wise min update of the matrix profile and matrix profile index
@@ -483,64 +481,63 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) mpRes
 }
 
 // mpxBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) mpResult {
+func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	if idx*batchSize+mp.M/4 > mp.N-mp.M+1 {
-		// got an index larger than mp.A so ignore
-		return mpResult{}
+		// got an index larger than max lag so ignore
+		return &mpResult{}
 	}
 
-	profile := make([]float64, mp.N-mp.M+1)
-	for i := 0; i < len(profile); i++ {
-		profile[i] = -1
+	mpr := &mpResult{
+		MP:  make([]float64, mp.N-mp.M+1),
+		Idx: make([]int, mp.N-mp.M+1),
 	}
-	index := make([]int, mp.N-mp.M+1)
+	for i := 0; i < len(mpr.MP); i++ {
+		mpr.MP[i] = -1
+	}
 
-	var c_cmp float64
+	var c, c_cmp float64
 	for diag := idx*batchSize + mp.M/4; diag < (idx+1)*batchSize+mp.M/4; diag++ {
 		if diag >= mp.N-mp.M+1 {
 			break
 		}
-		var c float64
+		c = 0
 		for i := 0; i < mp.M; i++ {
 			c += (mp.A[diag+i] - mu[diag]) * (mp.A[i] - mu[0])
 		}
 		for offset := 0; offset < mp.N-mp.M-diag+1; offset++ {
 			c += df[offset]*dg[offset+diag] + df[offset+diag]*dg[offset]
 			c_cmp = c * (sig[offset] * sig[offset+diag])
-			if c_cmp > profile[offset] {
+			if c_cmp > mpr.MP[offset] {
 				if c_cmp > 1 {
 					c_cmp = 1
 				}
-				profile[offset] = c_cmp
-				index[offset] = offset + diag
+				mpr.MP[offset] = c_cmp
+				mpr.Idx[offset] = offset + diag
 			}
-			if c_cmp > profile[offset+diag] {
+			if c_cmp > mpr.MP[offset+diag] {
 				if c_cmp > 1 {
 					c_cmp = 1
 				}
-				profile[offset+diag] = c_cmp
-				index[offset+diag] = offset
+				mpr.MP[offset+diag] = c_cmp
+				mpr.Idx[offset+diag] = offset
 			}
 		}
 	}
 
-	for i := 0; i < len(profile); i++ {
-		profile[i] = math.Sqrt(2 * float64(mp.M) * (1 - profile[i]))
+	for i := 0; i < len(mpr.MP); i++ {
+		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
 	}
 
-	return mpResult{
-		MP:  profile,
-		Idx: index,
-	}
+	return mpr
 }
 
 // mergeMPResults reads from a slice of channels for Matrix Profile results and
 // updates the matrix profile in the struct
-func (mp *MatrixProfile) mergeMPResults(results []chan mpResult) error {
+func (mp *MatrixProfile) mergeMPResults(results []chan *mpResult) error {
 	var err error
 
-	resultSlice := make([]mpResult, len(results))
+	resultSlice := make([]*mpResult, len(results))
 	for i := 0; i < len(results); i++ {
 		resultSlice[i] = <-results[i]
 
@@ -573,9 +570,9 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	}
 	diagMax := mp.N - mp.M + 1
 	batchSize := (diagMax-mp.M/4+1)/parallelism + 1
-	results := make([]chan mpResult, parallelism)
+	results := make([]chan *mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
-		results[i] = make(chan mpResult)
+		results[i] = make(chan *mpResult)
 	}
 
 	// go routine to continually check for results on the slice of channels
@@ -604,8 +601,7 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
 		go func(idx int) {
-			result := mp.mpxBatch(idx, mu, sig, df, dg, batchSize, &wg)
-			results[idx] <- result
+			results[idx] <- mp.mpxBatch(idx, mu, sig, df, dg, batchSize, &wg)
 		}(batch)
 	}
 	wg.Wait()
