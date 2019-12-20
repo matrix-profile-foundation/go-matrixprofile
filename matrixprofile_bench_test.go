@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
 	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 	"gonum.org/v1/gonum/fourier"
@@ -159,8 +158,8 @@ func BenchmarkStmp(b *testing.B) {
 		{"m128_pts1k", 128},
 	}
 
-	o := NewOptions()
-	o.Method = method.STMP
+	o := NewComputeOpts()
+	o.Algorithm = AlgoSTMP
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
@@ -190,8 +189,8 @@ func BenchmarkStamp(b *testing.B) {
 		b.Error(err)
 	}
 
-	o := NewOptions()
-	o.Method = method.STAMP
+	o := NewComputeOpts()
+	o.Algorithm = AlgoSTAMP
 	o.Sample = 1.0
 	o.Parallelism = 2
 
@@ -225,7 +224,7 @@ func BenchmarkStomp(b *testing.B) {
 		{"m128_p4_pts8192", 128, 4, 8192, 10},
 	}
 
-	o := NewOptions()
+	o := NewComputeOpts()
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
@@ -267,8 +266,8 @@ func BenchmarkMpx(b *testing.B) {
 		{"m128_p4_pts8192", 128, 4, 8192, 10},
 	}
 
-	o := NewOptions()
-	o.Method = method.MPX
+	o := NewComputeOpts()
+	o.Algorithm = AlgoMPX
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
@@ -300,7 +299,7 @@ func BenchmarkUpdate(b *testing.B) {
 		b.Error(err)
 	}
 
-	err = mp.Compute(NewOptions())
+	err = mp.Compute(NewComputeOpts())
 	if err != nil {
 		b.Error(err)
 	}

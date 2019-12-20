@@ -3,7 +3,6 @@ package matrixprofile
 import (
 	"fmt"
 
-	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
 )
 
@@ -35,8 +34,8 @@ func ExampleMatrixProfile_Stmp() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	o := NewOptions()
-	o.Method = method.STMP
+	o := NewComputeOpts()
+	o.Algorithm = AlgoSTMP
 
 	if err = mp.Compute(o); err != nil {
 		panic(err)
@@ -71,8 +70,8 @@ func ExampleMatrixProfile_Stamp() {
 	// run the STAMP algorithm with self join and a sample of 0.2 of
 	// all subsequences. The matrix profile will be stored in mp.MP
 	// and the matrix profile index will be stored in mp.Idx
-	o := NewOptions()
-	o.Method = method.STAMP
+	o := NewComputeOpts()
+	o.Algorithm = AlgoSTAMP
 	o.Sample = 0.2
 
 	if err = mp.Compute(o); err != nil {
@@ -109,12 +108,12 @@ func ExampleMatrixProfile_Stomp() {
 	// run the STOMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	if err = mp.Compute(NewOptions()); err != nil {
+	if err = mp.Compute(NewComputeOpts()); err != nil {
 		panic(err)
 	}
 }
 
-func ExampleMatrixProfile_Segment() {
+func ExampleMatrixProfile_DiscoverSegments() {
 	// generate a signal mainly composed of sine waves and switches
 	// frequencies, amplitude, and offset midway through
 
@@ -142,8 +141,8 @@ func ExampleMatrixProfile_Segment() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	o := NewOptions()
-	o.Method = method.STMP
+	o := NewComputeOpts()
+	o.Algorithm = AlgoSTMP
 
 	if err = mp.Compute(o); err != nil {
 		panic(err)
@@ -151,7 +150,7 @@ func ExampleMatrixProfile_Segment() {
 
 	// segment the timeseries using the number of arc crossings over
 	// each index in the matrix profile index
-	idx, cac, _ := mp.Segment()
+	idx, cac, _ := mp.DiscoverSegments()
 	fmt.Printf("Signal change foud at index: %d\n", idx)
 	fmt.Printf("Corrected Arc Curve (CAC) value: %.3f\n", cac)
 
@@ -160,7 +159,7 @@ func ExampleMatrixProfile_Segment() {
 	// Corrected Arc Curve (CAC) value: 0.000
 }
 
-func ExampleMatrixProfile_TopKMotifs() {
+func ExampleMatrixProfile_DiscoverMotifs() {
 	// generate a signal mainly composed of sine waves and switches
 	// frequencies, amplitude, and offset midway through
 
@@ -184,8 +183,8 @@ func ExampleMatrixProfile_TopKMotifs() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	o := NewOptions()
-	o.Method = method.STMP
+	o := NewComputeOpts()
+	o.Algorithm = AlgoSTMP
 
 	if err = mp.Compute(o); err != nil {
 		panic(err)
@@ -194,7 +193,7 @@ func ExampleMatrixProfile_TopKMotifs() {
 	// finds the top 3 motifs in the signal. Motif groups include
 	// all subsequences that are within 2 times the distance of the
 	// original motif pair
-	motifs, err := mp.TopKMotifs(2, 2)
+	motifs, err := mp.DiscoverMotifs(2, 2)
 	if err != nil {
 		panic(err)
 	}

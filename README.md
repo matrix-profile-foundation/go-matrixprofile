@@ -40,8 +40,6 @@ Features:
 ## Installation
 ```sh
 $ go get -u github.com/matrix-profile-foundation/go-matrixprofile
-$ cd $GOPATH/src/github.com/matrix-profile-foundation/go-matrixprofile
-$ make setup
 ```
 
 ## Quick start
@@ -54,24 +52,24 @@ package main
 import (
 	"fmt"
 
-	"github.com/matrix-profile-foundation/go-matrixprofile"
+	mp "github.com/matrix-profile-foundation/go-matrixprofile"
 )
 
 func main() {
 	sig := []float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}
 
-	mp, err := matrixprofile.New(sig, nil, 4)
+	p, err := mp.New(sig, nil, 4)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = mp.Compute(matrixprofile.NewOptions()); err != nil {
+	if err = p.Compute(mp.NewComputeOpts()); err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Signal:         %.3f\n", sig)
-	fmt.Printf("Matrix Profile: %.3f\n", mp.MP)
-	fmt.Printf("Profile Index:  %5d\n", mp.Idx)
+	fmt.Printf("Matrix Profile: %.3f\n", p.MP)
+	fmt.Printf("Profile Index:  %5d\n", p.Idx)
 }
 ```
 ```sh
@@ -111,7 +109,6 @@ $ make example
 go test ./... -run=Example
 ok  	github.com/matrix-profile-foundation/go-matrixprofile	0.256s
 ok  	github.com/matrix-profile-foundation/go-matrixprofile/av	(cached) [no tests to run]
-?   	github.com/matrix-profile-foundation/go-matrixprofile/method	[no test files]
 ok  	github.com/matrix-profile-foundation/go-matrixprofile/siggen	(cached) [no tests to run]
 ok  	github.com/matrix-profile-foundation/go-matrixprofile/util	(cached) [no tests to run]
 ```

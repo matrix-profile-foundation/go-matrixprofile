@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/av"
-	"github.com/matrix-profile-foundation/go-matrixprofile/method"
 	"gonum.org/v1/gonum/fourier"
 )
 
@@ -299,8 +298,8 @@ func TestComputeStmp(t *testing.T) {
 			continue
 		}
 
-		o := NewOptions()
-		o.Method = method.STMP
+		o := NewComputeOpts()
+		o.Algorithm = AlgoSTMP
 
 		err = mp.Compute(o)
 		if err != nil && d.expectedMP == nil {
@@ -363,8 +362,8 @@ func TestComputeStamp(t *testing.T) {
 			continue
 		}
 
-		o := NewOptions()
-		o.Method = method.STAMP
+		o := NewComputeOpts()
+		o.Algorithm = AlgoSTAMP
 		o.Sample = d.sample
 
 		err = mp.Compute(o)
@@ -447,7 +446,7 @@ func TestComputeStomp(t *testing.T) {
 			}
 		}
 
-		err = mp.Compute(NewOptions())
+		err = mp.Compute(NewComputeOpts())
 		if err != nil {
 			if d.expectedMP == nil {
 				// Got an error while z normalizing and expected an error
@@ -523,8 +522,8 @@ func TestComputeMpx(t *testing.T) {
 			}
 		}
 
-		o := NewOptions()
-		o.Method = method.MPX
+		o := NewComputeOpts()
+		o.Algorithm = AlgoMPX
 		o.Parallelism = d.p
 
 		err = mp.Compute(o)
@@ -582,7 +581,7 @@ func TestUpdate(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if err = mp.Compute(NewOptions()); err != nil {
+	if err = mp.Compute(NewComputeOpts()); err != nil {
 		t.Error(err)
 		return
 	}
@@ -617,7 +616,7 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestTopKDiscords(t *testing.T) {
+func TestDiscoverDiscords(t *testing.T) {
 	mprof := []float64{1, 2, 3, 4}
 	a := []float64{1, 2, 3, 4, 5, 6}
 	m := 3
@@ -636,7 +635,7 @@ func TestTopKDiscords(t *testing.T) {
 
 	for _, d := range testdata {
 		mp := MatrixProfile{A: a, B: a, M: m, MP: d.mp, AV: av.Default}
-		discords, err := mp.TopKDiscords(d.k, d.exzone)
+		discords, err := mp.DiscoverDiscords(d.k, d.exzone)
 		if err != nil {
 			t.Errorf("Got error %v on %v", err, d)
 			return
@@ -654,7 +653,7 @@ func TestTopKDiscords(t *testing.T) {
 	}
 }
 
-func TestTopKMotifs(t *testing.T) {
+func TestDiscoverMotifs(t *testing.T) {
 	a := []float64{0, 0, 0.56, 0.99, 0.97, 0.75, 0, 0, 0, 0.43, 0.98, 0.99, 0.65, 0, 0, 0, 0.6, 0.97, 0.965, 0.8, 0, 0, 0}
 
 	testdata := []struct {
@@ -694,11 +693,11 @@ func TestTopKMotifs(t *testing.T) {
 			return
 		}
 
-		if err = mp.Compute(NewOptions()); err != nil {
+		if err = mp.Compute(NewComputeOpts()); err != nil {
 			t.Error(err)
 			return
 		}
-		motifs, err := mp.TopKMotifs(d.k, 2)
+		motifs, err := mp.DiscoverMotifs(d.k, 2)
 		if err != nil {
 			if d.expectedMotifs == nil {
 				continue
@@ -731,7 +730,7 @@ func TestTopKMotifs(t *testing.T) {
 	}
 }
 
-func TestSegment(t *testing.T) {
+func TestDiscoverSegments(t *testing.T) {
 	testdata := []struct {
 		mpIdx         []int
 		expectedIdx   int
@@ -752,7 +751,7 @@ func TestSegment(t *testing.T) {
 	var histo []float64
 	for _, d := range testdata {
 		mp := MatrixProfile{Idx: d.mpIdx}
-		minIdx, minVal, histo = mp.Segment()
+		minIdx, minVal, histo = mp.DiscoverSegments()
 		if histo != nil && d.expectedHisto == nil {
 			// Failed to compute histogram
 			continue

@@ -121,16 +121,18 @@ func Example_caseStudy() {
 		panic(err)
 	}
 
-	o := NewOptions()
-	o.KMotifs = k
-	o.RMotifs = r
-	o.OutputFilename = "mp_sine.png"
+	co := NewComputeOpts()
 
-	if err = mp.Analyze(o); err != nil {
+	ao := NewAnalyzeOpts()
+	ao.KMotifs = k
+	ao.RMotifs = r
+	ao.OutputFilename = "mp_sine.png"
+
+	if err = mp.Analyze(co, ao); err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Saved png file result to %s\n", o.OutputFilename)
+	fmt.Printf("Saved png file result to %s\n", ao.OutputFilename)
 	// Output: Saved png file result to mp_sine.png
 }
 

@@ -1,6 +1,7 @@
 package av
 
 import (
+	"fmt"
 	"math"
 
 	"gonum.org/v1/gonum/floats"
@@ -18,9 +19,27 @@ const (
 	Clipping          // Clipping is the annotation vector reducing the importance of areas showing clipping effects on the positive and negative regime
 )
 
-// MakeDefault creates a default annotation vector of all ones resulting in
+// Create returns the annotation vector given an input time series and a window size m
+func Create(av AV, ts []float64, m int) ([]float64, error) {
+	var avec []float64
+	switch av {
+	case Default:
+		avec = makeDefault(ts, m)
+	case Complexity:
+		avec = makeCompexity(ts, m)
+	case MeanStd:
+		avec = makeMeanStd(ts, m)
+	case Clipping:
+		avec = makeClipping(ts, m)
+	default:
+		return nil, fmt.Errorf("invalid annotation vector specified with matrix profile, %d", av)
+	}
+	return avec, nil
+}
+
+// makeDefault creates a default annotation vector of all ones resulting in
 // no change to the matrix profile when applied
-func MakeDefault(d []float64, m int) []float64 {
+func makeDefault(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	for i := 0; i < len(av); i++ {
 		av[i] = 1.0
@@ -28,9 +47,9 @@ func MakeDefault(d []float64, m int) []float64 {
 	return av
 }
 
-// MakeCompexity creates an annotation vector that is based on the complexity
+// makeCompexity creates an annotation vector that is based on the complexity
 // estimation of the signal.
-func MakeCompexity(d []float64, m int) []float64 {
+func makeCompexity(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	var ce, minAV, maxAV float64
 	minAV = math.Inf(1)
@@ -59,9 +78,9 @@ func MakeCompexity(d []float64, m int) []float64 {
 	return av
 }
 
-// MakeMeanStd creates an annotation vector by setting any values above the mean
+// makeMeanStd creates an annotation vector by setting any values above the mean
 // of the standard deviation vector to 0 and below to 1.
-func MakeMeanStd(d []float64, m int) []float64 {
+func makeMeanStd(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	_, std, _ := util.MovMeanStd(d, m)
 	mu := stat.Mean(std, nil)
@@ -73,9 +92,9 @@ func MakeMeanStd(d []float64, m int) []float64 {
 	return av
 }
 
-// MakeClipping creates an annotation vector by setting subsequences with more
+// makeClipping creates an annotation vector by setting subsequences with more
 // clipping on the positive or negative side of the signal to lower importance.
-func MakeClipping(d []float64, m int) []float64 {
+func makeClipping(d []float64, m int) []float64 {
 	av := make([]float64, len(d)-m+1)
 	maxVal, minVal := floats.Max(d), floats.Min(d)
 	var numClip int
