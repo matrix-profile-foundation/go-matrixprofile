@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"runtime"
 	"sync"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/util"
@@ -32,7 +33,7 @@ type ComputeOptions struct {
 func NewComputeOpts() ComputeOptions {
 	return ComputeOptions{
 		Algorithm:   AlgoSTOMP,
-		Parallelism: 4,
+		Parallelism: runtime.NumCPU() * 2,
 	}
 }
 

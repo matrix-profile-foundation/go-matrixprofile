@@ -221,10 +221,10 @@ func BenchmarkStomp(b *testing.B) {
 		{"m128_p2_pts2048", 128, 2, 2048, 20},
 		{"m128_p2_pts4096", 128, 2, 4096, 10},
 		{"m128_p2_pts8192", 128, 2, 8192, 10},
-		{"m128_p4_pts8192", 128, 4, 8192, 10},
 	}
 
 	o := NewComputeOpts()
+	o.Algorithm = AlgoSTOMP
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
@@ -263,7 +263,6 @@ func BenchmarkMpx(b *testing.B) {
 		{"m128_p2_pts2048", 128, 2, 2048, 20},
 		{"m128_p2_pts4096", 128, 2, 4096, 10},
 		{"m128_p2_pts8192", 128, 2, 8192, 10},
-		{"m128_p4_pts8192", 128, 4, 8192, 10},
 	}
 
 	o := NewComputeOpts()

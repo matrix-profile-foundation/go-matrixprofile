@@ -446,7 +446,9 @@ func TestComputeStomp(t *testing.T) {
 			}
 		}
 
-		err = mp.Compute(NewComputeOpts())
+		o := NewComputeOpts()
+		o.Algorithm = AlgoSTOMP
+		err = mp.Compute(o)
 		if err != nil {
 			if d.expectedMP == nil {
 				// Got an error while z normalizing and expected an error
@@ -581,7 +583,9 @@ func TestUpdate(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if err = mp.Compute(NewComputeOpts()); err != nil {
+	o := NewComputeOpts()
+	o.Algorithm = AlgoSTOMP
+	if err = mp.Compute(o); err != nil {
 		t.Error(err)
 		return
 	}
@@ -693,7 +697,9 @@ func TestDiscoverMotifs(t *testing.T) {
 			return
 		}
 
-		if err = mp.Compute(NewComputeOpts()); err != nil {
+		o := NewComputeOpts()
+		o.Algorithm = AlgoSTOMP
+		if err = mp.Compute(o); err != nil {
 			t.Error(err)
 			return
 		}
