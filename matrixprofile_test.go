@@ -562,6 +562,77 @@ func TestComputeMpx(t *testing.T) {
 	}
 }
 
+func TestComputeMPXAB(t *testing.T) {
+	var err error
+	var mp *MatrixProfile
+
+	testdata := []struct {
+		q             []float64
+		t             []float64
+		m             int
+		p             int
+		expectedMP    []float64
+		expectedMPIdx []int
+	}{
+		{[]float64{}, []float64{}, 2, 1, nil, nil},
+		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 1, nil, nil},
+		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 1, nil, nil},
+		{[]float64{1, 2, 1, 3, 1}, []float64{2, 1, 1, 2, 1, 3, 1, -1, -2}, 2, 1, []float64{0, 0, 0, 0}, []int{2, 3, 2, 3}},
+		{[]float64{1, 1, 1, 1, 1}, []float64{1, 1, 1, 1, 1, 2, 2, 3, 4, 5}, 2, 1, []float64{2, 2, 2, 2}, []int{0, 1, 2, 3}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, []float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, 4, 1,
+			[]float64{0, 0, 0, 0, 0, 0, 0, 0, 0},
+			[]int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
+	}
+
+	for _, d := range testdata {
+		mp, err = New(d.q, d.t, d.m)
+		if err != nil {
+			if d.expectedMP == nil {
+				// Got an error while creating a new matrix profile
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v,  while creating new mp for %v", err, d)
+				return
+			}
+		}
+
+		o := NewComputeOpts()
+		o.Algorithm = AlgoMPXAB
+		o.Parallelism = d.p
+		err = mp.Compute(o)
+		if err != nil {
+			if d.expectedMP == nil {
+				// Got an error while z normalizing and expected an error
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v, while calculating stomp for %v", err, d)
+				break
+			}
+		}
+		if d.expectedMP == nil {
+			t.Errorf("Expected an invalid STOMP calculation, %+v", d)
+			break
+		}
+
+		if len(mp.MP) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
+			return
+		}
+		for i := 0; i < len(mp.MP); i++ {
+			if math.Abs(mp.MP[i]-d.expectedMP[i]) > 1e-7 {
+				t.Errorf("Expected\n%.4f, but got\n%.4f for\n%+v", d.expectedMP, mp.MP, d)
+				break
+			}
+		}
+		for i := 0; i < len(mp.Idx); i++ {
+			if math.Abs(float64(mp.Idx[i]-d.expectedMPIdx[i])) > 1e-7 {
+				t.Errorf("Expected %d,\nbut got\n%v for\n%+v", d.expectedMPIdx, mp.Idx, d)
+				break
+			}
+		}
+	}
+}
+
 func TestUpdate(t *testing.T) {
 	var err error
 	var outMP []float64

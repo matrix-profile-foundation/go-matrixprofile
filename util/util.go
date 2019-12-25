@@ -156,7 +156,11 @@ func MuInvN(a []float64, w int) ([]float64, []float64) {
 			p = x
 		}
 
-		sig[i] = 1 / math.Sqrt(p+s)
+		if p+s == 0 {
+			sig[i] = 0
+		} else {
+			sig[i] = 1 / math.Sqrt(p+s)
+		}
 	}
 	return mu, sig
 }
