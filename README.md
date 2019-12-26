@@ -39,7 +39,7 @@ Features:
 
 ## Installation
 ```sh
-$ go get -u github.com/matrix-profile-foundation/go-matrixprofile
+$ go get github.com/matrix-profile-foundation/go-matrixprofile
 ```
 
 ## Quick start

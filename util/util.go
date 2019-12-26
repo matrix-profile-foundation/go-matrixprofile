@@ -134,12 +134,13 @@ func MuInvN(a []float64, w int) ([]float64, []float64) {
 
 	var mu_a, c float64
 	var a1, a2, a3, p, s, x, z float64
+	bigNum := math.Pow(2.0, 27.0) + 1
 	for i := 0; i < len(mu); i++ {
 		for j := i; j < i+w; j++ {
 			mu_a = a[j] - mu[i]
 			h[j] = mu_a * mu_a
 
-			c = (math.Pow(2.0, 27.0) + 1) * mu_a
+			c = bigNum * mu_a
 			a1 = c - (c - mu_a)
 			a2 = mu_a - a1
 			a3 = a1 * a2

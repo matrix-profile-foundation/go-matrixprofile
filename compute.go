@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/util"
+	"gonum.org/v1/gonum/floats"
 	"gonum.org/v1/gonum/fourier"
 )
 
@@ -31,7 +32,7 @@ type ComputeOptions struct {
 // a parallelism of 4.
 func NewComputeOpts() ComputeOptions {
 	return ComputeOptions{
-		Algorithm:   AlgoSTOMP,
+		Algorithm:   AlgoMPX,
 		Parallelism: runtime.NumCPU() * 2,
 	}
 }
@@ -482,21 +483,20 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	var mub, sigb []float64
 	mua, siga := util.MuInvN(mp.A, mp.M)
-	mub, sigb = mua, siga
+	mub, sigb := mua, siga
 	if !mp.SelfJoin {
 		mub, sigb = util.MuInvN(mp.B, mp.M)
 	}
 
-	var dfb, dgb []float64
 	dfa := make([]float64, lenA)
 	dga := make([]float64, lenA)
 	for i := 0; i < lenA-1; i++ {
 		dfa[i+1] = 0.5 * (mp.A[mp.M+i] - mp.A[i])
 		dga[i+1] = (mp.A[mp.M+i] - mua[1+i]) + (mp.A[i] - mua[i])
 	}
-	dfb, dgb = dfa, dga
+
+	dfb, dgb := dfa, dga
 	if !mp.SelfJoin {
 		dfb = make([]float64, lenB)
 		dgb = make([]float64, lenB)
@@ -506,21 +506,8 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 		}
 	}
 
-	if err := mp.runMpxABJoin(parallelism, lenA, true, mua, siga, dfa, dga, mub, sigb, dfb, dgb); mp.SelfJoin || err != nil {
-		return err
-	}
-
-	return mp.runMpxABJoin(parallelism, lenB, false, mua, siga, dfa, dga, mub, sigb, dfb, dgb)
-}
-
-func (mp MatrixProfile) runMpxABJoin(parallelism, profileLen int, ab bool, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64) error {
-	var exclZone int
-	if mp.SelfJoin {
-		exclZone = mp.M / 4
-	}
-
 	// setup for AB join
-	batchSize := (profileLen-exclZone+1)/parallelism + 1
+	batchSize := lenA/parallelism + 1
 	results := make([]chan *mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
 		results[i] = make(chan *mpResult)
@@ -543,7 +530,44 @@ func (mp MatrixProfile) runMpxABJoin(parallelism, profileLen int, ab bool, mua, 
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
 		go func(idx int) {
-			results[idx] <- mp.mpxabBatch(idx, ab, mua, siga, dfa, dga, mub, sigb, dfb, dgb, batchSize, &wg)
+			if mp.SelfJoin {
+				results[idx] <- mp.mpxBatch(idx, mua, siga, dfa, dga, batchSize, &wg)
+			} else {
+				results[idx] <- mp.mpxabBatch(idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, batchSize, &wg)
+			}
+		}(batch)
+	}
+	wg.Wait()
+
+	// waits for all results to be read and merged before returning success
+	<-done
+
+	if mp.SelfJoin || err != nil {
+		return err
+	}
+
+	// setup for BA join
+	batchSize = lenB/parallelism + 1
+	results = make([]chan *mpResult, parallelism)
+	for i := 0; i < parallelism; i++ {
+		results[i] = make(chan *mpResult)
+	}
+
+	// go routine to continually check for results on the slice of channels
+	// for each batch kicked off. This merges the results of the batched go
+	// routines by picking the lowest value in each batch's matrix profile and
+	// updating the matrix profile index.
+	go func() {
+		err = mp.mergeMPResults(results)
+		done <- true
+	}()
+
+	// kick off multiple go routines to process a batch of rows returning back
+	// the matrix profile for that batch and any error encountered
+	wg.Add(parallelism)
+	for batch := 0; batch < parallelism; batch++ {
+		go func(idx int) {
+			results[idx] <- mp.mpxbaBatch(idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, batchSize, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -554,18 +578,70 @@ func (mp MatrixProfile) runMpxABJoin(parallelism, profileLen int, ab bool, mua, 
 	return err
 }
 
-// mpxabBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxabBatch(idx int, ab bool, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+// mpxBatch processes a batch set of rows in matrix profile calculation.
+func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+	defer wg.Done()
+	if idx*batchSize+mp.M/4 > len(mp.A)-mp.M+1 {
+		// got an index larger than max lag so ignore
+		return &mpResult{}
+	}
+
+	mpr := &mpResult{
+		MP:  make([]float64, len(mp.A)-mp.M+1),
+		Idx: make([]int, len(mp.A)-mp.M+1),
+	}
+	for i := 0; i < len(mpr.MP); i++ {
+		mpr.MP[i] = -1
+	}
+
+	var c, c_cmp float64
+	s1 := make([]float64, mp.M)
+	s2 := make([]float64, mp.M)
+	for diag := idx*batchSize + mp.M/4; diag < (idx+1)*batchSize+mp.M/4; diag++ {
+		if diag >= len(mp.A)-mp.M+1 {
+			break
+		}
+
+		//for i := 0; i < mp.M; i++ {
+		//	c += (mp.A[diag+i] - mu[diag]) * (mp.A[i] - mu[0])
+		//}
+		copy(s1, mp.A[diag:diag+mp.M])
+		copy(s2, mp.A[:mp.M])
+		floats.AddConst(-mu[diag], s1)
+		floats.AddConst(mu[0], s2)
+		c = floats.Dot(s1, s2)
+
+		for offset := 0; offset < len(mp.A)-mp.M-diag+1; offset++ {
+			c += df[offset]*dg[offset+diag] + df[offset+diag]*dg[offset]
+			c_cmp = c * (sig[offset] * sig[offset+diag])
+			if c_cmp > mpr.MP[offset] {
+				mpr.MP[offset] = c_cmp
+				mpr.Idx[offset] = offset + diag
+			}
+			if c_cmp > mpr.MP[offset+diag] {
+				mpr.MP[offset+diag] = c_cmp
+				mpr.Idx[offset+diag] = offset
+			}
+		}
+	}
+
+	for i := 0; i < len(mpr.MP); i++ {
+		if mpr.MP[i] > 1 {
+			mpr.MP[i] = 1
+		}
+		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
+	}
+
+	return mpr
+}
+
+// mpxabBatch processes a batch set of rows in matrix profile AB join calculation.
+func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
 
-	// set exclusion zone if the current computation is a self join or not
-	var exclZone int
-	if mp.SelfJoin {
-		exclZone = mp.M / 4
-	}
-	if idx*batchSize+exclZone > lenA {
+	if idx*batchSize > lenA {
 		// got an index larger than max lag so ignore
 		return &mpResult{}
 	}
@@ -578,66 +654,105 @@ func (mp MatrixProfile) mpxabBatch(idx int, ab bool, mua, siga, dfa, dga, mub, s
 		mpr.MP[i] = -1
 	}
 
-	a := mp.A
-	b := mp.B
-
-	// flip a and b if doing ba join
-	if !ab {
-		a, b = mp.B, mp.A
-		mua, mub = mub, mua
-		siga, sigb = sigb, siga
-		dfa, dfb = dfb, dfa
-		dga, dgb = dgb, dga
-	}
-
 	var c, c_cmp float64
 	var offsetMax int
-	for diag := idx*batchSize + exclZone; diag < (idx+1)*batchSize+exclZone; diag++ {
+	s1 := make([]float64, mp.M)
+	s2 := make([]float64, mp.M)
+	for diag := idx * batchSize; diag < (idx+1)*batchSize; diag++ {
 		if diag >= lenA {
 			break
 		}
-		c = 0
-		for i := 0; i < mp.M; i++ {
-			c += (a[diag+i] - mua[diag]) * (b[i] - mub[0])
-		}
 
-		if ab {
-			offsetMax = lenA - diag
-			if offsetMax > lenB {
-				offsetMax = lenB
-			}
-		} else {
-			offsetMax = lenB - diag
-			if offsetMax > lenA {
-				offsetMax = lenA
-			}
+		//for i := 0; i < mp.M; i++ {
+		//	c += (mp.A[diag+i] - mua[diag]) * (mp.B[i] - mub[0])
+		//}
+		copy(s1, mp.A[diag:diag+mp.M])
+		copy(s2, mp.B[:mp.M])
+		floats.AddConst(-mua[diag], s1)
+		floats.AddConst(mub[0], s2)
+		c = floats.Dot(s1, s2)
+
+		offsetMax = lenA - diag
+		if offsetMax > lenB {
+			offsetMax = lenB
 		}
 
 		for offset := 0; offset < offsetMax; offset++ {
 			c += dfb[offset]*dga[offset+diag] + dfa[offset+diag]*dgb[offset]
 			c_cmp = c * (sigb[offset] * siga[offset+diag])
-			if mp.SelfJoin || ab {
-				if c_cmp > mpr.MP[offset+diag] {
-					if c_cmp > 1 {
-						c_cmp = 1
-					}
-					mpr.MP[offset+diag] = c_cmp
-					mpr.Idx[offset+diag] = offset
-				}
-			}
-			if mp.SelfJoin || !ab {
-				if c_cmp > mpr.MP[offset] {
-					if c_cmp > 1 {
-						c_cmp = 1
-					}
-					mpr.MP[offset] = c_cmp
-					mpr.Idx[offset] = offset + diag
-				}
+			if c_cmp > mpr.MP[offset+diag] {
+				mpr.MP[offset+diag] = c_cmp
+				mpr.Idx[offset+diag] = offset
 			}
 		}
 	}
 
 	for i := 0; i < len(mpr.MP); i++ {
+		if mpr.MP[i] > 1 {
+			mpr.MP[i] = 1
+		}
+		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
+	}
+
+	return mpr
+}
+
+// mpxbaBatch processes a batch set of rows in matrix profile calculation.
+func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+	defer wg.Done()
+	lenA := len(mp.A) - mp.M + 1
+	lenB := len(mp.B) - mp.M + 1
+
+	if idx*batchSize > lenA {
+		// got an index larger than max lag so ignore
+		return &mpResult{}
+	}
+
+	mpr := &mpResult{
+		MP:  make([]float64, lenA),
+		Idx: make([]int, lenA),
+	}
+	for i := 0; i < len(mpr.MP); i++ {
+		mpr.MP[i] = -1
+	}
+
+	var c, c_cmp float64
+	var offsetMax int
+	s1 := make([]float64, mp.M)
+	s2 := make([]float64, mp.M)
+	for diag := idx * batchSize; diag < (idx+1)*batchSize; diag++ {
+		if diag >= lenB {
+			break
+		}
+
+		//for i := 0; i < mp.M; i++ {
+		//	c += (mp.B[diag+i] - mub[diag]) * (mp.A[i] - mua[0])
+		//}
+		copy(s1, mp.B[diag:diag+mp.M])
+		copy(s2, mp.A[:mp.M])
+		floats.AddConst(-mub[diag], s1)
+		floats.AddConst(mua[0], s2)
+		c = floats.Dot(s1, s2)
+
+		offsetMax = lenB - diag
+		if offsetMax > lenA {
+			offsetMax = lenA
+		}
+
+		for offset := 0; offset < offsetMax; offset++ {
+			c += dfa[offset]*dgb[offset+diag] + dfb[offset+diag]*dga[offset]
+			c_cmp = c * (siga[offset] * sigb[offset+diag])
+			if c_cmp > mpr.MP[offset] {
+				mpr.MP[offset] = c_cmp
+				mpr.Idx[offset] = offset + diag
+			}
+		}
+	}
+
+	for i := 0; i < len(mpr.MP); i++ {
+		if mpr.MP[i] > 1 {
+			mpr.MP[i] = 1
+		}
 		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
 	}
 
