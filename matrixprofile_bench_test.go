@@ -213,14 +213,13 @@ func BenchmarkStomp(b *testing.B) {
 		m           int
 		parallelism int
 		numPoints   int
-		reps        int
 	}{
-		{"m32_p1_pts1024", 32, 1, 1024, 50},
-		{"m128_p1_pts1024", 128, 1, 1024, 50},
-		{"m128_p2_pts1024", 128, 2, 1024, 100},
-		{"m128_p2_pts2048", 128, 2, 2048, 20},
-		{"m128_p2_pts4096", 128, 2, 4096, 10},
-		{"m128_p2_pts8192", 128, 2, 8192, 10},
+		{"m32_p1_pts1024", 32, 1, 1024},
+		{"m128_p1_pts1024", 128, 1, 1024},
+		{"m128_p2_pts1024", 128, 2, 1024},
+		{"m128_p2_pts2048", 128, 2, 2048},
+		{"m128_p2_pts4096", 128, 2, 4096},
+		{"m128_p2_pts8192", 128, 2, 8192},
 	}
 
 	o := NewComputeOpts()
@@ -234,7 +233,6 @@ func BenchmarkStomp(b *testing.B) {
 				b.Error(err)
 			}
 
-			b.N = bm.reps
 			o.Parallelism = bm.parallelism
 			for i := 0; i < b.N; i++ {
 				err = mp.Compute(o)
@@ -255,15 +253,14 @@ func BenchmarkMpx(b *testing.B) {
 		m           int
 		parallelism int
 		numPoints   int
-		reps        int
 	}{
-		{"m32_p1_pts1024", 32, 1, 1024, 50},
-		{"m128_p1_pts1024", 128, 1, 1024, 50},
-		{"m128_p2_pts1024", 128, 2, 1024, 100},
-		{"m128_p2_pts2048", 128, 2, 2048, 20},
-		{"m128_p2_pts4096", 128, 2, 4096, 10},
-		{"m128_p2_pts8192", 128, 2, 8192, 10},
-		{"m128_p4_pts8192", 128, 4, 8192, 10},
+		{"m32_p1_pts1024", 32, 1, 1024},
+		{"m128_p1_pts1024", 128, 1, 1024},
+		{"m128_p2_pts1024", 128, 2, 1024},
+		{"m128_p2_pts2048", 128, 2, 2048},
+		{"m128_p2_pts4096", 128, 2, 4096},
+		{"m128_p2_pts8192", 128, 2, 8192},
+		{"m128_p4_pts8192", 128, 4, 8192},
 	}
 
 	o := NewComputeOpts()
@@ -277,7 +274,6 @@ func BenchmarkMpx(b *testing.B) {
 				b.Error(err)
 			}
 
-			b.N = bm.reps
 			o.Parallelism = bm.parallelism
 			for i := 0; i < b.N; i++ {
 				err = mp.Compute(o)
