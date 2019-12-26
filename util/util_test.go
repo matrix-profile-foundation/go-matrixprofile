@@ -154,6 +154,9 @@ func TestMuInvN(t *testing.T) {
 	}{
 		{[]float64{2, 2, 2, 2, 2, 2}, 3, []float64{2, 2, 2, 2}, []float64{0, 0, 0, 0}},
 		{[]float64{2, 4, 3, 5, 4, 6}, 3, []float64{3, 4, 4, 5}, []float64{math.Sqrt(2) / 2, math.Sqrt(2) / 2, math.Sqrt(2) / 2, math.Sqrt(2) / 2}},
+		{[]float64{1, 1, 1, 1}, 4, []float64{1}, []float64{0}},
+		{[]float64{1, 1, 1, 1}, 2, []float64{1, 1, 1}, []float64{0, 0, 0}},
+		{[]float64{-1, -1, -1, -1}, 2, []float64{-1, -1, -1}, []float64{0, 0, 0}},
 	}
 
 	for _, d := range testdata {
