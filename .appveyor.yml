@@ -1,0 +1,12 @@
+# appveyor.yml
+build: off
+
+clone_folder: c:\gopath\src\github.com\matrix-profile-foundation\go-matrixprofile
+
+environment:
+  GOPATH: c:\gopath
+
+stack: go 1.13
+
+test_script:
+  - go test -v ./... -race -coverprofile=coverage.txt -covermode=atomic
