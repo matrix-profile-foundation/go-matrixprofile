@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/matrix-profile-foundation/go-matrixprofile.svg?branch=master)](https://travis-ci.com/matrix-profile-foundation/go-matrixprofile)
+[![Windows Build Status](https://ci.appveyor.com/api/projects/status/tp7cqme05eytqw94?svg=true)](https://ci.appveyor.com/api/projects/status/tp7cqme05eytqw94?svg=true)
 [![codecov](https://codecov.io/gh/matrix-profile-foundation/go-matrixprofile/branch/master/graph/badge.svg)](https://codecov.io/gh/matrix-profile-foundation/go-matrixprofile)
 [![Go Report Card](https://goreportcard.com/badge/github.com/matrix-profile-foundation/go-matrixprofile)](https://goreportcard.com/report/github.com/matrix-profile-foundation/go-matrixprofile)
 [![GoDoc](https://godoc.org/github.com/matrix-profile-foundation/go-matrixprofile?status.svg)](https://godoc.org/github.com/matrix-profile-foundation/go-matrixprofile)
