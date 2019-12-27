@@ -276,3 +276,65 @@ func sum2s_v2(a []float64, w int) []float64 {
 
 	return res
 }
+
+func BinarySplit(lb, ub int) []int {
+	if ub < lb {
+		return []int{}
+	}
+	res := make([]int, 1, ub-lb+1)
+	res[0] = lb
+	if ub == lb {
+		return res
+	}
+
+	ranges := []*idxRange{&idxRange{lb + 1, ub}}
+
+	var r *idxRange
+	var mid int
+	for {
+		if len(ranges) == 0 {
+			break
+		}
+		// pop first element
+		r = ranges[0]
+		copy(ranges, ranges[1:])
+		ranges = ranges[:len(ranges)-1]
+
+		mid = (r.upper + r.lower) / 2
+		res = append(res, mid)
+
+		if r.upper < r.lower {
+			continue
+		}
+
+		l, r := split(r.lower, r.upper, mid)
+		if l != nil {
+			ranges = append(ranges, l)
+		}
+		if r != nil {
+			ranges = append(ranges, r)
+		}
+	}
+	return res
+}
+
+type idxRange struct {
+	lower int
+	upper int
+}
+
+func split(lower, upper, mid int) (*idxRange, *idxRange) {
+	var l *idxRange
+	var r *idxRange
+
+	if lower < upper {
+		if mid-1 >= lower {
+			l = &idxRange{lower, mid - 1}
+		}
+		if upper >= mid+1 {
+			r = &idxRange{mid + 1, upper}
+		}
+	}
+
+	return l, r
+}

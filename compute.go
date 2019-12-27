@@ -19,6 +19,7 @@ const (
 	AlgoSTAMP Algo = "STAMP"
 	AlgoSTMP  Algo = "STMP"
 	AlgoMPX   Algo = "MPX"
+	AlgoPMP   Algo = "PMP"
 )
 
 // ComputeOptions are parameters to vary the algorithm to compute the matrix profile.

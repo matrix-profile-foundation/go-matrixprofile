@@ -181,3 +181,33 @@ func TestMuInvN(t *testing.T) {
 		}
 	}
 }
+
+func TestBinarySplit(t *testing.T) {
+	testdata := []struct {
+		lb       int
+		ub       int
+		expected []int
+	}{
+		{4, 0, []int{}},
+		{1, 1, []int{1}},
+		{0, 1, []int{0, 1}},
+		{0, 4, []int{0, 2, 1, 3, 4}},
+		{0, 9, []int{0, 5, 2, 7, 1, 3, 6, 8, 4, 9}},
+		{0, 16, []int{0, 8, 4, 12, 2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15, 16}},
+		{7, 15, []int{7, 11, 9, 13, 8, 10, 12, 14, 15}},
+	}
+
+	for _, d := range testdata {
+		res := BinarySplit(d.lb, d.ub)
+		if len(res) != len(d.expected) {
+			t.Errorf("Expected result length of %d, but got %d for %v", len(d.expected), len(res), d)
+			break
+		}
+		for i, v := range res {
+			if v != d.expected[i] {
+				t.Errorf("Expected value %d at index, %d, but got %d for %v", d.expected[i], i, v, d)
+				break
+			}
+		}
+	}
+}
