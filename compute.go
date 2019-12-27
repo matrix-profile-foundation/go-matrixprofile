@@ -33,7 +33,7 @@ type ComputeOptions struct {
 func NewComputeOpts() ComputeOptions {
 	return ComputeOptions{
 		Algorithm:   AlgoMPX,
-		Parallelism: runtime.NumCPU() * 2,
+		Parallelism: runtime.NumCPU(),
 	}
 }
 
