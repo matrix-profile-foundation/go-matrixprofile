@@ -535,6 +535,97 @@ func TestComputeMpx(t *testing.T) {
 	}
 }
 
+func TestComputePmp(t *testing.T) {
+	var err error
+	var mp *MatrixProfile
+
+	testdata := []struct {
+		a            []float64
+		b            []float64
+		lb           int
+		ub           int
+		p            int
+		expectedPMP  [][]float64
+		expectedPIdx [][]int
+	}{
+		{[]float64{}, []float64{}, 2, 2, 1, nil, nil},
+		{[]float64{1, 1, 1, 1, 1}, []float64{}, 2, 2, 1, nil, nil},
+		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, 2, 1, nil, nil},
+		{[]float64{1, 2, 1, 3, 1}, []float64{2, 1, 1, 2, 1, 3, 1, -1, -2}, 2, 2, 1, [][]float64{{0, 0, 0, 0}}, [][]int{{2, 3, 2, 3}}},
+		{[]float64{1, 1, 1, 1, 1}, []float64{1, 1, 1, 1, 1, 2, 2, 3, 4, 5}, 2, 2, 1, [][]float64{{2, 2, 2, 2}}, [][]int{{0, 1, 2, 3}}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, []float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, 4, 4, 1,
+			[][]float64{{0, 0, 0, 0, 0, 0, 0, 0, 0}},
+			[][]int{{0, 1, 2, 3, 4, 5, 6, 7, 8}}},
+		{[]float64{0, 1, 1, 1, 0, 0, 2, 1, 0, 0, 2, 1}, nil, 4, 4, 1,
+			[][]float64{{1.9550, 1.8388, 0.8739, 0, 0, 1.9550, 0.8739, 0, 0}},
+			[][]int{{4, 2, 6, 7, 8, 1, 2, 3, 4}}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 1,
+			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 2,
+			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 4,
+			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 100,
+			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
+	}
+
+	for _, d := range testdata {
+		mp, err = New(d.a, d.b, d.lb)
+		if err != nil {
+			if d.expectedPMP == nil {
+				// Got an error while creating a new matrix profile
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v,  while creating new mp for %v", err, d)
+				return
+			}
+		}
+
+		o := NewComputeOpts()
+		o.Algorithm = AlgoPMP
+		o.Parallelism = d.p
+		o.LowerM = d.lb
+		o.UpperM = d.ub
+		err = mp.Compute(o)
+		if err != nil {
+			if d.expectedPMP == nil {
+				// Got an error while z normalizing and expected an error
+				continue
+			} else {
+				t.Errorf("Did not expect an error, %v, while calculating for %v", err, d)
+				break
+			}
+		}
+		if d.expectedPMP == nil {
+			t.Errorf("Expected an invalid calculation, %+v", d)
+			break
+		}
+
+		if len(mp.PMP) != len(d.expectedPMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedPMP), len(mp.PMP), d)
+			return
+		}
+		for j := 0; j < len(mp.PMP); j++ {
+			for i := 0; i < len(mp.PMP[j]); i++ {
+				if math.Abs(mp.PMP[j][i]-d.expectedPMP[j][i]) > 1e-4 {
+					t.Errorf("Expected\n%.4f, but got\n%.4f for\n%+v", d.expectedPMP[j], mp.PMP[j], d)
+					break
+				}
+			}
+			for i := 0; i < len(mp.PIdx[j]); i++ {
+				if math.Abs(float64(mp.PIdx[j][i]-d.expectedPIdx[j][i])) > 1e-7 {
+					t.Errorf("Expected %d,\nbut got\n%v for\n%+v", d.expectedPIdx[j], mp.PIdx[j], d)
+					break
+				}
+			}
+		}
+	}
+}
+
 func TestUpdate(t *testing.T) {
 	var err error
 	var outMP []float64

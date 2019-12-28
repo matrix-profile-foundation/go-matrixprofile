@@ -27,6 +27,8 @@ type ComputeOptions struct {
 	Algorithm   Algo    // choose which algorithm to compute the matrix profile
 	Sample      float64 // only applicable to algorithm STAMP
 	Parallelism int
+	LowerM      int // used for pan matrix profile
+	UpperM      int // used for pan matrix profile
 }
 
 // NewComputeOpts returns a default ComputeOptions defaulting to the STOMP algorithm with
@@ -34,6 +36,7 @@ type ComputeOptions struct {
 func NewComputeOpts() ComputeOptions {
 	return ComputeOptions{
 		Algorithm:   AlgoMPX,
+		Sample:      1.0,
 		Parallelism: runtime.NumCPU(),
 	}
 }
@@ -50,6 +53,8 @@ func (mp *MatrixProfile) Compute(o ComputeOptions) error {
 		return mp.stmp()
 	case AlgoMPX:
 		return mp.mpx(o.Parallelism)
+	case AlgoPMP:
+		return mp.pmp(o.LowerM, o.UpperM, o.Sample, o.Parallelism)
 	}
 	return nil
 }
@@ -758,4 +763,33 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	}
 
 	return mpr
+}
+
+func (mp *MatrixProfile) pmp(lb, ub int, sample float64, parallelism int) error {
+	lenA := len(mp.A) - mp.M + 1
+	windows := util.BinarySplit(lb, ub)
+	windows = windows[:int(float64(len(windows))*sample)]
+	mp.PWindows = windows
+
+	mp.PMP = make([][]float64, len(windows))
+	mp.PIdx = make([][]int, len(windows))
+	for i := 0; i < len(windows); i++ {
+		mp.PMP[i] = make([]float64, lenA)
+		mp.PIdx[i] = make([]int, lenA)
+		for j := 0; j < lenA; j++ {
+			mp.PMP[i][j] = math.Inf(1)
+			mp.PIdx[i][j] = math.MaxInt64
+		}
+	}
+
+	for i, m := range windows {
+		mp.M = m
+		if err := mp.mpx(parallelism); err != nil {
+			return err
+		}
+		copy(mp.PMP[i], mp.MP)
+		copy(mp.PIdx[i], mp.Idx)
+	}
+
+	return nil
 }

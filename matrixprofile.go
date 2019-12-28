@@ -24,6 +24,9 @@ type MatrixProfile struct {
 	SelfJoin bool         // indicates whether a self join is performed with an exclusion zone
 	MP       []float64    // matrix profile
 	Idx      []int        // matrix profile index
+	PMP      [][]float64  // pan matrix profile
+	PIdx     [][]int      // pan matrix profile index
+	PWindows []int        // pan matrix windows used and is aligned with PMP and PIdx
 	AV       av.AV        // type of annotation vector which defaults to all ones
 }
 
