@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/matrix-profile-foundation/go-matrixprofile/branch/master/graph/badge.svg)](https://codecov.io/gh/matrix-profile-foundation/go-matrixprofile)
 [![Go Report Card](https://goreportcard.com/badge/github.com/matrix-profile-foundation/go-matrixprofile)](https://goreportcard.com/report/github.com/matrix-profile-foundation/go-matrixprofile)
 [![GoDoc](https://godoc.org/github.com/matrix-profile-foundation/go-matrixprofile?status.svg)](https://godoc.org/github.com/matrix-profile-foundation/go-matrixprofile)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # go-matrixprofile
 
@@ -178,9 +178,9 @@ $ make test
 * Austin Ouyang (aouyang1@gmail.com)
 
 ## License
-The MIT License (MIT). See [LICENSE](https://github.com/matrix-profile-foundation/go-matrixprofile/blob/master/LICENSE) for more details.
+The Apache 2.0 License. See [LICENSE](https://github.com/matrix-profile-foundation/go-matrixprofile/blob/master/LICENSE) for more details.
 
-Copyright (c) 2018 Austin Ouyang
+Copyright (c) 2020 Matrix Profile Foundation and contributors.
 
 ## Citations
 [1] Chin-Chia Michael Yeh, Yan Zhu, Liudmila Ulanova, Nurjahan Begum, Yifei Ding, Hoang Anh Dau, Diego Furtado Silva, Abdullah Mueen, Eamonn Keogh (2016). [Matrix Profile I: All Pairs Similarity Joins for Time Series: A Unifying View that Includes Motifs, Discords and Shapelets](https://www.cs.ucr.edu/~eamonn/PID4481997_extend_Matrix%20Profile_I.pdf). IEEE ICDM 2016.
