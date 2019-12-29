@@ -86,7 +86,7 @@ func plotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discord
 	}
 	plots := make([][]*plot.Plot, rows)
 
-	for i := 0; i < len(motifPts); i++ {
+	for i := 0; i < rows; i++ {
 		plots[i] = make([]*plot.Plot, cols)
 	}
 
