@@ -44,10 +44,8 @@ $ go get github.com/matrix-profile-foundation/go-matrixprofile
 ```
 
 ## Quick start
-```sh
-$ cat example_test.go
-```
 ```go
+// example_mp.go
 package main
 
 import (
