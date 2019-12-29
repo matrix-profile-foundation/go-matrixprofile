@@ -33,6 +33,12 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 		return nil, err
 	}
 
+	if mp.BF == nil {
+		if err = mp.initCaches(); err != nil {
+			return nil, err
+		}
+	}
+
 	prof := make([]float64, len(mpCurrent)) // stores minimum matrix profile distance between motif pairs
 	fft := fourier.NewFFT(mp.N)
 	var j int

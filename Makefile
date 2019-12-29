@@ -11,7 +11,9 @@ test:
 	go test -race -cover -run=Test ./...
 
 bench:
-	go test ./... -run=XX -bench=. -test.benchmem
+	go test ./... -run=NONE -bench=. -test.benchmem > new_bench.txt
+	go get golang.org/x/tools/cmd/benchcmp
+	benchcmp curr_bench.txt new_bench.txt
 
 example:
 	go test ./... -run=Example

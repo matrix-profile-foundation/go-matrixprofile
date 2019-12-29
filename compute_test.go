@@ -35,6 +35,9 @@ func TestCrossCorrelate(t *testing.T) {
 				return
 			}
 		}
+		if err = mp.initCaches(); err != nil {
+			t.Errorf("Failed to initialize cache, %v", err)
+		}
 
 		fft := fourier.NewFFT(mp.N)
 		out = mp.crossCorrelate(d.q, fft)
@@ -89,6 +92,9 @@ func TestMass(t *testing.T) {
 		if err != nil && d.expected == nil {
 			// Got an error while creating a new matrix profile
 			continue
+		}
+		if err = mp.initCaches(); err != nil {
+			t.Errorf("Failed to initialize cache, %v", err)
 		}
 		out = make([]float64, mp.N-mp.M+1)
 		fft := fourier.NewFFT(mp.N)
@@ -148,6 +154,10 @@ func TestDistanceProfile(t *testing.T) {
 			continue
 		}
 
+		if err = mp.initCaches(); err != nil {
+			t.Errorf("Failed to initialize cache, %v", err)
+		}
+
 		mprof = make([]float64, mp.N-mp.M+1)
 		fft := fourier.NewFFT(mp.N)
 		err = mp.distanceProfile(d.idx, mprof, fft)
@@ -200,6 +210,10 @@ func TestCalculateDistanceProfile(t *testing.T) {
 		if err != nil && d.expectedMP == nil {
 			// Got an error while creating a new matrix profile
 			continue
+		}
+
+		if err = mp.initCaches(); err != nil {
+			t.Errorf("Failed to initialize cache, %v", err)
 		}
 
 		fft := fourier.NewFFT(mp.N)
@@ -560,17 +574,28 @@ func TestComputePmp(t *testing.T) {
 			[][]float64{{1.9550, 1.8388, 0.8739, 0, 0, 1.9550, 0.8739, 0, 0}},
 			[][]int{{4, 2, 6, 7, 8, 1, 2, 3, 4}}},
 		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 1,
-			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]float64{{0.014355, 0.014355, 0.029138, 0.029138, 0.014355, 0.014355, 0.029138, 0.029138, 0.029138}},
 			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
 		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 2,
-			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]float64{{0.014355, 0.014355, 0.029138, 0.029138, 0.014355, 0.014355, 0.029138, 0.029138, 0.029138}},
 			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
 		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 4,
-			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]float64{{0.014355, 0.014355, 0.029138, 0.029138, 0.014355, 0.014355, 0.029138, 0.029138, 0.029138}},
 			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
 		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 4, 4, 100,
-			[][]float64{{0.014355034678331376, 0.014355034678269504, 0.0291386974835963, 0.029138697483626783, 0.01435503467830044, 0.014355034678393249, 0.029138697483504856, 0.029138697483474377, 0.0291386974835963}},
+			[][]float64{{0.014355, 0.014355, 0.029138, 0.029138, 0.014355, 0.014355, 0.029138, 0.029138, 0.029138}},
 			[][]int{{4, 5, 6, 7, 0, 1, 2, 3, 4}}},
+		{[]float64{0, 0.99, 1, 0, 0, 0.98, 1, 0, 0, 0.96, 1, 0}, nil, 3, 5, 1,
+			[][]float64{
+				{0.015225, 0.015225, 0.000000, 0.000000, 0.015225, 0.015225, 0.000000, 0.000000, 0.030899, 0.030899},
+				{0.014355, 0.014355, 0.029138, 0.029138, 0.014355, 0.014355, 0.029138, 0.029138, 0.029138},
+				{0.014651, 0.029742, 0.033992, 0.029742, 0.014651, 0.029742, 0.033992, 0.029742},
+			},
+			[][]int{
+				{4, 5, 6, 7, 0, 1, 2, 3, 4, 5},
+				{4, 5, 6, 7, 0, 1, 2, 3, 4},
+				{4, 5, 6, 7, 0, 1, 2, 3},
+			}},
 	}
 
 	for _, d := range testdata {
@@ -610,9 +635,13 @@ func TestComputePmp(t *testing.T) {
 			return
 		}
 		for j := 0; j < len(mp.PMP); j++ {
+			if len(mp.PMP[j]) != len(d.expectedPMP[j]) {
+				t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedPMP[j]), len(mp.PMP[j]), d)
+				return
+			}
 			for i := 0; i < len(mp.PMP[j]); i++ {
 				if math.Abs(mp.PMP[j][i]-d.expectedPMP[j][i]) > 1e-4 {
-					t.Errorf("Expected\n%.4f, but got\n%.4f for\n%+v", d.expectedPMP[j], mp.PMP[j], d)
+					t.Errorf("Expected\n%.6f, but got\n%.6f for\n%+v", d.expectedPMP[j], mp.PMP[j], d)
 					break
 				}
 			}

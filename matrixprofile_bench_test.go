@@ -67,6 +67,10 @@ func BenchmarkCrossCorrelate(b *testing.B) {
 		b.Error(err)
 	}
 
+	if err = mp.initCaches(); err != nil {
+		b.Error(err)
+	}
+
 	fft := fourier.NewFFT(mp.N)
 	for i := 0; i < b.N; i++ {
 		cc = mp.crossCorrelate(q, fft)
@@ -83,6 +87,10 @@ func BenchmarkMass(b *testing.B) {
 
 	mp, err := New(sig, sig, 32)
 	if err != nil {
+		b.Error(err)
+	}
+
+	if err = mp.initCaches(); err != nil {
 		b.Error(err)
 	}
 
@@ -109,6 +117,10 @@ func BenchmarkDistanceProfile(b *testing.B) {
 		b.Error(err)
 	}
 
+	if err = mp.initCaches(); err != nil {
+		b.Error(err)
+	}
+
 	mprof := make([]float64, mp.N-mp.M+1)
 	fft := fourier.NewFFT(mp.N)
 	for i := 0; i < b.N; i++ {
@@ -128,6 +140,10 @@ func BenchmarkCalculateDistanceProfile(b *testing.B) {
 
 	mp, err := New(sig, nil, 32)
 	if err != nil {
+		b.Error(err)
+	}
+
+	if err = mp.initCaches(); err != nil {
 		b.Error(err)
 	}
 

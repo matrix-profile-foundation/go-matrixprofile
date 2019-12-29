@@ -3,7 +3,6 @@ package matrixprofile
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/av"
 )
@@ -56,23 +55,12 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		mp.B = b
 	}
 
-	if mp.M*2 >= mp.N {
-		return nil, fmt.Errorf("subsequence length must be less than half the timeseries")
+	if mp.M > len(mp.A) || mp.M > len(mp.B) {
+		return nil, fmt.Errorf("subsequence length must be less than the timeseries")
 	}
 
 	if mp.M < 2 {
 		return nil, fmt.Errorf("subsequence length must be at least 2")
-	}
-
-	if err := mp.initCaches(); err != nil {
-		return nil, err
-	}
-
-	mp.MP = make([]float64, mp.N-mp.M+1)
-	mp.Idx = make([]int, mp.N-m+1)
-	for i := 0; i < len(mp.MP); i++ {
-		mp.MP[i] = math.Inf(1)
-		mp.Idx[i] = math.MaxInt64
 	}
 
 	mp.AV = av.Default

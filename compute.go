@@ -41,8 +41,7 @@ func NewComputeOpts() ComputeOptions {
 	}
 }
 
-// Compute calculate the matrixprofile given a set of input options. This defaults to using
-// STOMP unless specified differently
+// Compute calculate the matrixprofile given a set of input options.
 func (mp *MatrixProfile) Compute(o ComputeOptions) error {
 	switch o.Algorithm {
 	case AlgoSTOMP:
@@ -176,6 +175,17 @@ func (mp MatrixProfile) calculateDistanceProfile(dot []float64, idx int, profile
 // will be performed. Stores the matrix profile and matrix profile index
 // in the struct.
 func (mp *MatrixProfile) stmp() error {
+	if err := mp.initCaches(); err != nil {
+		return err
+	}
+
+	mp.MP = make([]float64, mp.N-mp.M+1)
+	mp.Idx = make([]int, mp.N-mp.M+1)
+	for i := 0; i < len(mp.MP); i++ {
+		mp.MP[i] = math.Inf(1)
+		mp.Idx[i] = math.MaxInt64
+	}
+
 	var err error
 	profile := make([]float64, mp.N-mp.M+1)
 
@@ -295,6 +305,17 @@ func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
 		return fmt.Errorf("must provide a sampling greater than 0 and at most 1, sample: %.3f", sample)
 	}
 
+	if err := mp.initCaches(); err != nil {
+		return err
+	}
+
+	mp.MP = make([]float64, mp.N-mp.M+1)
+	mp.Idx = make([]int, mp.N-mp.M+1)
+	for i := 0; i < len(mp.MP); i++ {
+		mp.MP[i] = math.Inf(1)
+		mp.Idx[i] = math.MaxInt64
+	}
+
 	randIdx := rand.Perm(len(mp.A) - mp.M + 1)
 
 	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
@@ -375,6 +396,17 @@ func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx [
 // dot product is available. This should also greatly reduce the number of memory
 // allocations needed to compute an arbitrary timeseries length.
 func (mp *MatrixProfile) stomp(parallelism int) error {
+	if err := mp.initCaches(); err != nil {
+		return err
+	}
+
+	mp.MP = make([]float64, mp.N-mp.M+1)
+	mp.Idx = make([]int, mp.N-mp.M+1)
+	for i := 0; i < len(mp.MP); i++ {
+		mp.MP[i] = math.Inf(1)
+		mp.Idx[i] = math.MaxInt64
+	}
+
 	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
 	results := make([]chan *mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
@@ -587,7 +619,11 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 // mpxBatch processes a batch set of rows in matrix profile calculation.
 func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
-	if idx*batchSize+mp.M/4 > len(mp.A)-mp.M+1 {
+	exclZone := 1
+	if mp.M/4 > exclZone {
+		exclZone = mp.M / 4
+	}
+	if idx*batchSize+exclZone > len(mp.A)-mp.M+1 {
 		// got an index larger than max lag so ignore
 		return &mpResult{}
 	}
@@ -603,7 +639,7 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize i
 	var c, c_cmp float64
 	s1 := make([]float64, mp.M)
 	s2 := make([]float64, mp.M)
-	for diag := idx*batchSize + mp.M/4; diag < (idx+1)*batchSize+mp.M/4; diag++ {
+	for diag := idx*batchSize + exclZone; diag < (idx+1)*batchSize+exclZone; diag++ {
 		if diag >= len(mp.A)-mp.M+1 {
 			break
 		}
@@ -766,14 +802,14 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 }
 
 func (mp *MatrixProfile) pmp(lb, ub int, sample float64, parallelism int) error {
-	lenA := len(mp.A) - mp.M + 1
 	windows := util.BinarySplit(lb, ub)
 	windows = windows[:int(float64(len(windows))*sample)]
 	mp.PWindows = windows
 
 	mp.PMP = make([][]float64, len(windows))
 	mp.PIdx = make([][]int, len(windows))
-	for i := 0; i < len(windows); i++ {
+	for i, m := range windows {
+		lenA := len(mp.A) - m + 1
 		mp.PMP[i] = make([]float64, lenA)
 		mp.PIdx[i] = make([]int, lenA)
 		for j := 0; j < lenA; j++ {

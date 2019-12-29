@@ -22,7 +22,7 @@ func TestNew(t *testing.T) {
 		{[]float64{}, []float64{1, 1, 1, 1, 1}, 2, true},
 		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 2, false},
 		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 1, true},
-		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 4, true},
+		{[]float64{1, 2, 3, 4, 5}, []float64{1, 1, 1, 1, 1}, 4, false},
 	}
 
 	for _, d := range testdata {

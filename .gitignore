@@ -13,3 +13,6 @@
 
 # Generated dot file from cpu profile
 *.pdf
+
+# Automatically generated benchmark file to compare againt curr_bench.txt
+new_bench.txt
