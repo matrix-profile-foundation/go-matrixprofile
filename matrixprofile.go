@@ -2,7 +2,10 @@
 package matrixprofile
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/av"
 )
@@ -103,4 +106,49 @@ func (mp MatrixProfile) ApplyAV() ([]float64, error) {
 	}
 
 	return out, nil
+}
+
+// Save will save the current matrix profile struct to disk
+func (mp MatrixProfile) Save(filepath, format string) error {
+	var err error
+	switch format {
+	case "json":
+		f, err := os.Open(filepath)
+		if err != nil {
+			f, err = os.Create(filepath)
+			if err != nil {
+				return err
+			}
+		}
+		defer f.Close()
+		out, err := json.Marshal(mp)
+		if err != nil {
+			return err
+		}
+		_, err = f.Write(out)
+	default:
+		return fmt.Errorf("invalid save format, %s", format)
+	}
+	return err
+}
+
+// Load will attempt to load a matrix profile from a file for iterative use
+func (mp *MatrixProfile) Load(filepath, format string) error {
+	var err error
+	switch format {
+	case "json":
+		f, err := os.Open(filepath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		b, err := ioutil.ReadAll(f)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(b, mp)
+	default:
+		return fmt.Errorf("invalid load format, %s", format)
+	}
+	return err
 }

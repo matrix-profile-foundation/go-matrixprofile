@@ -2,6 +2,7 @@ package matrixprofile
 
 import (
 	"math"
+	"os"
 	"testing"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/av"
@@ -73,4 +74,47 @@ func TestApplyAV(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestSave(t *testing.T) {
+	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	m := 3
+	p, err := New(ts, nil, m)
+	p.Compute(NewComputeOpts())
+	filepath := "./mp.json"
+	err = p.Save(filepath, "json")
+	if err != nil {
+		t.Errorf("Received error while saving matrix profile, %v", err)
+	}
+	if err = os.Remove(filepath); err != nil {
+		t.Errorf("Could not remove file, %s, %v", filepath, err)
+	}
+}
+
+func TestLoad(t *testing.T) {
+	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	m := 3
+	p, err := New(ts, nil, m)
+	p.Compute(NewComputeOpts())
+	filepath := "./mp.json"
+	if err = p.Save(filepath, "json"); err != nil {
+		t.Errorf("Received error while saving matrix profile, %v", err)
+	}
+
+	newP := &MatrixProfile{}
+	if err = newP.Load(filepath, "json"); err != nil {
+		t.Errorf("Failed to load %s, %v", filepath, err)
+	}
+
+	if err = os.Remove(filepath); err != nil {
+		t.Errorf("Could not remove file, %s, %v", filepath, err)
+	}
+
+	if newP.M != m {
+		t.Errorf("Expected m of %d, but got %d", m, newP.M)
+	}
+	if len(newP.A) != len(ts) {
+		t.Errorf("Expected timeseries length of %d, but got %d", len(ts), len(newP.A))
+	}
+
 }
