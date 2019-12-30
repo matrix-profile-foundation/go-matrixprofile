@@ -57,7 +57,7 @@ func TestApplyAV(t *testing.T) {
 		newMP := make([]float64, len(mprof))
 		copy(newMP, mprof)
 		mp = MatrixProfile{B: d.b, M: d.m, MP: newMP, AV: d.av}
-		out, err = mp.applyAV()
+		out, err = mp.ApplyAV()
 		if err != nil {
 			t.Fatal(err)
 		}

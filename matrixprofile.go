@@ -68,9 +68,9 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 	return &mp, nil
 }
 
-// applyAV applies an annotation vector to the current matrix profile. Annotation vector
+// ApplyAV applies an annotation vector to the current matrix profile. Annotation vector
 // values must be between 0 and 1.
-func (mp MatrixProfile) applyAV() ([]float64, error) {
+func (mp MatrixProfile) ApplyAV() ([]float64, error) {
 	avec, err := av.Create(mp.AV, mp.B, mp.M)
 	if err != nil {
 		return nil, err

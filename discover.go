@@ -28,7 +28,7 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 
 	motifs := make([]MotifGroup, k)
 
-	mpCurrent, err := mp.applyAV()
+	mpCurrent, err := mp.ApplyAV()
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 // matrix profile. Each discovery of a discord will apply an exclusion zone around
 // the found index so that new discords can be discovered.
 func (mp MatrixProfile) DiscoverDiscords(k int, exclusionZone int) ([]int, error) {
-	mpCurrent, err := mp.applyAV()
+	mpCurrent, err := mp.ApplyAV()
 	if err != nil {
 		return nil, err
 	}
