@@ -100,33 +100,30 @@ A png file will be saved in the top level directory of the repository as `mp_sin
 
 ## Benchmarks
 ```sh
-BenchmarkMStomp-4                     	      40	  28500694 ns/op	 7336122 B/op	  227071 allocs/op
-BenchmarkZNormalize-4                 	 6969427	       179 ns/op	     256 B/op	       1 allocs/op
-BenchmarkMovmeanstd-4                 	   50262	     24809 ns/op	   65537 B/op	       4 allocs/op
-BenchmarkCrossCorrelate-4             	    7358	    143622 ns/op	   49185 B/op	       3 allocs/op
-BenchmarkMass-4                       	    8116	    151711 ns/op	   49448 B/op	       4 allocs/op
-BenchmarkDistanceProfile-4            	    8016	    156118 ns/op	   49449 B/op	       4 allocs/op
-BenchmarkCalculateDistanceProfile-4   	  127593	      9216 ns/op	       2 B/op	       0 allocs/op
-BenchmarkStmp/m32_pts1k-4             	       4	 324793634 ns/op	97579440 B/op	    7893 allocs/op
-BenchmarkStmp/m128_pts1k-4            	       4	 299514941 ns/op	94274880 B/op	    7510 allocs/op
-BenchmarkStamp/m32_p2_pts1k-4         	       6	 195729360 ns/op	97727744 B/op	    7912 allocs/op
-BenchmarkStomp/m32_p1_pts1024-4       	      27	  40468964 ns/op	  392066 B/op	      28 allocs/op
-BenchmarkStomp/m128_p1_pts1024-4      	      31	  36985338 ns/op	  391749 B/op	      28 allocs/op
-BenchmarkStomp/m128_p2_pts1024-4      	      48	  22435443 ns/op	  540540 B/op	      38 allocs/op
-BenchmarkStomp/m128_p2_pts2048-4      	      12	  97833179 ns/op	 1117349 B/op	      38 allocs/op
-BenchmarkStomp/m128_p2_pts4096-4      	       3	 454086562 ns/op	 2242464 B/op	      40 allocs/op
-BenchmarkStomp/m128_p2_pts8192-4      	       1	1635082314 ns/op	 4776736 B/op	      45 allocs/op
-BenchmarkMpx/m32_p1_pts1024-4         	     130	   9011739 ns/op	  165391 B/op	      25 allocs/op
-BenchmarkMpx/m128_p1_pts1024-4        	     124	   9425037 ns/op	  166906 B/op	      25 allocs/op
-BenchmarkMpx/m128_p2_pts1024-4        	     153	   9295944 ns/op	  201783 B/op	      31 allocs/op
-BenchmarkMpx/m128_p2_pts2048-4        	      36	  30959927 ns/op	  401616 B/op	      31 allocs/op
-BenchmarkMpx/m128_p2_pts4096-4        	       9	 120486720 ns/op	  820339 B/op	      31 allocs/op
-BenchmarkMpx/m128_p2_pts8192-4        	       3	 469950188 ns/op	 1752485 B/op	      33 allocs/op
-BenchmarkMpx/m128_p4_pts8192-4        	       3	 522713029 ns/op	 2281221 B/op	      45 allocs/op
-BenchmarkUpdate-4                     	      16	  76258254 ns/op	 1679315 B/op	      21 allocs/op
+BenchmarkMStomp-4                     	      33	  34078568 ns/op	 7337119 B/op	  227071 allocs/op
+BenchmarkZNormalize-4                 	 6077768	       178 ns/op	     256 B/op	       1 allocs/op
+BenchmarkMovmeanstd-4                 	   90802	     13411 ns/op	   32768 B/op	       4 allocs/op
+BenchmarkCrossCorrelate-4             	   14233	     84277 ns/op	   24584 B/op	       3 allocs/op
+BenchmarkMass-4                       	   13610	     88218 ns/op	   24844 B/op	       4 allocs/op
+BenchmarkDistanceProfile-4            	   13574	     88674 ns/op	   24844 B/op	       4 allocs/op
+BenchmarkCalculateDistanceProfile-4   	  226682	      5189 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStmp/m32_pts1k-4             	      13	  88224626 ns/op	24209718 B/op	    3892 allocs/op
+BenchmarkStmp/m128_pts1k-4            	      13	  79754025 ns/op	22496310 B/op	    3508 allocs/op
+BenchmarkStamp/m32_p2_pts1k-4         	      22	  57530619 ns/op	24284155 B/op	    3910 allocs/op
+BenchmarkStomp/m128_p1_pts__1024-4    	     124	   9564271 ns/op	  196841 B/op	      28 allocs/op
+BenchmarkStomp/m128_p2_pts__4096-4    	      10	 111033948 ns/op	 1119731 B/op	      39 allocs/op
+BenchmarkStomp/m128_p2_pts_16384-4    	       1	1911827623 ns/op	 4776736 B/op	      45 allocs/op
+BenchmarkStomp/m128_p4_pts_16384-4    	       1	1634280792 ns/op	 7152960 B/op	      67 allocs/op
+BenchmarkStomp/m1024_p2_pts_16384-4   	       1	1710746069 ns/op	 4776736 B/op	      45 allocs/op
+BenchmarkMpx/m128_p1_pts__1024-4      	     547	   2217984 ns/op	   84578 B/op	      26 allocs/op
+BenchmarkMpx/m128_p2_pts__4096-4      	      63	  21196071 ns/op	  400132 B/op	      32 allocs/op
+BenchmarkMpx/m128_p2_pts_16384-4      	       4	 333460696 ns/op	 1708816 B/op	      33 allocs/op
+BenchmarkMpx/m128_p4_pts_16384-4      	       3	 378427327 ns/op	 2281301 B/op	      46 allocs/op
+BenchmarkMpx/m1024_p2_pts_16384-4     	       3	 367037714 ns/op	 1781205 B/op	      34 allocs/op
+BenchmarkUpdate-4                     	      69	  16361303 ns/op	  790516 B/op	      18 allocs/op
 ```
 
-Ran on a 2018 MacBookAir on Dec 28, 2019
+Ran on a 2018 MacBookAir on Jan 1, 2020
 ```sh
     Processor: 1.6 GHz Intel Core i5
        Memory: 8GB 2133 MHz LPDDR3

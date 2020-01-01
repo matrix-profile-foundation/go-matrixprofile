@@ -31,13 +31,16 @@ type ComputeOptions struct {
 	UpperM      int // used for pan matrix profile
 }
 
-// NewComputeOpts returns a default ComputeOptions defaulting to the STOMP algorithm with
-// a parallelism of 4.
+// NewComputeOpts returns a default ComputeOptions
 func NewComputeOpts() ComputeOptions {
+	p := runtime.NumCPU() / 2
+	if p < 1 {
+		p = 1
+	}
 	return ComputeOptions{
 		Algorithm:   AlgoMPX,
 		Sample:      1.0,
-		Parallelism: runtime.NumCPU(),
+		Parallelism: p,
 	}
 }
 
@@ -545,7 +548,7 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	}
 
 	// setup for AB join
-	batchSize := lenA/parallelism + 1
+	batchScheme := util.DiagBatchingScheme(lenA, parallelism)
 	results := make([]chan *mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
 		results[i] = make(chan *mpResult)
@@ -567,11 +570,12 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	var wg sync.WaitGroup
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
-		go func(idx int) {
+		go func(batchNum int) {
+			b := batchScheme[batchNum]
 			if mp.SelfJoin {
-				results[idx] <- mp.mpxBatch(idx, mua, siga, dfa, dga, batchSize, &wg)
+				results[batchNum] <- mp.mpxBatch(b.Idx, mua, siga, dfa, dga, b.Size, &wg)
 			} else {
-				results[idx] <- mp.mpxabBatch(idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, batchSize, &wg)
+				results[batchNum] <- mp.mpxabBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
 			}
 		}(batch)
 	}
@@ -585,7 +589,7 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	}
 
 	// setup for BA join
-	batchSize = lenB/parallelism + 1
+	batchScheme = util.DiagBatchingScheme(lenB, parallelism)
 	results = make([]chan *mpResult, parallelism)
 	for i := 0; i < parallelism; i++ {
 		results[i] = make(chan *mpResult)
@@ -604,8 +608,9 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	// the matrix profile for that batch and any error encountered
 	wg.Add(parallelism)
 	for batch := 0; batch < parallelism; batch++ {
-		go func(idx int) {
-			results[idx] <- mp.mpxbaBatch(idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, batchSize, &wg)
+		go func(batchNum int) {
+			b := batchScheme[batchNum]
+			results[batchNum] <- mp.mpxbaBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -623,7 +628,7 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize i
 	if mp.M/4 > exclZone {
 		exclZone = mp.M / 4
 	}
-	if idx*batchSize+exclZone > len(mp.A)-mp.M+1 {
+	if idx+exclZone > len(mp.A)-mp.M+1 {
 		// got an index larger than max lag so ignore
 		return &mpResult{}
 	}
@@ -639,7 +644,7 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize i
 	var c, c_cmp float64
 	s1 := make([]float64, mp.M)
 	s2 := make([]float64, mp.M)
-	for diag := idx*batchSize + exclZone; diag < (idx+1)*batchSize+exclZone; diag++ {
+	for diag := idx + exclZone; diag < idx+batchSize+exclZone; diag++ {
 		if diag >= len(mp.A)-mp.M+1 {
 			break
 		}
@@ -683,7 +688,7 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
 
-	if idx*batchSize > lenA {
+	if idx > lenA {
 		// got an index larger than max lag so ignore
 		return &mpResult{}
 	}
@@ -700,7 +705,7 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	var offsetMax int
 	s1 := make([]float64, mp.M)
 	s2 := make([]float64, mp.M)
-	for diag := idx * batchSize; diag < (idx+1)*batchSize; diag++ {
+	for diag := idx; diag < idx+batchSize; diag++ {
 		if diag >= lenA {
 			break
 		}
@@ -745,7 +750,7 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
 
-	if idx*batchSize > lenA {
+	if idx > lenA {
 		// got an index larger than max lag so ignore
 		return &mpResult{}
 	}
@@ -762,7 +767,7 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	var offsetMax int
 	s1 := make([]float64, mp.M)
 	s2 := make([]float64, mp.M)
-	for diag := idx * batchSize; diag < (idx+1)*batchSize; diag++ {
+	for diag := idx; diag < idx+batchSize; diag++ {
 		if diag >= lenB {
 			break
 		}

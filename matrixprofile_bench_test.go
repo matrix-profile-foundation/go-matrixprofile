@@ -10,7 +10,7 @@ import (
 )
 
 func setupData(numPoints int) []float64 {
-	line := siggen.Line(0, 0, numPoints)
+	line := siggen.Line(0, 0, numPoints/2)
 	ext := siggen.Line(0, 100, len(line)/2)
 	ext2 := siggen.Line(0, 600, len(line)/2)
 	sig := siggen.Append(line, ext, ext2)
@@ -230,12 +230,11 @@ func BenchmarkStomp(b *testing.B) {
 		parallelism int
 		numPoints   int
 	}{
-		{"m32_p1_pts1024", 32, 1, 1024},
-		{"m128_p1_pts1024", 128, 1, 1024},
-		{"m128_p2_pts1024", 128, 2, 1024},
-		{"m128_p2_pts2048", 128, 2, 2048},
-		{"m128_p2_pts4096", 128, 2, 4096},
-		{"m128_p2_pts8192", 128, 2, 8192},
+		{"m128_p1_pts__1024", 128, 1, 1024},
+		{"m128_p2_pts__4096", 128, 2, 4096},
+		{"m128_p2_pts_16384", 128, 2, 16384},
+		{"m128_p4_pts_16384", 128, 4, 16384},
+		{"m1024_p2_pts_16384", 1024, 2, 16384},
 	}
 
 	o := NewComputeOpts()
@@ -270,13 +269,11 @@ func BenchmarkMpx(b *testing.B) {
 		parallelism int
 		numPoints   int
 	}{
-		{"m32_p1_pts1024", 32, 1, 1024},
-		{"m128_p1_pts1024", 128, 1, 1024},
-		{"m128_p2_pts1024", 128, 2, 1024},
-		{"m128_p2_pts2048", 128, 2, 2048},
-		{"m128_p2_pts4096", 128, 2, 4096},
-		{"m128_p2_pts8192", 128, 2, 8192},
-		{"m128_p4_pts8192", 128, 4, 8192},
+		{"m128_p1_pts__1024", 128, 1, 1024},
+		{"m128_p2_pts__4096", 128, 2, 4096},
+		{"m128_p2_pts_16384", 128, 2, 16384},
+		{"m128_p4_pts_16384", 128, 4, 16384},
+		{"m1024_p2_pts_16384", 1024, 2, 16384},
 	}
 
 	o := NewComputeOpts()

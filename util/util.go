@@ -338,3 +338,33 @@ func split(lower, upper, mid int) (*idxRange, *idxRange) {
 
 	return l, r
 }
+
+// Batch indicates which index to start at and how many to process from that
+// index.
+type Batch struct {
+	Idx  int
+	Size int
+}
+
+// DiagBatchingScheme computes a more balanced batching scheme based on the
+// diagonal nature of computing matrix profiles. Later batches get more to
+// work on since those operate on less data in the matrix.
+func DiagBatchingScheme(l, p int) []Batch {
+	numElem := float64(l*(l+1)) / float64(2*p)
+	batchScheme := make([]Batch, p)
+	var pi, sum int
+	for i := 0; i < l+1; i++ {
+		sum += i
+		batchScheme[p-pi-1].Size += 1
+		if float64(sum) > numElem {
+			sum = 0
+			pi += 1
+		}
+	}
+
+	for i := 1; i < p; i++ {
+		batchScheme[i].Idx = batchScheme[i-1].Idx + batchScheme[i-1].Size
+	}
+
+	return batchScheme
+}
