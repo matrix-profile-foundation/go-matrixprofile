@@ -33,7 +33,7 @@ type ComputeOptions struct {
 
 // NewComputeOpts returns a default ComputeOptions
 func NewComputeOpts() ComputeOptions {
-	p := runtime.NumCPU() / 2
+	p := runtime.NumCPU() * 2
 	if p < 1 {
 		p = 1
 	}

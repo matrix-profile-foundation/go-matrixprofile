@@ -166,51 +166,6 @@ func MuInvN(a []float64, w int) ([]float64, []float64) {
 	return mu, sig
 }
 
-func Sq2s(a []float64) float64 {
-	c := math.Pow(2.0, 27.0) + 1
-	h := make([]float64, len(a))
-	r := make([]float64, len(a))
-
-	var a1, a2, a3, p, s float64
-	for i := 0; i < len(a); i++ {
-		h[i] = a[i] * a[i]
-
-		a1 = c*a[i] - (c*a[i] - a[i])
-		a2 = a[i] - a1
-		a3 = a1 * a2
-		r[i] = a2*a2 - (((h[i] - a1*a1) - a3) - a3)
-	}
-	p = h[0]
-	s = r[0]
-
-	var x, z float64
-	for i := 1; i < len(a); i++ {
-		x = p + h[i]
-		z = x - p
-		s += ((p - (x - z)) + (h[i] - z)) + r[i]
-		p = x
-	}
-
-	return p + s
-}
-
-func TwoSquare(a []float64) ([]float64, []float64) {
-	c := math.Pow(2.0, 27.0) + 1
-	var a1, a2, a3 float64
-	y := make([]float64, len(a))
-	x := make([]float64, len(a))
-	for i := 0; i < len(a); i++ {
-		x[i] = a[i] * a[i]
-
-		a1 = c*a[i] - (c*a[i] - a[i])
-		a2 = a[i] - a1
-		a3 = a1 * a2
-		y[i] = a2*a2 - (((x[i] - a1*a1) - a3) - a3)
-	}
-
-	return x, y
-}
-
 func Sum2s(a []float64, w int) []float64 {
 	if len(a) < w {
 		return nil
@@ -239,39 +194,6 @@ func Sum2s(a []float64, w int) []float64 {
 		p = x
 
 		res[i-w+1] = (p + s) / float64(w)
-	}
-
-	return res
-}
-
-func sum2s_v2(a []float64, w int) []float64 {
-	if len(a) < w {
-		return nil
-	}
-	accum := a[0]
-	resid := 0.0
-	var m, p, q float64
-	for i := 1; i < w; i++ {
-		m = a[i]
-		p = accum
-		accum += m
-		q = accum - p
-		resid += (p - (accum - q)) + (m - q)
-	}
-
-	res := make([]float64, len(a)-w+1)
-	res[0] = accum + resid
-	var n, r, t float64
-	for i := w; i < len(a); i++ {
-		m = a[i-w]
-		n = a[i]
-		p = accum - m
-		q = p - accum
-		r = resid + ((accum - (p - q)) - (m + q))
-		accum = p + n
-		t = accum - p
-		resid = r + ((p - (accum - t)) + (n - t))
-		res[i-w+1] = accum + resid
 	}
 
 	return res

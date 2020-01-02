@@ -211,3 +211,30 @@ func TestBinarySplit(t *testing.T) {
 		}
 	}
 }
+
+func TestDiagBatchingScheme(t *testing.T) {
+	testdata := []struct {
+		l, p     int
+		expected []Batch
+	}{
+		{33, 4, []Batch{{0, 3}, {3, 6}, {9, 7}, {16, 18}}},
+	}
+
+	for _, d := range testdata {
+		res := DiagBatchingScheme(d.l, d.p)
+		if len(res) != len(d.expected) {
+			t.Errorf("Expected result length of %d, but got %d for %v", len(d.expected), len(res), d)
+			break
+		}
+		for i, v := range res {
+			if v.Idx != d.expected[i].Idx {
+				t.Errorf("Expected Idx of %d at index, %d, but got %d for %v", d.expected[i], i, v, d)
+				break
+			}
+			if v.Size != d.expected[i].Size {
+				t.Errorf("Expected Idx of %d at index, %d, but got %d for %v", d.expected[i], i, v, d)
+				break
+			}
+		}
+	}
+}
