@@ -551,7 +551,7 @@ func TestComputeMpx(t *testing.T) {
 
 func TestComputePmp(t *testing.T) {
 	var err error
-	var mp *MatrixProfile
+	var p *PMP
 
 	testdata := []struct {
 		a            []float64
@@ -599,7 +599,7 @@ func TestComputePmp(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = New(d.a, d.b, d.lb)
+		p, err = NewPMP(d.a, d.b)
 		if err != nil {
 			if d.expectedPMP == nil {
 				// Got an error while creating a new matrix profile
@@ -610,12 +610,9 @@ func TestComputePmp(t *testing.T) {
 			}
 		}
 
-		o := NewComputeOpts()
-		o.Algorithm = AlgoPMP
+		o := NewPMPComputeOpts(d.lb, d.ub)
 		o.Parallelism = d.p
-		o.LowerM = d.lb
-		o.UpperM = d.ub
-		err = mp.Compute(o)
+		err = p.Compute(o)
 		if err != nil {
 			if d.expectedPMP == nil {
 				// Got an error while z normalizing and expected an error
@@ -630,24 +627,24 @@ func TestComputePmp(t *testing.T) {
 			break
 		}
 
-		if len(mp.PMP) != len(d.expectedPMP) {
-			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedPMP), len(mp.PMP), d)
+		if len(p.PMP) != len(d.expectedPMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedPMP), len(p.PMP), d)
 			return
 		}
-		for j := 0; j < len(mp.PMP); j++ {
-			if len(mp.PMP[j]) != len(d.expectedPMP[j]) {
-				t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedPMP[j]), len(mp.PMP[j]), d)
+		for j := 0; j < len(p.PMP); j++ {
+			if len(p.PMP[j]) != len(d.expectedPMP[j]) {
+				t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedPMP[j]), len(p.PMP[j]), d)
 				return
 			}
-			for i := 0; i < len(mp.PMP[j]); i++ {
-				if math.Abs(mp.PMP[j][i]-d.expectedPMP[j][i]) > 1e-4 {
-					t.Errorf("Expected\n%.6f, but got\n%.6f for\n%+v", d.expectedPMP[j], mp.PMP[j], d)
+			for i := 0; i < len(p.PMP[j]); i++ {
+				if math.Abs(p.PMP[j][i]-d.expectedPMP[j][i]) > 1e-4 {
+					t.Errorf("Expected\n%.6f, but got\n%.6f for\n%+v", d.expectedPMP[j], p.PMP[j], d)
 					break
 				}
 			}
-			for i := 0; i < len(mp.PIdx[j]); i++ {
-				if math.Abs(float64(mp.PIdx[j][i]-d.expectedPIdx[j][i])) > 1e-7 {
-					t.Errorf("Expected %d,\nbut got\n%v for\n%+v", d.expectedPIdx[j], mp.PIdx[j], d)
+			for i := 0; i < len(p.PIdx[j]); i++ {
+				if math.Abs(float64(p.PIdx[j][i]-d.expectedPIdx[j][i])) > 1e-7 {
+					t.Errorf("Expected %d,\nbut got\n%v for\n%+v", d.expectedPIdx[j], p.PIdx[j], d)
 					break
 				}
 			}

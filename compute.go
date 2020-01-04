@@ -1,6 +1,7 @@
 package matrixprofile
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -19,7 +20,6 @@ const (
 	AlgoSTAMP Algo = "STAMP"
 	AlgoSTMP  Algo = "STMP"
 	AlgoMPX   Algo = "MPX"
-	AlgoPMP   Algo = "PMP"
 )
 
 // ComputeOptions are parameters to vary the algorithm to compute the matrix profile.
@@ -27,8 +27,7 @@ type ComputeOptions struct {
 	Algorithm   Algo    // choose which algorithm to compute the matrix profile
 	Sample      float64 // only applicable to algorithm STAMP
 	Parallelism int
-	LowerM      int // used for pan matrix profile
-	UpperM      int // used for pan matrix profile
+	Euclidean   bool // defaults to using euclidean distance instead of pearson correlation for matrix profile
 }
 
 // NewComputeOpts returns a default ComputeOptions
@@ -41,6 +40,7 @@ func NewComputeOpts() ComputeOptions {
 		Algorithm:   AlgoMPX,
 		Sample:      1.0,
 		Parallelism: p,
+		Euclidean:   true,
 	}
 }
 
@@ -54,9 +54,7 @@ func (mp *MatrixProfile) Compute(o ComputeOptions) error {
 	case AlgoSTMP:
 		return mp.stmp()
 	case AlgoMPX:
-		return mp.mpx(o.Parallelism)
-	case AlgoPMP:
-		return mp.pmp(o.LowerM, o.UpperM, o.Sample, o.Parallelism)
+		return mp.mpx(o)
 	}
 	return nil
 }
@@ -268,7 +266,7 @@ type mpResult struct {
 
 // mergeMPResults reads from a slice of channels for Matrix Profile results and
 // updates the matrix profile in the struct
-func (mp *MatrixProfile) mergeMPResults(results []chan *mpResult) error {
+func (mp *MatrixProfile) mergeMPResults(results []chan *mpResult, euclidean bool) error {
 	var err error
 
 	resultSlice := make([]*mpResult, len(results))
@@ -289,9 +287,16 @@ func (mp *MatrixProfile) mergeMPResults(results []chan *mpResult) error {
 			continue
 		}
 		for j := 0; j < len(resultSlice[i].MP); j++ {
-			if resultSlice[i].MP[j] <= mp.MP[j] {
-				mp.MP[j] = resultSlice[i].MP[j]
-				mp.Idx[j] = resultSlice[i].Idx[j]
+			if euclidean {
+				if resultSlice[i].MP[j] <= mp.MP[j] {
+					mp.MP[j] = resultSlice[i].MP[j]
+					mp.Idx[j] = resultSlice[i].Idx[j]
+				}
+			} else {
+				if math.Abs(resultSlice[i].MP[j]) < math.Abs(mp.MP[j]) {
+					mp.MP[j] = resultSlice[i].MP[j]
+					mp.Idx[j] = resultSlice[i].Idx[j]
+				}
 			}
 		}
 	}
@@ -334,7 +339,7 @@ func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
 	var err error
 	done := make(chan bool)
 	go func() {
-		err = mp.mergeMPResults(results)
+		err = mp.mergeMPResults(results, true)
 		done <- true
 	}()
 
@@ -423,7 +428,7 @@ func (mp *MatrixProfile) stomp(parallelism int) error {
 	var err error
 	done := make(chan bool)
 	go func() {
-		err = mp.mergeMPResults(results)
+		err = mp.mergeMPResults(results, true)
 		done <- true
 	}()
 
@@ -513,7 +518,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 	return result
 }
 
-func (mp *MatrixProfile) mpx(parallelism int) error {
+func (mp *MatrixProfile) mpx(o ComputeOptions) error {
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
 
@@ -548,9 +553,9 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	}
 
 	// setup for AB join
-	batchScheme := util.DiagBatchingScheme(lenA, parallelism)
-	results := make([]chan *mpResult, parallelism)
-	for i := 0; i < parallelism; i++ {
+	batchScheme := util.DiagBatchingScheme(lenA, o.Parallelism)
+	results := make([]chan *mpResult, o.Parallelism)
+	for i := 0; i < o.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -561,19 +566,19 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	var err error
 	done := make(chan bool)
 	go func() {
-		err = mp.mergeMPResults(results)
+		err = mp.mergeMPResults(results, o.Euclidean)
 		done <- true
 	}()
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(parallelism)
-	for batch := 0; batch < parallelism; batch++ {
+	wg.Add(o.Parallelism)
+	for batch := 0; batch < o.Parallelism; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			if mp.SelfJoin {
-				results[batchNum] <- mp.mpxBatch(b.Idx, mua, siga, dfa, dga, b.Size, &wg)
+				results[batchNum] <- mp.mpxBatch(b.Idx, mua, siga, dfa, dga, o.Euclidean, b.Size, &wg)
 			} else {
 				results[batchNum] <- mp.mpxabBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
 			}
@@ -589,9 +594,9 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	}
 
 	// setup for BA join
-	batchScheme = util.DiagBatchingScheme(lenB, parallelism)
-	results = make([]chan *mpResult, parallelism)
-	for i := 0; i < parallelism; i++ {
+	batchScheme = util.DiagBatchingScheme(lenB, o.Parallelism)
+	results = make([]chan *mpResult, o.Parallelism)
+	for i := 0; i < o.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -600,14 +605,14 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 	// routines by picking the lowest value in each batch's matrix profile and
 	// updating the matrix profile index.
 	go func() {
-		err = mp.mergeMPResults(results)
+		err = mp.mergeMPResults(results, o.Euclidean)
 		done <- true
 	}()
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
-	wg.Add(parallelism)
-	for batch := 0; batch < parallelism; batch++ {
+	wg.Add(o.Parallelism)
+	for batch := 0; batch < o.Parallelism; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			results[batchNum] <- mp.mpxbaBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
@@ -622,7 +627,7 @@ func (mp *MatrixProfile) mpx(parallelism int) error {
 }
 
 // mpxBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, euclidean bool, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	exclZone := 1
 	if mp.M/4 > exclZone {
@@ -672,11 +677,13 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize i
 		}
 	}
 
-	for i := 0; i < len(mpr.MP); i++ {
-		if mpr.MP[i] > 1 {
-			mpr.MP[i] = 1
+	if euclidean {
+		for i := 0; i < len(mpr.MP); i++ {
+			if mpr.MP[i] > 1 {
+				mpr.MP[i] = 1
+			}
+			mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
 		}
-		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
 	}
 
 	return mpr
@@ -806,30 +813,77 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	return mpr
 }
 
-func (mp *MatrixProfile) pmp(lb, ub int, sample float64, parallelism int) error {
-	windows := util.BinarySplit(lb, ub)
-	windows = windows[:int(float64(len(windows))*sample)]
-	mp.PWindows = windows
+// PMPComputeOptions are parameters to vary the algorithm to compute the pan matrix profile.
+type PMPComputeOptions struct {
+	Sample      float64 // only applicable to algorithm STAMP
+	Parallelism int
+	LowerM      int  // used for pan matrix profile
+	UpperM      int  // used for pan matrix profile
+	Euclidean   bool // defaults to using euclidean distance instead of pearson correlation for matrix profile
+}
 
-	mp.PMP = make([][]float64, len(windows))
-	mp.PIdx = make([][]int, len(windows))
+// NewPMPComputeOpts returns a default PMPComputeOptions
+func NewPMPComputeOpts(l, u int) PMPComputeOptions {
+	p := runtime.NumCPU() * 2
+	if p < 1 {
+		p = 1
+	}
+	return PMPComputeOptions{
+		Sample:      1.0,
+		Parallelism: p,
+		LowerM:      l,
+		UpperM:      u,
+		Euclidean:   true,
+	}
+}
+
+// Compute calculate the pan matrixprofile given a set of input options.
+func (p *PMP) Compute(o PMPComputeOptions) error {
+	return p.pmp(o)
+}
+
+func (p *PMP) pmp(o PMPComputeOptions) error {
+	windows := util.BinarySplit(o.LowerM, o.UpperM)
+	windows = windows[:int(float64(len(windows))*o.Sample)]
+	if len(windows) < 1 {
+		return errors.New("Need more than one subsequence window for pmp")
+	}
+	p.PWindows = windows
+
+	p.PMP = make([][]float64, len(windows))
+	p.PIdx = make([][]int, len(windows))
 	for i, m := range windows {
-		lenA := len(mp.A) - m + 1
-		mp.PMP[i] = make([]float64, lenA)
-		mp.PIdx[i] = make([]int, lenA)
+		lenA := len(p.A) - m + 1
+		p.PMP[i] = make([]float64, lenA)
+		p.PIdx[i] = make([]int, lenA)
 		for j := 0; j < lenA; j++ {
-			mp.PMP[i][j] = math.Inf(1)
-			mp.PIdx[i][j] = math.MaxInt64
+			p.PMP[i][j] = math.Inf(1)
+			p.PIdx[i][j] = math.MaxInt64
 		}
 	}
 
+	// need to create a new mp
+	var mp *MatrixProfile
+	var err error
+	if p.SelfJoin {
+		mp, err = New(p.A, nil, windows[0])
+	} else {
+		mp, err = New(p.A, p.B, windows[0])
+	}
+	if err != nil {
+		return err
+	}
+	mpo := NewComputeOpts()
+	mpo.Parallelism = o.Parallelism
+	mpo.Euclidean = o.Euclidean
+
 	for i, m := range windows {
 		mp.M = m
-		if err := mp.mpx(parallelism); err != nil {
+		if err := mp.mpx(mpo); err != nil {
 			return err
 		}
-		copy(mp.PMP[i], mp.MP)
-		copy(mp.PIdx[i], mp.Idx)
+		copy(p.PMP[i], mp.MP)
+		copy(p.PIdx[i], mp.Idx)
 	}
 
 	return nil
