@@ -26,6 +26,8 @@ type MatrixProfile struct {
 	SelfJoin bool         // indicates whether a self join is performed with an exclusion zone
 	MP       []float64    // matrix profile
 	Idx      []int        // matrix profile index
+	MPB      []float64    // matrix profile for the BA join
+	IdxB     []int        // matrix profile index for the BA join
 	AV       av.AV        // type of annotation vector which defaults to all ones
 }
 
@@ -148,4 +150,25 @@ func (mp *MatrixProfile) Load(filepath, format string) error {
 		return fmt.Errorf("invalid load format, %s", format)
 	}
 	return err
+}
+
+// MPDist computes the matrix profile distance measure between a and b with a
+// subsequence window of m.
+func MPDist(a, b []float64, m int) (float64, error) {
+	mp, err := New(a, b, m)
+	if err != nil {
+		return 0, err
+	}
+
+	thresh := 0.05
+	k := thresh * (len(a) + len(b))
+	mpABBA := make([]float64, 0, len(mp.MP)+len(mp.MPB))
+	mpABBA = append(mpABBA, mp.MP...)
+	mpABBA = append(mpABBA, mp.MPB...)
+	sort.Float64s(mpABBA)
+
+	if k < len(mpABBA) {
+		return mpABBA[k], nil
+	}
+	return mpABBA[len(mpABBA)-1], nil
 }

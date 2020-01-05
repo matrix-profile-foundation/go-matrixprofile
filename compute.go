@@ -259,9 +259,11 @@ func (mp *MatrixProfile) Update(newValues []float64) error {
 // mpResult is the output struct from a batch processing for STAMP, STOMP, and MPX. This struct
 // can later be merged together in linear time or with a divide and conquer approach
 type mpResult struct {
-	MP  []float64
-	Idx []int
-	Err error
+	MP   []float64
+	Idx  []int
+	MPB  []float64
+	IdxB []int
+	Err  error
 }
 
 // mergeMPResults reads from a slice of channels for Matrix Profile results and
@@ -299,6 +301,25 @@ func (mp *MatrixProfile) mergeMPResults(results []chan *mpResult, euclidean bool
 				}
 			}
 		}
+
+		// check if the BA join has results and merge if so
+		if resultSlice[i].MPB == nil || resultSlice[i].IdxB == nil {
+			continue
+		}
+		for j := 0; j < len(resultSlice[i].MPB); j++ {
+			if euclidean {
+				if resultSlice[i].MPB[j] <= mp.MPB[j] {
+					mp.MPB[j] = resultSlice[i].MPB[j]
+					mp.IdxB[j] = resultSlice[i].IdxB[j]
+				}
+			} else {
+				if math.Abs(resultSlice[i].MPB[j]) < math.Abs(mp.MPB[j]) {
+					mp.MPB[j] = resultSlice[i].MPB[j]
+					mp.IdxB[j] = resultSlice[i].IdxB[j]
+				}
+			}
+		}
+
 	}
 	return err
 }
@@ -386,7 +407,7 @@ func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx [
 			break
 		}
 		if err = mp.distanceProfile(randIdx[idx*batchSize+i], profile, fft); err != nil {
-			return &mpResult{nil, nil, err}
+			return &mpResult{nil, nil, nil, nil, err}
 		}
 		for j := 0; j < len(profile); j++ {
 			if profile[j] <= result.MP[j] {
@@ -468,7 +489,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 	profile := make([]float64, len(dot))
 	var err error
 	if err = mp.calculateDistanceProfile(dot, idx*batchSize, profile); err != nil {
-		return &mpResult{nil, nil, err}
+		return &mpResult{nil, nil, nil, nil, err}
 	}
 
 	// initialize this batch's matrix profile results
@@ -504,7 +525,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 		}
 		dot[0] = nextDotZero
 		if err = mp.calculateDistanceProfile(dot, idx*batchSize+i, profile); err != nil {
-			return &mpResult{nil, nil, err}
+			return &mpResult{nil, nil, nil, nil, err}
 		}
 
 		// element wise min update of the matrix profile and matrix profile index
@@ -527,6 +548,15 @@ func (mp *MatrixProfile) mpx(o ComputeOptions) error {
 	for i := 0; i < len(mp.MP); i++ {
 		mp.MP[i] = math.Inf(1)
 		mp.Idx[i] = math.MaxInt64
+	}
+
+	if !mp.SelfJoin {
+		mp.MPB = make([]float64, lenB)
+		mp.IdxB = make([]int, lenB)
+		for i := 0; i < len(mp.MPB); i++ {
+			mp.MPB[i] = math.Inf(1)
+			mp.IdxB[i] = math.MaxInt64
+		}
 	}
 
 	mua, siga := util.MuInvN(mp.A, mp.M)
@@ -701,11 +731,16 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	}
 
 	mpr := &mpResult{
-		MP:  make([]float64, lenA),
-		Idx: make([]int, lenA),
+		MP:   make([]float64, lenA),
+		Idx:  make([]int, lenA),
+		MPB:  make([]float64, lenB),
+		IdxB: make([]int, lenB),
 	}
 	for i := 0; i < len(mpr.MP); i++ {
 		mpr.MP[i] = -1
+	}
+	for i := 0; i < len(mpr.MPB); i++ {
+		mpr.MPB[i] = -1
 	}
 
 	var c, c_cmp float64
@@ -738,6 +773,10 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 				mpr.MP[offset+diag] = c_cmp
 				mpr.Idx[offset+diag] = offset
 			}
+			if c_cmp > mpr.MPB[offset] {
+				mpr.MPB[offset] = c_cmp
+				mpr.IdxB[offset] = offset + diag
+			}
 		}
 	}
 
@@ -746,6 +785,13 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 			mpr.MP[i] = 1
 		}
 		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
+	}
+
+	for i := 0; i < len(mpr.MPB); i++ {
+		if mpr.MPB[i] > 1 {
+			mpr.MPB[i] = 1
+		}
+		mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
 	}
 
 	return mpr
@@ -763,11 +809,16 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	}
 
 	mpr := &mpResult{
-		MP:  make([]float64, lenA),
-		Idx: make([]int, lenA),
+		MP:   make([]float64, lenA),
+		Idx:  make([]int, lenA),
+		MPB:  make([]float64, lenB),
+		IdxB: make([]int, lenB),
 	}
 	for i := 0; i < len(mpr.MP); i++ {
 		mpr.MP[i] = -1
+	}
+	for i := 0; i < len(mpr.MPB); i++ {
+		mpr.MPB[i] = -1
 	}
 
 	var c, c_cmp float64
@@ -800,6 +851,10 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 				mpr.MP[offset] = c_cmp
 				mpr.Idx[offset] = offset + diag
 			}
+			if c_cmp > mpr.MPB[offset+diag] {
+				mpr.MPB[offset+diag] = c_cmp
+				mpr.IdxB[offset+diag] = offset
+			}
 		}
 	}
 
@@ -808,6 +863,13 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 			mpr.MP[i] = 1
 		}
 		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
+	}
+
+	for i := 0; i < len(mpr.MPB); i++ {
+		if mpr.MPB[i] > 1 {
+			mpr.MPB[i] = 1
+		}
+		mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
 	}
 
 	return mpr
