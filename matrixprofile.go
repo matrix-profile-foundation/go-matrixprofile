@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/av"
 )
@@ -159,12 +160,17 @@ func MPDist(a, b []float64, m int) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-
+	if err = mp.Compute(NewComputeOpts()); err != nil {
+		return 0, nil
+	}
 	thresh := 0.05
-	k := thresh * (len(a) + len(b))
+	k := int(thresh * float64(len(a)+len(b)))
 	mpABBA := make([]float64, 0, len(mp.MP)+len(mp.MPB))
 	mpABBA = append(mpABBA, mp.MP...)
 	mpABBA = append(mpABBA, mp.MPB...)
+
+	// given the size of mpABBA it may be more useful to store this as a heap of topK with
+	// 0 value being the largest in the heap and anything smaller is stored below
 	sort.Float64s(mpABBA)
 
 	if k < len(mpABBA) {

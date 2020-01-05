@@ -24,10 +24,11 @@ const (
 
 // ComputeOptions are parameters to vary the algorithm to compute the matrix profile.
 type ComputeOptions struct {
-	Algorithm   Algo    // choose which algorithm to compute the matrix profile
-	Sample      float64 // only applicable to algorithm STAMP
-	Parallelism int
-	Euclidean   bool // defaults to using euclidean distance instead of pearson correlation for matrix profile
+	Algorithm    Algo    // choose which algorithm to compute the matrix profile
+	Sample       float64 // only applicable to algorithm STAMP
+	Parallelism  int
+	Euclidean    bool // defaults to using euclidean distance instead of pearson correlation for matrix profile
+	RemapNegCorr bool // defaults to no remapping. This is used so that highly negatively correlated sequences will show a low distance as well.
 }
 
 // NewComputeOpts returns a default ComputeOptions
@@ -608,9 +609,9 @@ func (mp *MatrixProfile) mpx(o ComputeOptions) error {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			if mp.SelfJoin {
-				results[batchNum] <- mp.mpxBatch(b.Idx, mua, siga, dfa, dga, o.Euclidean, b.Size, &wg)
+				results[batchNum] <- mp.mpxBatch(o, b.Idx, mua, siga, dfa, dga, b.Size, &wg)
 			} else {
-				results[batchNum] <- mp.mpxabBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
+				results[batchNum] <- mp.mpxabBatch(o, b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
 			}
 		}(batch)
 	}
@@ -645,7 +646,7 @@ func (mp *MatrixProfile) mpx(o ComputeOptions) error {
 	for batch := 0; batch < o.Parallelism; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
-			results[batchNum] <- mp.mpxbaBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
+			results[batchNum] <- mp.mpxbaBatch(o, b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -657,7 +658,7 @@ func (mp *MatrixProfile) mpx(o ComputeOptions) error {
 }
 
 // mpxBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, euclidean bool, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxBatch(o ComputeOptions, idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	exclZone := 1
 	if mp.M/4 > exclZone {
@@ -696,6 +697,9 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, euclidean b
 		for offset := 0; offset < len(mp.A)-mp.M-diag+1; offset++ {
 			c += df[offset]*dg[offset+diag] + df[offset+diag]*dg[offset]
 			c_cmp = c * (sig[offset] * sig[offset+diag])
+			if o.RemapNegCorr && c_cmp < 0 {
+				c_cmp = -c_cmp
+			}
 			if c_cmp > mpr.MP[offset] {
 				mpr.MP[offset] = c_cmp
 				mpr.Idx[offset] = offset + diag
@@ -707,7 +711,7 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, euclidean b
 		}
 	}
 
-	if euclidean {
+	if o.Euclidean {
 		for i := 0; i < len(mpr.MP); i++ {
 			if mpr.MP[i] > 1 {
 				mpr.MP[i] = 1
@@ -720,7 +724,7 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, euclidean b
 }
 
 // mpxabBatch processes a batch set of rows in matrix profile AB join calculation.
-func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxabBatch(o ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
@@ -769,6 +773,9 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 		for offset := 0; offset < offsetMax; offset++ {
 			c += dfb[offset]*dga[offset+diag] + dfa[offset+diag]*dgb[offset]
 			c_cmp = c * (sigb[offset] * siga[offset+diag])
+			if o.RemapNegCorr && c_cmp < 0 {
+				c_cmp = -c_cmp
+			}
 			if c_cmp > mpr.MP[offset+diag] {
 				mpr.MP[offset+diag] = c_cmp
 				mpr.Idx[offset+diag] = offset
@@ -780,25 +787,27 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 		}
 	}
 
-	for i := 0; i < len(mpr.MP); i++ {
-		if mpr.MP[i] > 1 {
-			mpr.MP[i] = 1
+	if o.Euclidean {
+		for i := 0; i < len(mpr.MP); i++ {
+			if mpr.MP[i] > 1 {
+				mpr.MP[i] = 1
+			}
+			mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
 		}
-		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
-	}
 
-	for i := 0; i < len(mpr.MPB); i++ {
-		if mpr.MPB[i] > 1 {
-			mpr.MPB[i] = 1
+		for i := 0; i < len(mpr.MPB); i++ {
+			if mpr.MPB[i] > 1 {
+				mpr.MPB[i] = 1
+			}
+			mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
 		}
-		mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
 	}
 
 	return mpr
 }
 
 // mpxbaBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxbaBatch(o ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
@@ -847,6 +856,9 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 		for offset := 0; offset < offsetMax; offset++ {
 			c += dfa[offset]*dgb[offset+diag] + dfb[offset+diag]*dga[offset]
 			c_cmp = c * (siga[offset] * sigb[offset+diag])
+			if o.RemapNegCorr && c_cmp < 0 {
+				c_cmp = -c_cmp
+			}
 			if c_cmp > mpr.MP[offset] {
 				mpr.MP[offset] = c_cmp
 				mpr.Idx[offset] = offset + diag
@@ -858,18 +870,20 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 		}
 	}
 
-	for i := 0; i < len(mpr.MP); i++ {
-		if mpr.MP[i] > 1 {
-			mpr.MP[i] = 1
+	if o.Euclidean {
+		for i := 0; i < len(mpr.MP); i++ {
+			if mpr.MP[i] > 1 {
+				mpr.MP[i] = 1
+			}
+			mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
 		}
-		mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
-	}
 
-	for i := 0; i < len(mpr.MPB); i++ {
-		if mpr.MPB[i] > 1 {
-			mpr.MPB[i] = 1
+		for i := 0; i < len(mpr.MPB); i++ {
+			if mpr.MPB[i] > 1 {
+				mpr.MPB[i] = 1
+			}
+			mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
 		}
-		mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
 	}
 
 	return mpr

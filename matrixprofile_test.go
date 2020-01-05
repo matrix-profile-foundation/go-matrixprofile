@@ -118,3 +118,34 @@ func TestLoad(t *testing.T) {
 	}
 
 }
+
+func TestMPDist(t *testing.T) {
+	testData := []struct {
+		a        []float64
+		b        []float64
+		m        int
+		expected float64
+	}{
+		{
+			[]float64{1, 2, 3, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			[]float64{0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -3, -2, -1, 0, 1, 2, 1, 0},
+			5,
+			0,
+		},
+		{
+			[]float64{1, 2, 3, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			[]float64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0},
+			5,
+			0,
+		},
+	}
+	for _, d := range testData {
+		res, err := MPDist(d.a, d.b, d.m)
+		if err != nil {
+			t.Errorf("Did not expect to get an error, %v", err)
+		}
+		if math.Abs(res-d.expected) > 1e-4 {
+			t.Errorf("Expected %.6f, but got %.6f", d.expected, res)
+		}
+	}
+}
