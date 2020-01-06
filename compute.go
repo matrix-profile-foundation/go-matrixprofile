@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"sort"
 	"sync"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/util"
@@ -32,12 +33,12 @@ type ComputeOptions struct {
 }
 
 // NewComputeOpts returns a default ComputeOptions
-func NewComputeOpts() ComputeOptions {
+func NewComputeOpts() *ComputeOptions {
 	p := runtime.NumCPU() * 2
 	if p < 1 {
 		p = 1
 	}
-	return ComputeOptions{
+	return &ComputeOptions{
 		Algorithm:   AlgoMPX,
 		Sample:      1.0,
 		Parallelism: p,
@@ -46,7 +47,11 @@ func NewComputeOpts() ComputeOptions {
 }
 
 // Compute calculate the matrixprofile given a set of input options.
-func (mp *MatrixProfile) Compute(o ComputeOptions) error {
+func (mp *MatrixProfile) Compute(o *ComputeOptions) error {
+	if o == nil {
+		o = NewComputeOpts()
+	}
+
 	switch o.Algorithm {
 	case AlgoSTOMP:
 		return mp.stomp(o.Parallelism)
@@ -540,7 +545,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 	return result
 }
 
-func (mp *MatrixProfile) mpx(o ComputeOptions) error {
+func (mp *MatrixProfile) mpx(o *ComputeOptions) error {
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
 
@@ -658,7 +663,7 @@ func (mp *MatrixProfile) mpx(o ComputeOptions) error {
 }
 
 // mpxBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxBatch(o ComputeOptions, idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxBatch(o *ComputeOptions, idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	exclZone := 1
 	if mp.M/4 > exclZone {
@@ -719,7 +724,7 @@ func (mp MatrixProfile) mpxBatch(o ComputeOptions, idx int, mu, sig, df, dg []fl
 }
 
 // mpxabBatch processes a batch set of rows in matrix profile AB join calculation.
-func (mp MatrixProfile) mpxabBatch(o ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxabBatch(o *ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
@@ -791,7 +796,7 @@ func (mp MatrixProfile) mpxabBatch(o ComputeOptions, idx int, mua, siga, dfa, dg
 }
 
 // mpxbaBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxbaBatch(o ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxbaBatch(o *ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
@@ -870,7 +875,7 @@ type PMPComputeOptions struct {
 }
 
 // NewPMPComputeOpts returns a default PMPComputeOptions
-func NewPMPComputeOpts(l, u int) PMPComputeOptions {
+func NewPMPComputeOpts(l, u int) *PMPComputeOptions {
 	p := runtime.NumCPU() * 2
 	if p < 1 {
 		p = 1
@@ -878,7 +883,7 @@ func NewPMPComputeOpts(l, u int) PMPComputeOptions {
 	if l > u {
 		u = l
 	}
-	return PMPComputeOptions{
+	return &PMPComputeOptions{
 		l, u,
 		ComputeOptions{
 			Sample:      1.0,
@@ -889,11 +894,15 @@ func NewPMPComputeOpts(l, u int) PMPComputeOptions {
 }
 
 // Compute calculate the pan matrixprofile given a set of input options.
-func (p *PMP) Compute(o PMPComputeOptions) error {
+func (p *PMP) Compute(o *PMPComputeOptions) error {
+	if o == nil {
+		return errors.New("Must provide PMP compute options")
+	}
+
 	return p.pmp(o)
 }
 
-func (p *PMP) pmp(o PMPComputeOptions) error {
+func (p *PMP) pmp(o *PMPComputeOptions) error {
 	windows := util.BinarySplit(o.LowerM, o.UpperM)
 	windows = windows[:int(float64(len(windows))*o.Sample)]
 	if len(windows) < 1 {
@@ -938,4 +947,118 @@ func (p *PMP) pmp(o PMPComputeOptions) error {
 	}
 
 	return nil
+}
+
+// Compute runs a k dimensional matrix profile calculation across all time series
+func (mp *KMatrixProfile) Compute() error {
+	return mp.mStomp()
+}
+
+// MStomp computes the k dimensional matrix profile
+func (mp *KMatrixProfile) mStomp() error {
+	var err error
+
+	// save the first dot product of the first row that will be used by all future
+	// go routines
+	cachedDots := make([][]float64, len(mp.T))
+	fft := fourier.NewFFT(mp.n)
+	mp.crossCorrelate(0, fft, cachedDots)
+
+	var D [][]float64
+	D = make([][]float64, len(mp.T))
+	for d := 0; d < len(D); d++ {
+		D[d] = make([]float64, mp.n-mp.M+1)
+	}
+
+	dots := make([][]float64, len(mp.T))
+	for d := 0; d < len(dots); d++ {
+		dots[d] = make([]float64, mp.n-mp.M+1)
+		copy(dots[d], cachedDots[d])
+	}
+
+	for idx := 0; idx < mp.n-mp.M+1; idx++ {
+		for d := 0; d < len(dots); d++ {
+			if idx > 0 {
+				for j := mp.n - mp.M; j > 0; j-- {
+					dots[d][j] = dots[d][j-1] - mp.T[d][j-1]*mp.T[d][idx-1] + mp.T[d][j+mp.M-1]*mp.T[d][idx+mp.M-1]
+				}
+				dots[d][0] = cachedDots[d][idx]
+			}
+
+			for i := 0; i < mp.n-mp.M+1; i++ {
+				D[d][i] = math.Sqrt(2 * float64(mp.M) * math.Abs(1-(dots[d][i]-float64(mp.M)*mp.tMean[d][i]*mp.tMean[d][idx])/(float64(mp.M)*mp.tStd[d][i]*mp.tStd[d][idx])))
+			}
+			// sets the distance in the exclusion zone to +Inf
+			util.ApplyExclusionZone(D[d], idx, mp.M/2)
+		}
+
+		mp.columnWiseSort(D)
+		mp.columnWiseCumSum(D)
+
+		for d := 0; d < len(D); d++ {
+			for i := 0; i < mp.n-mp.M+1; i++ {
+				if D[d][i]/(float64(d)+1) < mp.MP[d][i] {
+					mp.MP[d][i] = D[d][i] / (float64(d) + 1)
+					mp.Idx[d][i] = idx
+				}
+			}
+		}
+	}
+
+	return err
+}
+
+// crossCorrelate computes the sliding dot product between two slices
+// given a query and time series. Uses fast fourier transforms to compute
+// the necessary values. Returns the a slice of floats for the cross-correlation
+// of the signal q and the mp.b signal. This makes an optimization where the query
+// length must be less than half the length of the timeseries, b.
+func (mp KMatrixProfile) crossCorrelate(idx int, fft *fourier.FFT, D [][]float64) {
+	qpad := make([]float64, mp.n)
+	var qf []complex128
+	var dot []float64
+
+	for d := 0; d < len(D); d++ {
+		for i := 0; i < mp.M; i++ {
+			qpad[i] = mp.T[d][idx+mp.M-i-1]
+		}
+		qf = fft.Coefficients(nil, qpad)
+
+		// in place multiply the fourier transform of the b time series with
+		// the subsequence fourier transform and store in the subsequence fft slice
+		for i := 0; i < len(qf); i++ {
+			qf[i] = mp.tF[d][i] * qf[i]
+		}
+
+		dot = fft.Sequence(nil, qf)
+
+		for i := 0; i < mp.n-mp.M+1; i++ {
+			dot[mp.M-1+i] = dot[mp.M-1+i] / float64(mp.n)
+		}
+		D[d] = dot[mp.M-1:]
+	}
+}
+
+func (mp KMatrixProfile) columnWiseSort(D [][]float64) {
+	dist := make([]float64, len(D))
+	for i := 0; i < mp.n-mp.M+1; i++ {
+		for d := 0; d < len(D); d++ {
+			dist[d] = D[d][i]
+		}
+		sort.Float64s(dist)
+		for d := 0; d < len(D); d++ {
+			D[d][i] = dist[d]
+		}
+	}
+}
+
+func (mp KMatrixProfile) columnWiseCumSum(D [][]float64) {
+	for d := 0; d < len(D); d++ {
+		// change D to be a cumulative sum of distances across dimensions
+		if d > 0 {
+			for i := 0; i < mp.n-mp.M+1; i++ {
+				D[d][i] += D[d-1][i]
+			}
+		}
+	}
 }

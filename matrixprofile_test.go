@@ -140,7 +140,7 @@ func TestMPDist(t *testing.T) {
 		},
 	}
 	for _, d := range testData {
-		res, err := MPDist(d.a, d.b, d.m)
+		res, err := MPDist(d.a, d.b, d.m, nil)
 		if err != nil {
 			t.Errorf("Did not expect to get an error, %v", err)
 		}

@@ -171,14 +171,14 @@ func (mp KMatrixProfile) plotMP(sigPts, mpPts []plotter.XYs, filename string) er
 	}
 
 	for i := 0; i < len(sigPts); i++ {
-		plots[i][0], err = CreatePlot([]plotter.XYs{sigPts[i]}, nil, fmt.Sprintf("signal%d", i))
+		plots[i][0], err = createPlot([]plotter.XYs{sigPts[i]}, nil, fmt.Sprintf("signal%d", i))
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := 0; i < len(sigPts); i++ {
-		plots[len(sigPts)+i][0], err = CreatePlot([]plotter.XYs{mpPts[i]}, nil, fmt.Sprintf("mp%d", i))
+		plots[len(sigPts)+i][0], err = createPlot([]plotter.XYs{mpPts[i]}, nil, fmt.Sprintf("mp%d", i))
 		if err != nil {
 			return err
 		}

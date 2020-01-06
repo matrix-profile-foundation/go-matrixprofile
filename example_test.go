@@ -12,7 +12,7 @@ func Example() {
 		panic(err)
 	}
 
-	if err = mp.Compute(NewComputeOpts()); err != nil {
+	if err = mp.Compute(nil); err != nil {
 		panic(err)
 	}
 

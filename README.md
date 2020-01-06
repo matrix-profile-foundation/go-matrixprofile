@@ -47,7 +47,7 @@ func main() {
 		panic(err)
 	}
 
-	if err = p.Compute(mp.NewComputeOpts()); err != nil {
+	if err = p.Compute(nil); err != nil {
 		panic(err)
 	}
 

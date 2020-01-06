@@ -2,17 +2,11 @@ package matrixprofile
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/siggen"
-	"gonum.org/v1/plot"
-	"gonum.org/v1/plot/plotter"
-	"gonum.org/v1/plot/plotutil"
-	"gonum.org/v1/plot/vg"
-	"gonum.org/v1/plot/vg/draw"
-	"gonum.org/v1/plot/vg/vgimg"
 )
 
+/*
 func Points(a []float64, n int) plotter.XYs {
 	pts := make(plotter.XYs, n)
 	for i := 0; i < n; i++ {
@@ -101,6 +95,8 @@ func PlotKMP(sigPts, mpPts []plotter.XYs, filename string) error {
 	_, err = png.WriteTo(w)
 	return err
 }
+*/
+
 func Example_caseStudy() {
 	sin := siggen.Sin(1, 5, 0, 0, 100, 2)
 	sin2 := siggen.Sin(0.25, 10, 0, 0.75, 100, 0.25)
@@ -121,14 +117,12 @@ func Example_caseStudy() {
 		panic(err)
 	}
 
-	co := NewComputeOpts()
-
 	ao := NewAnalyzeOpts()
 	ao.KMotifs = k
 	ao.RMotifs = r
 	ao.OutputFilename = "mp_sine.png"
 
-	if err = mp.Analyze(co, ao); err != nil {
+	if err = mp.Analyze(nil, ao); err != nil {
 		panic(err)
 	}
 

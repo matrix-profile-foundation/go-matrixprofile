@@ -10,8 +10,8 @@ type AnalyzeOptions struct {
 }
 
 // NewAnalyzeOpts creates a default set of parameters to analyze the matrix profile.
-func NewAnalyzeOpts() AnalyzeOptions {
-	return AnalyzeOptions{
+func NewAnalyzeOpts() *AnalyzeOptions {
+	return &AnalyzeOptions{
 		KMotifs:        3,
 		RMotifs:        2,
 		KDiscords:      3,
@@ -22,10 +22,15 @@ func NewAnalyzeOpts() AnalyzeOptions {
 // Analyze performs the matrix profile computation and discovers various features
 // from the profile such as motifs, discords, and segmentation. The results are
 // visualized and saved into an output file.
-func (mp MatrixProfile) Analyze(co ComputeOptions, ao AnalyzeOptions) error {
+func (mp MatrixProfile) Analyze(co *ComputeOptions, ao *AnalyzeOptions) error {
 	var err error
+
 	if err = mp.Compute(co); err != nil {
 		return err
+	}
+
+	if ao == nil {
+		ao = NewAnalyzeOpts()
 	}
 
 	_, _, cac := mp.DiscoverSegments()

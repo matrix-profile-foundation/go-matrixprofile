@@ -2,11 +2,11 @@
 package matrixprofile
 
 import (
+	"container/heap"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sort"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/av"
 )
@@ -153,28 +153,87 @@ func (mp *MatrixProfile) Load(filepath, format string) error {
 	return err
 }
 
+type mpVals []float64
+
+func (m mpVals) Len() int {
+	return len(m)
+}
+
+func (m mpVals) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
+}
+
+func (m mpVals) Less(i, j int) bool {
+	return m[i] < m[j]
+}
+
+// Push implements the function in the heap interface
+func (m *mpVals) Push(x interface{}) {
+	*m = append(*m, x.(float64))
+}
+
+// Pop implements the function in the heap interface
+func (m *mpVals) Pop() interface{} {
+	x := (*m)[len(*m)-1]
+	*m = (*m)[:len(*m)-1]
+	return x
+}
+
 // MPDist computes the matrix profile distance measure between a and b with a
 // subsequence window of m.
-func MPDist(a, b []float64, m int) (float64, error) {
+func MPDist(a, b []float64, m int, o *ComputeOptions) (float64, error) {
 	mp, err := New(a, b, m)
 	if err != nil {
 		return 0, err
 	}
-	if err = mp.Compute(NewComputeOpts()); err != nil {
+
+	if err = mp.Compute(o); err != nil {
 		return 0, nil
 	}
 	thresh := 0.05
 	k := int(thresh * float64(len(a)+len(b)))
-	mpABBA := make([]float64, 0, len(mp.MP)+len(mp.MPB))
-	mpABBA = append(mpABBA, mp.MP...)
-	mpABBA = append(mpABBA, mp.MPB...)
+	mpABBASize := len(mp.MP) + len(mp.MPB)
 
-	// given the size of mpABBA it may be more useful to store this as a heap of topK with
-	// 0 value being the largest in the heap and anything smaller is stored below
-	sort.Float64s(mpABBA)
+	if k < mpABBASize {
+		var lowestMPs mpVals
+		heap.Init(&lowestMPs)
+		for _, d := range mp.MP {
+			if len(lowestMPs) == k+1 {
+				if d < lowestMPs[0] {
+					heap.Pop(&lowestMPs)
+					heap.Push(&lowestMPs, d)
+				}
+			} else {
+				heap.Push(&lowestMPs, d)
+			}
+		}
 
-	if k < len(mpABBA) {
-		return mpABBA[k], nil
+		for _, d := range mp.MPB {
+			if len(lowestMPs) == k+1 {
+				if d < lowestMPs[0] {
+					heap.Pop(&lowestMPs)
+					heap.Push(&lowestMPs, d)
+				}
+			} else {
+				heap.Push(&lowestMPs, d)
+			}
+		}
+
+		return lowestMPs[0], nil
 	}
-	return mpABBA[len(mpABBA)-1], nil
+
+	var maxVal float64
+	for _, d := range mp.MP {
+		if d > maxVal {
+			maxVal = d
+		}
+	}
+
+	for _, d := range mp.MPB {
+		if d > maxVal {
+			maxVal = d
+		}
+	}
+
+	return maxVal, nil
 }

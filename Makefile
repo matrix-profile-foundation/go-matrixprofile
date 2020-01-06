@@ -12,7 +12,7 @@ test:
 
 bench:
 	go test ./... -run=NONE -bench=. -test.benchmem > new_bench.txt
-	go get golang.org/x/tools/cmd/benchcmp
+	if ! type benchcmp > /dev/null; then go get golang.org/x/tools/cmd/benchcmp; fi
 	benchcmp curr_bench.txt new_bench.txt
 
 example:
