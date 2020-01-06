@@ -1,29 +1,29 @@
 goos: darwin
 goarch: amd64
 pkg: github.com/matrix-profile-foundation/go-matrixprofile
-BenchmarkMStomp-4                     	      33	  33535012 ns/op	 7337176 B/op	  227071 allocs/op
-BenchmarkZNormalize-4                 	 6163665	       185 ns/op	     256 B/op	       1 allocs/op
-BenchmarkMovmeanstd-4                 	   84244	     15915 ns/op	   32768 B/op	       4 allocs/op
-BenchmarkCrossCorrelate-4             	   13059	     86251 ns/op	   24585 B/op	       3 allocs/op
-BenchmarkMass-4                       	   12970	     90515 ns/op	   24844 B/op	       4 allocs/op
-BenchmarkDistanceProfile-4            	   13135	     92434 ns/op	   24844 B/op	       4 allocs/op
-BenchmarkCalculateDistanceProfile-4   	  220800	      5376 ns/op	       0 B/op	       0 allocs/op
-BenchmarkStmp/m32_pts1k-4             	      12	  89975341 ns/op	24209714 B/op	    3892 allocs/op
-BenchmarkStmp/m128_pts1k-4            	      14	  90192080 ns/op	22496285 B/op	    3508 allocs/op
-BenchmarkStamp/m32_p2_pts1k-4         	      20	  64262158 ns/op	24284078 B/op	    3909 allocs/op
-BenchmarkStomp/m128_p1_pts__1024-4    	     106	  10372399 ns/op	  196863 B/op	      28 allocs/op
-BenchmarkStomp/m128_p2_pts__4096-4    	       9	 116520310 ns/op	 1121809 B/op	      40 allocs/op
-BenchmarkStomp/m128_p2_pts_16384-4    	       1	2056084768 ns/op	 4776736 B/op	      45 allocs/op
-BenchmarkStomp/m128_p4_pts_16384-4    	       1	1852988765 ns/op	 7152768 B/op	      65 allocs/op
-BenchmarkStomp/m1024_p2_pts_16384-4   	       1	1874884854 ns/op	 4776736 B/op	      45 allocs/op
-BenchmarkMpx/m128_p1_pts__1024-4      	     475	   2394018 ns/op	   84596 B/op	      26 allocs/op
-BenchmarkMpx/m128_p2_pts__4096-4      	      57	  22206777 ns/op	  400321 B/op	      32 allocs/op
-BenchmarkMpx/m128_p2_pts_16384-4      	       3	 363668942 ns/op	 1752533 B/op	      34 allocs/op
-BenchmarkMpx/m128_p4_pts_16384-4      	       3	 376226574 ns/op	 2281301 B/op	      46 allocs/op
-BenchmarkMpx/m1024_p2_pts_16384-4     	       3	 372763106 ns/op	 1781205 B/op	      34 allocs/op
-BenchmarkUpdate-4                     	      63	  18700005 ns/op	  799530 B/op	      19 allocs/op
+BenchmarkMStomp-4                     	      39	  29853485 ns/op	 7336245 B/op	  227071 allocs/op
+BenchmarkZNormalize-4                 	 7112282	       185 ns/op	     256 B/op	       1 allocs/op
+BenchmarkMovmeanstd-4                 	   89810	     13628 ns/op	   32768 B/op	       4 allocs/op
+BenchmarkCrossCorrelate-4             	   15190	     75262 ns/op	   24584 B/op	       3 allocs/op
+BenchmarkMass-4                       	   15421	     78660 ns/op	   24842 B/op	       4 allocs/op
+BenchmarkDistanceProfile-4            	   15190	     79092 ns/op	   24842 B/op	       4 allocs/op
+BenchmarkCalculateDistanceProfile-4   	  220363	      4625 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStmp/m32_pts1k-4             	      15	  77806814 ns/op	24209736 B/op	    3892 allocs/op
+BenchmarkStmp/m128_pts1k-4            	      16	  70673766 ns/op	22496294 B/op	    3508 allocs/op
+BenchmarkStamp/m32_p2_pts1k-4         	      25	  46207243 ns/op	24284148 B/op	    3909 allocs/op
+BenchmarkStomp/m128_p1_pts__1024-4    	     152	   7740858 ns/op	  196805 B/op	      28 allocs/op
+BenchmarkStomp/m128_p2_pts__4096-4    	      13	  81826774 ns/op	 1116937 B/op	      39 allocs/op
+BenchmarkStomp/m128_p2_pts_16384-4    	       1	1342203283 ns/op	 4776832 B/op	      45 allocs/op
+BenchmarkStomp/m128_p4_pts_16384-4    	       1	1269550826 ns/op	 7153728 B/op	      67 allocs/op
+BenchmarkStomp/m1024_p2_pts_16384-4   	       1	1235325258 ns/op	 4776832 B/op	      45 allocs/op
+BenchmarkMpx/m128_p1_pts__1024-4      	     564	   2310017 ns/op	   84591 B/op	      26 allocs/op
+BenchmarkMpx/m128_p2_pts__4096-4      	      63	  19927988 ns/op	  400206 B/op	      32 allocs/op
+BenchmarkMpx/m128_p2_pts_16384-4      	       4	 294076163 ns/op	 1708912 B/op	      33 allocs/op
+BenchmarkMpx/m128_p4_pts_16384-4      	       4	 327366290 ns/op	 2237776 B/op	      45 allocs/op
+BenchmarkMpx/m1024_p2_pts_16384-4     	       4	 330582811 ns/op	 1737584 B/op	      33 allocs/op
+BenchmarkUpdate-4                     	      80	  13849082 ns/op	  795065 B/op	      18 allocs/op
 PASS
-ok  	github.com/matrix-profile-foundation/go-matrixprofile	37.473s
+ok  	github.com/matrix-profile-foundation/go-matrixprofile	36.122s
 PASS
 ok  	github.com/matrix-profile-foundation/go-matrixprofile/av	0.006s
 PASS
