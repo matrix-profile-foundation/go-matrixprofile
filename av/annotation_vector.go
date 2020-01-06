@@ -1,3 +1,4 @@
+// Package av generates a set of annotation vectors that can be applied onto a matrix profile before computing other features such as motifs, discords, etc.
 package av
 
 import (

@@ -37,7 +37,7 @@ func BenchmarkMStomp(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		err = mp.MStomp()
+		err = mp.Compute()
 		if err != nil {
 			b.Error(err)
 		}

@@ -143,3 +143,70 @@ func plotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discord
 	_, err = png.WriteTo(w)
 	return err
 }
+
+// Visualize creates a png of the k-dimensional matrix profile.
+func (mp KMatrixProfile) Visualize(fn string) error {
+	sigPts := make([]plotter.XYs, len(mp.T))
+	for i := 0; i < len(mp.T); i++ {
+		sigPts[i] = points(mp.T[i], len(mp.T[0]))
+	}
+
+	mpPts := make([]plotter.XYs, len(mp.MP))
+	for i := 0; i < len(mp.MP); i++ {
+		mpPts[i] = points(mp.MP[i], len(mp.T[0]))
+	}
+
+	return mp.plotMP(sigPts, mpPts, fn)
+}
+
+func (mp KMatrixProfile) plotMP(sigPts, mpPts []plotter.XYs, filename string) error {
+	var err error
+
+	rows, cols := len(sigPts)*2, 1
+
+	plots := make([][]*plot.Plot, rows)
+
+	for i := 0; i < len(sigPts)*2; i++ {
+		plots[i] = make([]*plot.Plot, cols)
+	}
+
+	for i := 0; i < len(sigPts); i++ {
+		plots[i][0], err = CreatePlot([]plotter.XYs{sigPts[i]}, nil, fmt.Sprintf("signal%d", i))
+		if err != nil {
+			return err
+		}
+	}
+
+	for i := 0; i < len(sigPts); i++ {
+		plots[len(sigPts)+i][0], err = CreatePlot([]plotter.XYs{mpPts[i]}, nil, fmt.Sprintf("mp%d", i))
+		if err != nil {
+			return err
+		}
+	}
+
+	img := vgimg.New(vg.Points(600), vg.Points(600))
+	dc := draw.New(img)
+
+	t := draw.Tiles{
+		Rows: rows,
+		Cols: cols,
+	}
+
+	canvases := plot.Align(plots, t, dc)
+	for j := 0; j < rows; j++ {
+		for i := 0; i < cols; i++ {
+			if plots[j][i] != nil {
+				plots[j][i].Draw(canvases[j][i])
+			}
+		}
+	}
+
+	w, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	png := vgimg.PngCanvas{Canvas: img}
+	_, err = png.WriteTo(w)
+	return err
+}

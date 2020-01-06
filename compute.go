@@ -712,12 +712,7 @@ func (mp MatrixProfile) mpxBatch(o ComputeOptions, idx int, mu, sig, df, dg []fl
 	}
 
 	if o.Euclidean {
-		for i := 0; i < len(mpr.MP); i++ {
-			if mpr.MP[i] > 1 {
-				mpr.MP[i] = 1
-			}
-			mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
-		}
+		util.P2E(mpr.MP, mp.M)
 	}
 
 	return mpr
@@ -788,19 +783,8 @@ func (mp MatrixProfile) mpxabBatch(o ComputeOptions, idx int, mua, siga, dfa, dg
 	}
 
 	if o.Euclidean {
-		for i := 0; i < len(mpr.MP); i++ {
-			if mpr.MP[i] > 1 {
-				mpr.MP[i] = 1
-			}
-			mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
-		}
-
-		for i := 0; i < len(mpr.MPB); i++ {
-			if mpr.MPB[i] > 1 {
-				mpr.MPB[i] = 1
-			}
-			mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
-		}
+		util.P2E(mpr.MP, mp.M)
+		util.P2E(mpr.MPB, mp.M)
 	}
 
 	return mpr
@@ -871,19 +855,8 @@ func (mp MatrixProfile) mpxbaBatch(o ComputeOptions, idx int, mua, siga, dfa, dg
 	}
 
 	if o.Euclidean {
-		for i := 0; i < len(mpr.MP); i++ {
-			if mpr.MP[i] > 1 {
-				mpr.MP[i] = 1
-			}
-			mpr.MP[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MP[i]))
-		}
-
-		for i := 0; i < len(mpr.MPB); i++ {
-			if mpr.MPB[i] > 1 {
-				mpr.MPB[i] = 1
-			}
-			mpr.MPB[i] = math.Sqrt(2 * float64(mp.M) * (1 - mpr.MPB[i]))
-		}
+		util.P2E(mpr.MP, mp.M)
+		util.P2E(mpr.MPB, mp.M)
 	}
 
 	return mpr
@@ -891,11 +864,9 @@ func (mp MatrixProfile) mpxbaBatch(o ComputeOptions, idx int, mua, siga, dfa, dg
 
 // PMPComputeOptions are parameters to vary the algorithm to compute the pan matrix profile.
 type PMPComputeOptions struct {
-	Sample      float64 // only applicable to algorithm STAMP
-	Parallelism int
-	LowerM      int  // used for pan matrix profile
-	UpperM      int  // used for pan matrix profile
-	Euclidean   bool // defaults to using euclidean distance instead of pearson correlation for matrix profile
+	LowerM int // used for pan matrix profile
+	UpperM int // used for pan matrix profile
+	ComputeOptions
 }
 
 // NewPMPComputeOpts returns a default PMPComputeOptions
@@ -904,12 +875,16 @@ func NewPMPComputeOpts(l, u int) PMPComputeOptions {
 	if p < 1 {
 		p = 1
 	}
+	if l > u {
+		u = l
+	}
 	return PMPComputeOptions{
-		Sample:      1.0,
-		Parallelism: p,
-		LowerM:      l,
-		UpperM:      u,
-		Euclidean:   true,
+		l, u,
+		ComputeOptions{
+			Sample:      1.0,
+			Parallelism: p,
+			Euclidean:   true,
+		},
 	}
 }
 

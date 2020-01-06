@@ -147,37 +147,21 @@ func Example_kDimensionalCaseStudy() {
 	sig[1] = siggen.Append(line, sin, line2, sin, line2, sin, line2, sin, line2)
 	sig[2] = siggen.Append(line, square, line2, square, line2, square, line2, square, line2)
 
-	noise := siggen.Noise(0.1, len(sig[0]))
-	sig[0] = siggen.Add(sig[0], noise)
+	sig[0] = siggen.Add(sig[0], siggen.Noise(0.1, len(sig[0])))
+	sig[1] = siggen.Add(sig[1], siggen.Noise(0.1, len(sig[0])))
+	sig[2] = siggen.Add(sig[2], siggen.Noise(0.1, len(sig[0])))
 
-	noise = siggen.Noise(0.1, len(sig[0]))
-	sig[1] = siggen.Add(sig[1], noise)
-
-	noise = siggen.Noise(0.1, len(sig[0]))
-	sig[2] = siggen.Add(sig[2], noise)
-
-	var m int
-	m = 25
+	m := 25
 	mp, err := NewK(sig, m)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = mp.MStomp(); err != nil {
+	if err = mp.Compute(); err != nil {
 		panic(err)
 	}
 
-	sigPts := make([]plotter.XYs, 3)
-	sigPts[0] = Points(sig[0], len(sig[0]))
-	sigPts[1] = Points(sig[1], len(sig[0]))
-	sigPts[2] = Points(sig[2], len(sig[0]))
-
-	mpPts := make([]plotter.XYs, 3)
-	mpPts[0] = Points(mp.MP[0], len(sig[0]))
-	mpPts[1] = Points(mp.MP[1], len(sig[0]))
-	mpPts[2] = Points(mp.MP[2], len(sig[0]))
-
-	if err = PlotKMP(sigPts, mpPts, "mp_kdim.png"); err != nil {
+	if err = mp.Visualize("mp_kdim.png"); err != nil {
 		panic(err)
 	}
 

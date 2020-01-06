@@ -1,3 +1,4 @@
+// Package util is a set of utility functions that are used throughout the matrixprofile package.
 package util
 
 import (
@@ -93,37 +94,6 @@ func ApplyExclusionZone(profile []float64, idx, zoneSize int) {
 	for i := startIdx; i < endIdx; i++ {
 		profile[i] = math.Inf(1)
 	}
-}
-
-// ArcCurve computes the arc curve (histogram) which is uncorrected for.
-// This loops through the matrix profile index and increments the
-// counter for each index that the destination index passes through
-// start from the index in the matrix profile index.
-func ArcCurve(mpIdx []int) []float64 {
-	histo := make([]float64, len(mpIdx))
-	for i, idx := range mpIdx {
-		switch {
-		case idx >= len(mpIdx):
-		case idx < 0:
-			continue
-		case idx > i+1:
-			for j := i + 1; j < idx; j++ {
-				histo[j]++
-			}
-		case idx < i-1:
-			for j := i - 1; j > idx; j-- {
-				histo[j]++
-			}
-		}
-	}
-	return histo
-}
-
-// Iac represents the ideal arc curve with a maximum of n/2 and 0 values
-// at 0 and n-1. The derived equation to ensure the requirements is
-// -(sqrt(2/n)*(x-n/2))^2 + n/2 = y
-func Iac(x float64, n int) float64 {
-	return -math.Pow(math.Sqrt(2/float64(n))*(x-float64(n)/2.0), 2.0) + float64(n)/2.0
 }
 
 func MuInvN(a []float64, w int) ([]float64, []float64) {
@@ -289,4 +259,16 @@ func DiagBatchingScheme(l, p int) []Batch {
 	}
 
 	return batchScheme
+}
+
+// P2E converts a slice of pearson correlation values to euclidean distances. This
+// is only valid for z-normalized time series.
+func P2E(mp []float64, m int) {
+	for i := 0; i < len(mp); i++ {
+		// caps pearson correlation to 1 in case there are floating point accumulated errors
+		if mp[i] > 1 {
+			mp[i] = 1
+		}
+		mp[i] = math.Sqrt(2 * float64(m) * (1 - mp[i]))
+	}
 }
