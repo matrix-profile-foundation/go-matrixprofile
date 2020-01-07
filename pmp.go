@@ -125,8 +125,8 @@ func (p *PMP) pmp(o *PMPComputeOptions) error {
 
 	p.PMP = make([][]float64, len(windows))
 	p.PIdx = make([][]int, len(windows))
-	for i, m := range windows {
-		lenA := len(p.A) - m + 1
+	for i := 0; i < len(windows); i++ {
+		lenA := len(p.A) - (i + o.LowerM) + 1
 		p.PMP[i] = make([]float64, lenA)
 		p.PIdx[i] = make([]int, lenA)
 		for j := 0; j < lenA; j++ {
@@ -147,14 +147,39 @@ func (p *PMP) pmp(o *PMPComputeOptions) error {
 		return err
 	}
 
-	for i, m := range windows {
+	for _, m := range windows {
 		mp.M = m
 		if err := mp.mpx(o.Opts); err != nil {
 			return err
 		}
-		copy(p.PMP[i], mp.MP)
-		copy(p.PIdx[i], mp.Idx)
+		copy(p.PMP[m-o.LowerM], mp.MP)
+		copy(p.PIdx[m-o.LowerM], mp.Idx)
 	}
 
 	return nil
+}
+
+// Analyze has not been implemented yet
+func (p PMP) Analyze(co *ComputeOptions, ao *AnalyzeOptions) error {
+	return errors.New("Analyze for PMP has not been implemented yet.")
+}
+
+// DiscoverMotifs has not been implemented yet
+func (p PMP) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
+	return nil, errors.New("Motifs for PMP has not been implemented yet.")
+}
+
+// DiscoverDiscords has not been implemented yet
+func (p PMP) DiscoverDiscords(k int, exclusionZone int) ([]int, error) {
+	return nil, errors.New("Discords for PMP has not been implemented yet.")
+}
+
+// DiscoverSegments has not been implemented yet
+func (p PMP) DiscoverSegments() (int, float64, []float64) {
+	return 0, 0, nil
+}
+
+// Visualize has not been implemented yet
+func (p PMP) Visualize(fn string, motifs []MotifGroup, discords []int, cac []float64) error {
+	return errors.New("Visualize for PMP has not been implemented yet.")
 }
