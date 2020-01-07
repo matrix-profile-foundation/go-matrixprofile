@@ -41,6 +41,7 @@ type MatrixProfile struct {
 	MPB      []float64    // matrix profile for the BA join
 	IdxB     []int        // matrix profile index for the BA join
 	AV       av.AV        // type of annotation vector which defaults to all ones
+	Opts     *MPOptions   // options used for the computation
 }
 
 // New creates a matrix profile struct with a given timeseries length n and
@@ -192,7 +193,7 @@ func (m *mpVals) Pop() interface{} {
 
 // MPDist computes the matrix profile distance measure between a and b with a
 // subsequence window of m.
-func MPDist(a, b []float64, m int, o *ComputeOptions) (float64, error) {
+func MPDist(a, b []float64, m int, o *MPOptions) (float64, error) {
 	mp, err := New(a, b, m)
 	if err != nil {
 		return 0, err
@@ -209,6 +210,11 @@ func MPDist(a, b []float64, m int, o *ComputeOptions) (float64, error) {
 		var lowestMPs mpVals
 		heap.Init(&lowestMPs)
 		for _, d := range mp.MP {
+			// since this is a max heap and correlations go from 0-1 we need high correlations
+			// to stay in the heap with the poorest correlation at the root.
+			if !mp.Opts.Euclidean {
+				d = -d
+			}
 			if len(lowestMPs) == k+1 {
 				if d < lowestMPs[0] {
 					heap.Pop(&lowestMPs)
@@ -220,6 +226,12 @@ func MPDist(a, b []float64, m int, o *ComputeOptions) (float64, error) {
 		}
 
 		for _, d := range mp.MPB {
+			// since this is a max heap and correlations go from 0-1 we need high correlations
+			// to stay in the heap with the poorest correlation at the root.
+			if !mp.Opts.Euclidean {
+				d = -d
+			}
+
 			if len(lowestMPs) == k+1 {
 				if d < lowestMPs[0] {
 					heap.Pop(&lowestMPs)
@@ -230,23 +242,42 @@ func MPDist(a, b []float64, m int, o *ComputeOptions) (float64, error) {
 			}
 		}
 
+		if !mp.Opts.Euclidean {
+			return -lowestMPs[0], nil
+		}
 		return lowestMPs[0], nil
 	}
 
-	var maxVal float64
+	var trackVal float64
+	if !mp.Opts.Euclidean {
+		trackVal = 1
+	}
+
 	for _, d := range mp.MP {
-		if d > maxVal {
-			maxVal = d
+		if mp.Opts.Euclidean {
+			if d > trackVal {
+				trackVal = d
+			}
+		} else {
+			if d < trackVal {
+				trackVal = d
+			}
 		}
 	}
 
 	for _, d := range mp.MPB {
-		if d > maxVal {
-			maxVal = d
+		if mp.Opts.Euclidean {
+			if d > trackVal {
+				trackVal = d
+			}
+		} else {
+			if d < trackVal {
+				trackVal = d
+			}
 		}
 	}
 
-	return maxVal, nil
+	return trackVal, nil
 }
 
 type Algo string
@@ -258,8 +289,8 @@ const (
 	AlgoMPX   Algo = "MPX"
 )
 
-// ComputeOptions are parameters to vary the algorithm to compute the matrix profile.
-type ComputeOptions struct {
+// MPOptions are parameters to vary the algorithm to compute the matrix profile.
+type MPOptions struct {
 	Algorithm    Algo    // choose which algorithm to compute the matrix profile
 	Sample       float64 // only applicable to algorithm STAMP
 	Parallelism  int
@@ -267,13 +298,13 @@ type ComputeOptions struct {
 	RemapNegCorr bool // defaults to no remapping. This is used so that highly negatively correlated sequences will show a low distance as well.
 }
 
-// NewComputeOpts returns a default ComputeOptions
-func NewComputeOpts() *ComputeOptions {
+// NewMPOpts returns a default MPOptions
+func NewMPOpts() *MPOptions {
 	p := runtime.NumCPU() * 2
 	if p < 1 {
 		p = 1
 	}
-	return &ComputeOptions{
+	return &MPOptions{
 		Algorithm:   AlgoMPX,
 		Sample:      1.0,
 		Parallelism: p,
@@ -282,20 +313,21 @@ func NewComputeOpts() *ComputeOptions {
 }
 
 // Compute calculate the matrixprofile given a set of input options.
-func (mp *MatrixProfile) Compute(o *ComputeOptions) error {
+func (mp *MatrixProfile) Compute(o *MPOptions) error {
 	if o == nil {
-		o = NewComputeOpts()
+		o = NewMPOpts()
 	}
+	mp.Opts = o
 
 	switch o.Algorithm {
 	case AlgoSTOMP:
-		return mp.stomp(o.Parallelism)
+		return mp.stomp()
 	case AlgoSTAMP:
-		return mp.stamp(o.Sample, o.Parallelism)
+		return mp.stamp()
 	case AlgoSTMP:
 		return mp.stmp()
 	case AlgoMPX:
-		return mp.mpx(o)
+		return mp.mpx()
 	}
 	return nil
 }
@@ -570,9 +602,9 @@ func (mp *MatrixProfile) mergeMPResults(results []chan *mpResult, euclidean bool
 // and provides the current computed matrix profile. 1 represents the exact matrix
 // profile. This should compute far faster at the cost of an approximation of the
 // matrix profile. Stores the matrix profile and matrix profile index in the struct.
-func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
-	if sample <= 0.0 {
-		return fmt.Errorf("must provide a sampling greater than 0 and at most 1, sample: %.3f", sample)
+func (mp *MatrixProfile) stamp() error {
+	if mp.Opts.Sample <= 0.0 {
+		return fmt.Errorf("must provide a sampling greater than 0 and at most 1, sample: %.3f", mp.Opts.Sample)
 	}
 
 	if err := mp.initCaches(); err != nil {
@@ -588,9 +620,9 @@ func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
 
 	randIdx := rand.Perm(len(mp.A) - mp.M + 1)
 
-	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
-	results := make([]chan *mpResult, parallelism)
-	for i := 0; i < parallelism; i++ {
+	batchSize := (len(mp.A)-mp.M+1)/mp.Opts.Parallelism + 1
+	results := make([]chan *mpResult, mp.Opts.Parallelism)
+	for i := 0; i < mp.Opts.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -608,10 +640,10 @@ func (mp *MatrixProfile) stamp(sample float64, parallelism int) error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(parallelism)
-	for batch := 0; batch < parallelism; batch++ {
+	wg.Add(mp.Opts.Parallelism)
+	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
 		go func(idx int) {
-			results[idx] <- mp.stampBatch(idx, batchSize, sample, randIdx, &wg)
+			results[idx] <- mp.stampBatch(idx, batchSize, mp.Opts.Sample, randIdx, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -665,7 +697,7 @@ func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx [
 // correlation can be easily updated for the next sliding window, if the previous window
 // dot product is available. This should also greatly reduce the number of memory
 // allocations needed to compute an arbitrary timeseries length.
-func (mp *MatrixProfile) stomp(parallelism int) error {
+func (mp *MatrixProfile) stomp() error {
 	if err := mp.initCaches(); err != nil {
 		return err
 	}
@@ -677,9 +709,9 @@ func (mp *MatrixProfile) stomp(parallelism int) error {
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	batchSize := (len(mp.A)-mp.M+1)/parallelism + 1
-	results := make([]chan *mpResult, parallelism)
-	for i := 0; i < parallelism; i++ {
+	batchSize := (len(mp.A)-mp.M+1)/mp.Opts.Parallelism + 1
+	results := make([]chan *mpResult, mp.Opts.Parallelism)
+	for i := 0; i < mp.Opts.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -697,8 +729,8 @@ func (mp *MatrixProfile) stomp(parallelism int) error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(parallelism)
-	for batch := 0; batch < parallelism; batch++ {
+	wg.Add(mp.Opts.Parallelism)
+	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
 		go func(idx int) {
 			results[idx] <- mp.stompBatch(idx, batchSize, &wg)
 		}(batch)
@@ -780,7 +812,7 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 	return result
 }
 
-func (mp *MatrixProfile) mpx(o *ComputeOptions) error {
+func (mp *MatrixProfile) mpx() error {
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
 
@@ -824,9 +856,9 @@ func (mp *MatrixProfile) mpx(o *ComputeOptions) error {
 	}
 
 	// setup for AB join
-	batchScheme := util.DiagBatchingScheme(lenA, o.Parallelism)
-	results := make([]chan *mpResult, o.Parallelism)
-	for i := 0; i < o.Parallelism; i++ {
+	batchScheme := util.DiagBatchingScheme(lenA, mp.Opts.Parallelism)
+	results := make([]chan *mpResult, mp.Opts.Parallelism)
+	for i := 0; i < mp.Opts.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -837,21 +869,21 @@ func (mp *MatrixProfile) mpx(o *ComputeOptions) error {
 	var err error
 	done := make(chan bool)
 	go func() {
-		err = mp.mergeMPResults(results, o.Euclidean)
+		err = mp.mergeMPResults(results, mp.Opts.Euclidean)
 		done <- true
 	}()
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(o.Parallelism)
-	for batch := 0; batch < o.Parallelism; batch++ {
+	wg.Add(mp.Opts.Parallelism)
+	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			if mp.SelfJoin {
-				results[batchNum] <- mp.mpxBatch(o, b.Idx, mua, siga, dfa, dga, b.Size, &wg)
+				results[batchNum] <- mp.mpxBatch(b.Idx, mua, siga, dfa, dga, b.Size, &wg)
 			} else {
-				results[batchNum] <- mp.mpxabBatch(o, b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
+				results[batchNum] <- mp.mpxabBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
 			}
 		}(batch)
 	}
@@ -865,9 +897,9 @@ func (mp *MatrixProfile) mpx(o *ComputeOptions) error {
 	}
 
 	// setup for BA join
-	batchScheme = util.DiagBatchingScheme(lenB, o.Parallelism)
-	results = make([]chan *mpResult, o.Parallelism)
-	for i := 0; i < o.Parallelism; i++ {
+	batchScheme = util.DiagBatchingScheme(lenB, mp.Opts.Parallelism)
+	results = make([]chan *mpResult, mp.Opts.Parallelism)
+	for i := 0; i < mp.Opts.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -876,17 +908,17 @@ func (mp *MatrixProfile) mpx(o *ComputeOptions) error {
 	// routines by picking the lowest value in each batch's matrix profile and
 	// updating the matrix profile index.
 	go func() {
-		err = mp.mergeMPResults(results, o.Euclidean)
+		err = mp.mergeMPResults(results, mp.Opts.Euclidean)
 		done <- true
 	}()
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
-	wg.Add(o.Parallelism)
-	for batch := 0; batch < o.Parallelism; batch++ {
+	wg.Add(mp.Opts.Parallelism)
+	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
-			results[batchNum] <- mp.mpxbaBatch(o, b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
+			results[batchNum] <- mp.mpxbaBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -898,7 +930,7 @@ func (mp *MatrixProfile) mpx(o *ComputeOptions) error {
 }
 
 // mpxBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxBatch(o *ComputeOptions, idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	exclZone := 1
 	if mp.M/4 > exclZone {
@@ -937,7 +969,7 @@ func (mp MatrixProfile) mpxBatch(o *ComputeOptions, idx int, mu, sig, df, dg []f
 		for offset := 0; offset < len(mp.A)-mp.M-diag+1; offset++ {
 			c += df[offset]*dg[offset+diag] + df[offset+diag]*dg[offset]
 			c_cmp = c * (sig[offset] * sig[offset+diag])
-			if o.RemapNegCorr && c_cmp < 0 {
+			if mp.Opts.RemapNegCorr && c_cmp < 0 {
 				c_cmp = -c_cmp
 			}
 			if c_cmp > mpr.MP[offset] {
@@ -951,7 +983,7 @@ func (mp MatrixProfile) mpxBatch(o *ComputeOptions, idx int, mu, sig, df, dg []f
 		}
 	}
 
-	if o.Euclidean {
+	if mp.Opts.Euclidean {
 		util.P2E(mpr.MP, mp.M)
 	}
 
@@ -959,7 +991,7 @@ func (mp MatrixProfile) mpxBatch(o *ComputeOptions, idx int, mu, sig, df, dg []f
 }
 
 // mpxabBatch processes a batch set of rows in matrix profile AB join calculation.
-func (mp MatrixProfile) mpxabBatch(o *ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
@@ -1008,7 +1040,7 @@ func (mp MatrixProfile) mpxabBatch(o *ComputeOptions, idx int, mua, siga, dfa, d
 		for offset := 0; offset < offsetMax; offset++ {
 			c += dfb[offset]*dga[offset+diag] + dfa[offset+diag]*dgb[offset]
 			c_cmp = c * (sigb[offset] * siga[offset+diag])
-			if o.RemapNegCorr && c_cmp < 0 {
+			if mp.Opts.RemapNegCorr && c_cmp < 0 {
 				c_cmp = -c_cmp
 			}
 			if c_cmp > mpr.MP[offset+diag] {
@@ -1022,7 +1054,7 @@ func (mp MatrixProfile) mpxabBatch(o *ComputeOptions, idx int, mua, siga, dfa, d
 		}
 	}
 
-	if o.Euclidean {
+	if mp.Opts.Euclidean {
 		util.P2E(mpr.MP, mp.M)
 		util.P2E(mpr.MPB, mp.M)
 	}
@@ -1031,7 +1063,7 @@ func (mp MatrixProfile) mpxabBatch(o *ComputeOptions, idx int, mua, siga, dfa, d
 }
 
 // mpxbaBatch processes a batch set of rows in matrix profile calculation.
-func (mp MatrixProfile) mpxbaBatch(o *ComputeOptions, idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
+func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
 	lenA := len(mp.A) - mp.M + 1
 	lenB := len(mp.B) - mp.M + 1
@@ -1080,7 +1112,7 @@ func (mp MatrixProfile) mpxbaBatch(o *ComputeOptions, idx int, mua, siga, dfa, d
 		for offset := 0; offset < offsetMax; offset++ {
 			c += dfa[offset]*dgb[offset+diag] + dfb[offset+diag]*dga[offset]
 			c_cmp = c * (siga[offset] * sigb[offset+diag])
-			if o.RemapNegCorr && c_cmp < 0 {
+			if mp.Opts.RemapNegCorr && c_cmp < 0 {
 				c_cmp = -c_cmp
 			}
 			if c_cmp > mpr.MP[offset] {
@@ -1094,7 +1126,7 @@ func (mp MatrixProfile) mpxbaBatch(o *ComputeOptions, idx int, mua, siga, dfa, d
 		}
 	}
 
-	if o.Euclidean {
+	if mp.Opts.Euclidean {
 		util.P2E(mpr.MP, mp.M)
 		util.P2E(mpr.MPB, mp.M)
 	}
@@ -1105,10 +1137,10 @@ func (mp MatrixProfile) mpxbaBatch(o *ComputeOptions, idx int, mua, siga, dfa, d
 // Analyze performs the matrix profile computation and discovers various features
 // from the profile such as motifs, discords, and segmentation. The results are
 // visualized and saved into an output file.
-func (mp MatrixProfile) Analyze(co *ComputeOptions, ao *AnalyzeOptions) error {
+func (mp MatrixProfile) Analyze(mo *MPOptions, ao *AnalyzeOptions) error {
 	var err error
 
-	if err = mp.Compute(co); err != nil {
+	if err = mp.Compute(mo); err != nil {
 		return err
 	}
 

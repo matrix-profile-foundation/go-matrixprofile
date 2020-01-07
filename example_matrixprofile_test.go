@@ -34,7 +34,7 @@ func ExampleMatrixProfile_DiscoverSegments() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	o := NewComputeOpts()
+	o := NewMPOpts()
 	o.Algorithm = AlgoSTMP
 
 	if err = mp.Compute(o); err != nil {
@@ -76,7 +76,7 @@ func ExampleMatrixProfile_DiscoverMotifs() {
 	// run the STMP algorithm with self join. The matrix profile
 	// will be stored in mp.MP and the matrix profile index will
 	// be stored in mp.Idx
-	o := NewComputeOpts()
+	o := NewMPOpts()
 	o.Algorithm = AlgoSTMP
 
 	if err = mp.Compute(o); err != nil {

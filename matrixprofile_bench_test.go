@@ -174,7 +174,7 @@ func BenchmarkStmp(b *testing.B) {
 		{"m128_pts1k", 128},
 	}
 
-	o := NewComputeOpts()
+	o := NewMPOpts()
 	o.Algorithm = AlgoSTMP
 
 	for _, bm := range benchmarks {
@@ -205,7 +205,7 @@ func BenchmarkStamp(b *testing.B) {
 		b.Error(err)
 	}
 
-	o := NewComputeOpts()
+	o := NewMPOpts()
 	o.Algorithm = AlgoSTAMP
 	o.Sample = 1.0
 	o.Parallelism = 2
@@ -237,7 +237,7 @@ func BenchmarkStomp(b *testing.B) {
 		{"m1024_p2_pts_16384", 1024, 2, 16384},
 	}
 
-	o := NewComputeOpts()
+	o := NewMPOpts()
 	o.Algorithm = AlgoSTOMP
 
 	for _, bm := range benchmarks {
@@ -276,7 +276,7 @@ func BenchmarkMpx(b *testing.B) {
 		{"m1024_p2_pts_16384", 1024, 2, 16384},
 	}
 
-	o := NewComputeOpts()
+	o := NewMPOpts()
 	o.Algorithm = AlgoMPX
 
 	for _, bm := range benchmarks {
@@ -308,7 +308,7 @@ func BenchmarkUpdate(b *testing.B) {
 		b.Error(err)
 	}
 
-	err = mp.Compute(NewComputeOpts())
+	err = mp.Compute(NewMPOpts())
 	if err != nil {
 		b.Error(err)
 	}

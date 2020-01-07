@@ -9,7 +9,7 @@ import (
 func TestPMPSave(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 	p, err := NewPMP(ts, nil)
-	p.Compute(NewPMPComputeOpts(3, 5))
+	p.Compute(NewPMPOpts(3, 5))
 	filepath := "./mp.json"
 	err = p.Save(filepath, "json")
 	if err != nil {
@@ -23,7 +23,7 @@ func TestPMPSave(t *testing.T) {
 func TestPMPLoad(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 	p, err := NewPMP(ts, nil)
-	p.Compute(NewPMPComputeOpts(3, 5))
+	p.Compute(NewPMPOpts(3, 5))
 	filepath := "./mp.json"
 	if err = p.Save(filepath, "json"); err != nil {
 		t.Errorf("Received error while saving matrix profile, %v", err)
@@ -105,8 +105,8 @@ func TestComputePmp(t *testing.T) {
 			}
 		}
 
-		o := NewPMPComputeOpts(d.lb, d.ub)
-		o.Opts.Parallelism = d.p
+		o := NewPMPOpts(d.lb, d.ub)
+		o.MPOpts.Parallelism = d.p
 		err = p.Compute(o)
 		if err != nil {
 			if d.expectedPMP == nil {

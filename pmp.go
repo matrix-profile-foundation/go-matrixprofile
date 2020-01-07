@@ -19,6 +19,7 @@ type PMP struct {
 	PMP      [][]float64 // pan matrix profile
 	PIdx     [][]int     // pan matrix profile index
 	PWindows []int       // pan matrix windows used and is aligned with PMP and PIdx
+	Opts     *PMPOptions // options used for the computation
 }
 
 // NewPMP creates a new Pan matrix profile
@@ -87,37 +88,37 @@ func (p *PMP) Load(filepath, format string) error {
 	return err
 }
 
-// PMPComputeOptions are parameters to vary the algorithm to compute the pan matrix profile.
-type PMPComputeOptions struct {
+// PMPOptions are parameters to vary the algorithm to compute the pan matrix profile.
+type PMPOptions struct {
 	LowerM int // used for pan matrix profile
 	UpperM int // used for pan matrix profile
-	Opts   *ComputeOptions
+	MPOpts *MPOptions
 }
 
-// NewPMPComputeOpts returns a default PMPComputeOptions
-func NewPMPComputeOpts(l, u int) *PMPComputeOptions {
+// NewPMPOpts returns a default PMPOptions
+func NewPMPOpts(l, u int) *PMPOptions {
 	if l > u {
 		u = l
 	}
-	return &PMPComputeOptions{
+	return &PMPOptions{
 		LowerM: l,
 		UpperM: u,
-		Opts:   NewComputeOpts(),
+		MPOpts: NewMPOpts(),
 	}
 }
 
 // Compute calculate the pan matrixprofile given a set of input options.
-func (p *PMP) Compute(o *PMPComputeOptions) error {
+func (p *PMP) Compute(o *PMPOptions) error {
 	if o == nil {
 		return errors.New("Must provide PMP compute options")
 	}
-
-	return p.pmp(o)
+	p.Opts = o
+	return p.pmp()
 }
 
-func (p *PMP) pmp(o *PMPComputeOptions) error {
-	windows := util.BinarySplit(o.LowerM, o.UpperM)
-	windows = windows[:int(float64(len(windows))*o.Opts.Sample)]
+func (p *PMP) pmp() error {
+	windows := util.BinarySplit(p.Opts.LowerM, p.Opts.UpperM)
+	windows = windows[:int(float64(len(windows))*p.Opts.MPOpts.Sample)]
 	if len(windows) < 1 {
 		return errors.New("Need more than one subsequence window for pmp")
 	}
@@ -126,7 +127,7 @@ func (p *PMP) pmp(o *PMPComputeOptions) error {
 	p.PMP = make([][]float64, len(windows))
 	p.PIdx = make([][]int, len(windows))
 	for i := 0; i < len(windows); i++ {
-		lenA := len(p.A) - (i + o.LowerM) + 1
+		lenA := len(p.A) - (i + p.Opts.LowerM) + 1
 		p.PMP[i] = make([]float64, lenA)
 		p.PIdx[i] = make([]int, lenA)
 		for j := 0; j < lenA; j++ {
@@ -149,18 +150,18 @@ func (p *PMP) pmp(o *PMPComputeOptions) error {
 
 	for _, m := range windows {
 		mp.M = m
-		if err := mp.mpx(o.Opts); err != nil {
+		if err := mp.Compute(p.Opts.MPOpts); err != nil {
 			return err
 		}
-		copy(p.PMP[m-o.LowerM], mp.MP)
-		copy(p.PIdx[m-o.LowerM], mp.Idx)
+		copy(p.PMP[m-p.Opts.LowerM], mp.MP)
+		copy(p.PIdx[m-p.Opts.LowerM], mp.Idx)
 	}
 
 	return nil
 }
 
 // Analyze has not been implemented yet
-func (p PMP) Analyze(co *ComputeOptions, ao *AnalyzeOptions) error {
+func (p PMP) Analyze(co *MPOptions, ao *AnalyzeOptions) error {
 	return errors.New("Analyze for PMP has not been implemented yet.")
 }
 

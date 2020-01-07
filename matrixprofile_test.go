@@ -82,7 +82,7 @@ func TestSave(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	m := 3
 	p, err := New(ts, nil, m)
-	p.Compute(NewComputeOpts())
+	p.Compute(NewMPOpts())
 	filepath := "./mp.json"
 	err = p.Save(filepath, "json")
 	if err != nil {
@@ -97,7 +97,7 @@ func TestLoad(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	m := 3
 	p, err := New(ts, nil, m)
-	p.Compute(NewComputeOpts())
+	p.Compute(NewMPOpts())
 	filepath := "./mp.json"
 	if err = p.Save(filepath, "json"); err != nil {
 		t.Errorf("Received error while saving matrix profile, %v", err)
@@ -424,7 +424,7 @@ func TestComputeStmp(t *testing.T) {
 			continue
 		}
 
-		o := NewComputeOpts()
+		o := NewMPOpts()
 		o.Algorithm = AlgoSTMP
 
 		err = mp.Compute(o)
@@ -488,7 +488,7 @@ func TestComputeStamp(t *testing.T) {
 			continue
 		}
 
-		o := NewComputeOpts()
+		o := NewMPOpts()
 		o.Algorithm = AlgoSTAMP
 		o.Sample = d.sample
 
@@ -572,7 +572,7 @@ func TestComputeStomp(t *testing.T) {
 			}
 		}
 
-		o := NewComputeOpts()
+		o := NewMPOpts()
 		o.Algorithm = AlgoSTOMP
 		err = mp.Compute(o)
 		if err != nil {
@@ -661,7 +661,7 @@ func TestComputeMpx(t *testing.T) {
 			}
 		}
 
-		o := NewComputeOpts()
+		o := NewMPOpts()
 		o.Algorithm = AlgoMPX
 		o.Parallelism = d.p
 		o.RemapNegCorr = d.remap
@@ -720,7 +720,7 @@ func TestUpdate(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	o := NewComputeOpts()
+	o := NewMPOpts()
 	o.Algorithm = AlgoSTOMP
 	if err = mp.Compute(o); err != nil {
 		t.Error(err)
@@ -737,7 +737,7 @@ func TestUpdate(t *testing.T) {
 		copy(outMP, mp.MP)
 		copy(outIdx, mp.Idx)
 
-		if err = mp.stomp(1); err != nil {
+		if err = mp.stomp(); err != nil {
 			t.Error(err)
 			return
 		}
@@ -834,7 +834,7 @@ func TestDiscoverMotifs(t *testing.T) {
 			return
 		}
 
-		o := NewComputeOpts()
+		o := NewMPOpts()
 		o.Algorithm = AlgoSTOMP
 		if err = mp.Compute(o); err != nil {
 			t.Error(err)
