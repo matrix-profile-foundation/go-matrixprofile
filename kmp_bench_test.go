@@ -31,7 +31,7 @@ func setupKData() [][]float64 {
 
 func BenchmarkMStomp(b *testing.B) {
 	sig := setupKData()
-	mp, err := NewK(sig, 25)
+	mp, err := NewKMP(sig, 25)
 	if err != nil {
 		b.Error(err)
 	}

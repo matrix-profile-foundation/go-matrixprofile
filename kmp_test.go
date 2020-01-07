@@ -8,7 +8,7 @@ import (
 	"gonum.org/v1/gonum/fourier"
 )
 
-func TestNewK(t *testing.T) {
+func TestNewKMP(t *testing.T) {
 	testdata := []struct {
 		t           [][]float64
 		m           int
@@ -22,7 +22,7 @@ func TestNewK(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		_, err := NewK(d.t, d.m)
+		_, err := NewKMP(d.t, d.m)
 		if d.expectedErr && err == nil {
 			t.Errorf("Expected an error, but got none for %v", d)
 		}
@@ -34,7 +34,7 @@ func TestNewK(t *testing.T) {
 
 func TestKCrossCorrelate(t *testing.T) {
 	var err error
-	var mp *KMatrixProfile
+	var mp *KMP
 
 	testdata := []struct {
 		t        [][]float64
@@ -55,7 +55,7 @@ func TestKCrossCorrelate(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewK(d.t, d.m)
+		mp, err = NewKMP(d.t, d.m)
 		if err != nil {
 			if d.expected == nil {
 				// Got an error while creating a new matrix profile
@@ -113,7 +113,7 @@ func TestColumnWiseSort(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp := &KMatrixProfile{M: 5, n: 7}
+		mp := &KMP{M: 5, n: 7}
 		mp.columnWiseSort(d.d)
 
 		if len(d.d) != len(d.expectedD) {
@@ -133,7 +133,7 @@ func TestColumnWiseSort(t *testing.T) {
 
 func TestMStomp(t *testing.T) {
 	var err error
-	var mp *KMatrixProfile
+	var mp *KMP
 
 	testdata := []struct {
 		t          [][]float64
@@ -154,7 +154,7 @@ func TestMStomp(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewK(d.t, d.m)
+		mp, err = NewKMP(d.t, d.m)
 		if err != nil {
 			if d.expectedMP == nil {
 				// Got an error while creating a new matrix profile
@@ -198,7 +198,7 @@ func TestMStomp(t *testing.T) {
 func TestKMPSave(t *testing.T) {
 	ts := [][]float64{{1, 2, 3, 4, 5, 6, 7, 8, 9}}
 	m := 3
-	p, err := NewK(ts, m)
+	p, err := NewKMP(ts, m)
 	p.Compute()
 	filepath := "./mp.json"
 	err = p.Save(filepath, "json")
@@ -213,14 +213,14 @@ func TestKMPSave(t *testing.T) {
 func TestKMPLoad(t *testing.T) {
 	ts := [][]float64{{1, 2, 3, 4, 5, 6, 7, 8, 9}}
 	m := 3
-	p, err := NewK(ts, m)
+	p, err := NewKMP(ts, m)
 	p.Compute()
 	filepath := "./mp.json"
 	if err = p.Save(filepath, "json"); err != nil {
 		t.Errorf("Received error while saving matrix profile, %v", err)
 	}
 
-	newP := &KMatrixProfile{}
+	newP := &KMP{}
 	if err = newP.Load(filepath, "json"); err != nil {
 		t.Errorf("Failed to load %s, %v", filepath, err)
 	}

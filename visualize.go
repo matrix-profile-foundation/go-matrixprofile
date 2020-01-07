@@ -3,7 +3,6 @@ package matrixprofile
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -12,33 +11,6 @@ import (
 	"gonum.org/v1/plot/vg/draw"
 	"gonum.org/v1/plot/vg/vgimg"
 )
-
-// Visualize creates a png of the matrix profile given a matrix profile.
-func (mp MatrixProfile) Visualize(fn string, motifs []MotifGroup, discords []int, cac []float64) error {
-	sigPts := points(mp.A, len(mp.A))
-	mpPts := points(mp.MP, len(mp.A))
-	cacPts := points(cac, len(mp.A))
-	motifPts := make([][]plotter.XYs, len(motifs))
-	discordPts := make([]plotter.XYs, len(discords))
-	discordLabels := make([]string, len(discords))
-
-	for i := 0; i < len(motifs); i++ {
-		motifPts[i] = make([]plotter.XYs, len(motifs[i].Idx))
-	}
-
-	for i := 0; i < len(motifs); i++ {
-		for j, idx := range motifs[i].Idx {
-			motifPts[i][j] = points(mp.A[idx:idx+mp.M], mp.M)
-		}
-	}
-
-	for i, idx := range discords {
-		discordPts[i] = points(mp.A[idx:idx+mp.M], mp.M)
-		discordLabels[i] = strconv.Itoa(idx)
-	}
-
-	return plotMP(sigPts, mpPts, cacPts, motifPts, discordPts, discordLabels, fn)
-}
 
 func points(a []float64, n int) plotter.XYs {
 	pts := make(plotter.XYs, n)
@@ -144,22 +116,7 @@ func plotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discord
 	return err
 }
 
-// Visualize creates a png of the k-dimensional matrix profile.
-func (mp KMatrixProfile) Visualize(fn string) error {
-	sigPts := make([]plotter.XYs, len(mp.T))
-	for i := 0; i < len(mp.T); i++ {
-		sigPts[i] = points(mp.T[i], len(mp.T[0]))
-	}
-
-	mpPts := make([]plotter.XYs, len(mp.MP))
-	for i := 0; i < len(mp.MP); i++ {
-		mpPts[i] = points(mp.MP[i], len(mp.T[0]))
-	}
-
-	return mp.plotMP(sigPts, mpPts, fn)
-}
-
-func (mp KMatrixProfile) plotMP(sigPts, mpPts []plotter.XYs, filename string) error {
+func plotKMP(sigPts, mpPts []plotter.XYs, filename string) error {
 	var err error
 
 	rows, cols := len(sigPts)*2, 1
