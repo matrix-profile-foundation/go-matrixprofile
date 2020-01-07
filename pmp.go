@@ -13,13 +13,13 @@ import (
 
 // PMP represents the pan matrix profile
 type PMP struct {
-	A        []float64   // query time series
-	B        []float64   // timeseries to perform full join with
-	SelfJoin bool        // indicates whether a self join is performed with an exclusion zone
-	PMP      [][]float64 // pan matrix profile
-	PIdx     [][]int     // pan matrix profile index
-	PWindows []int       // pan matrix windows used and is aligned with PMP and PIdx
-	Opts     *PMPOptions // options used for the computation
+	A        []float64   `json:"a"`         // query time series
+	B        []float64   `json:"b"`         // timeseries to perform full join with
+	SelfJoin bool        `json:"self_join"` // indicates whether a self join is performed with an exclusion zone
+	PMP      [][]float64 `json:"pmp"`       // pan matrix profile
+	PIdx     [][]int     `json:"ppi"`       // pan matrix profile index
+	PWindows []int       `json:"windows"`   // pan matrix windows used and is aligned with PMP and PIdx
+	Opts     *PMPOptions `json:"options"`   // options used for the computation
 }
 
 // NewPMP creates a new Pan matrix profile
@@ -90,9 +90,9 @@ func (p *PMP) Load(filepath, format string) error {
 
 // PMPOptions are parameters to vary the algorithm to compute the pan matrix profile.
 type PMPOptions struct {
-	LowerM int // used for pan matrix profile
-	UpperM int // used for pan matrix profile
-	MPOpts *MPOptions
+	LowerM int        `json:"lower_m"` // used for pan matrix profile
+	UpperM int        `json:"upper_m"` // used for pan matrix profile
+	MPOpts *MPOptions `json:"mp_options"`
 }
 
 // NewPMPOpts returns a default PMPOptions

@@ -26,22 +26,22 @@ import (
 // for a given timeseries of length N and subsequence length of M. The profile
 // and the profile index are stored here.
 type MatrixProfile struct {
-	A        []float64    // query time series
-	B        []float64    // timeseries to perform full join with
-	AMean    []float64    // sliding mean of a with a window of m each
-	AStd     []float64    // sliding standard deviation of a with a window of m each
-	BMean    []float64    // sliding mean of b with a window of m each
-	BStd     []float64    // sliding standard deviation of b with a window of m each
-	BF       []complex128 // holds an existing calculation of the FFT of b timeseries
-	N        int          // length of the timeseries
-	M        int          // length of a subsequence
-	SelfJoin bool         // indicates whether a self join is performed with an exclusion zone
-	MP       []float64    // matrix profile
-	Idx      []int        // matrix profile index
-	MPB      []float64    // matrix profile for the BA join
-	IdxB     []int        // matrix profile index for the BA join
-	AV       av.AV        // type of annotation vector which defaults to all ones
-	Opts     *MPOptions   // options used for the computation
+	A        []float64    `json:"a"`                 // query time series
+	B        []float64    `json:"b"`                 // timeseries to perform full join with
+	AMean    []float64    `json:"a_mean"`            // sliding mean of a with a window of m each
+	AStd     []float64    `json:"a_std"`             // sliding standard deviation of a with a window of m each
+	BMean    []float64    `json:"b_mean"`            // sliding mean of b with a window of m each
+	BStd     []float64    `json:"b_std"`             // sliding standard deviation of b with a window of m each
+	BF       []complex128 `json:"b_fft"`             // holds an existing calculation of the FFT of b timeseries
+	N        int          `json:"n"`                 // length of the timeseries
+	M        int          `json:"w"`                 // length of a subsequence
+	SelfJoin bool         `json:"self_join"`         // indicates whether a self join is performed with an exclusion zone
+	MP       []float64    `json:"mp"`                // matrix profile
+	Idx      []int        `json:"pi"`                // matrix profile index
+	MPB      []float64    `json:"mp_ba"`             // matrix profile for the BA join
+	IdxB     []int        `json:"pi_ba"`             // matrix profile index for the BA join
+	AV       av.AV        `json:"annotation_vector"` // type of annotation vector which defaults to all ones
+	Opts     *MPOptions   `json:"options"`           // options used for the computation
 }
 
 // New creates a matrix profile struct with a given timeseries length n and
@@ -283,19 +283,19 @@ func MPDist(a, b []float64, m int, o *MPOptions) (float64, error) {
 type Algo string
 
 const (
-	AlgoSTOMP Algo = "STOMP"
-	AlgoSTAMP Algo = "STAMP"
-	AlgoSTMP  Algo = "STMP"
-	AlgoMPX   Algo = "MPX"
+	AlgoSTOMP Algo = "stomp"
+	AlgoSTAMP Algo = "stamp"
+	AlgoSTMP  Algo = "stmp"
+	AlgoMPX   Algo = "mpx"
 )
 
 // MPOptions are parameters to vary the algorithm to compute the matrix profile.
 type MPOptions struct {
-	Algorithm    Algo    // choose which algorithm to compute the matrix profile
-	Sample       float64 // only applicable to algorithm STAMP
-	Parallelism  int
-	Euclidean    bool // defaults to using euclidean distance instead of pearson correlation for matrix profile
-	RemapNegCorr bool // defaults to no remapping. This is used so that highly negatively correlated sequences will show a low distance as well.
+	Algorithm    Algo    `json:"algorithm"`  // choose which algorithm to compute the matrix profile
+	Sample       float64 `json:"sample_pct"` // only applicable to algorithm STAMP
+	Parallelism  int     `json:"parallelism"`
+	Euclidean    bool    `json:"euclidean"`                  // defaults to using euclidean distance instead of pearson correlation for matrix profile
+	RemapNegCorr bool    `json:"remap_negative_correlation"` // defaults to no remapping. This is used so that highly negatively correlated sequences will show a low distance as well.
 }
 
 // NewMPOpts returns a default MPOptions

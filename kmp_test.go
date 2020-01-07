@@ -200,7 +200,7 @@ func TestKMPSave(t *testing.T) {
 	m := 3
 	p, err := NewKMP(ts, m)
 	p.Compute()
-	filepath := "./mp.json"
+	filepath := "./kmp.json"
 	err = p.Save(filepath, "json")
 	if err != nil {
 		t.Errorf("Received error while saving matrix profile, %v", err)
@@ -215,7 +215,7 @@ func TestKMPLoad(t *testing.T) {
 	m := 3
 	p, err := NewKMP(ts, m)
 	p.Compute()
-	filepath := "./mp.json"
+	filepath := "./kmp.json"
 	if err = p.Save(filepath, "json"); err != nil {
 		t.Errorf("Received error while saving matrix profile, %v", err)
 	}

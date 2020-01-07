@@ -10,7 +10,7 @@ func TestPMPSave(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 	p, err := NewPMP(ts, nil)
 	p.Compute(NewPMPOpts(3, 5))
-	filepath := "./mp.json"
+	filepath := "./pmp.json"
 	err = p.Save(filepath, "json")
 	if err != nil {
 		t.Errorf("Received error while saving matrix profile, %v", err)
@@ -24,7 +24,7 @@ func TestPMPLoad(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 	p, err := NewPMP(ts, nil)
 	p.Compute(NewPMPOpts(3, 5))
-	filepath := "./mp.json"
+	filepath := "./pmp.json"
 	if err = p.Save(filepath, "json"); err != nil {
 		t.Errorf("Received error while saving matrix profile, %v", err)
 	}

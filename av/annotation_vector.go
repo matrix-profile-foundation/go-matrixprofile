@@ -11,13 +11,13 @@ import (
 	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 )
 
-type AV int
+type AV string
 
 const (
-	Default    = iota // Default is the default annotation vector of all ones
-	Complexity        // Complexity is the annotation vector that focuses on areas of high "complexity"
-	MeanStd           // MeanStd is the annotation vector focusing on areas where the signal is within a standard deviation of the mean
-	Clipping          // Clipping is the annotation vector reducing the importance of areas showing clipping effects on the positive and negative regime
+	Default    AV = "default"    // Default is the default annotation vector of all ones
+	Complexity AV = "complexity" // Complexity is the annotation vector that focuses on areas of high "complexity"
+	MeanStd    AV = "mean_std"   // MeanStd is the annotation vector focusing on areas where the signal is within a standard deviation of the mean
+	Clipping   AV = "clipping"   // Clipping is the annotation vector reducing the importance of areas showing clipping effects on the positive and negative regime
 )
 
 // Create returns the annotation vector given an input time series and a window size m
@@ -33,7 +33,7 @@ func Create(av AV, ts []float64, m int) ([]float64, error) {
 	case Clipping:
 		avec = makeClipping(ts, m)
 	default:
-		return nil, fmt.Errorf("invalid annotation vector specified with matrix profile, %d", av)
+		return nil, fmt.Errorf("invalid annotation vector specified with matrix profile, %s", av)
 	}
 	return avec, nil
 }
