@@ -263,12 +263,28 @@ func DiagBatchingScheme(l, p int) []Batch {
 
 // P2E converts a slice of pearson correlation values to euclidean distances. This
 // is only valid for z-normalized time series.
-func P2E(mp []float64, m int) {
+func P2E(mp []float64, w int) {
 	for i := 0; i < len(mp); i++ {
 		// caps pearson correlation to 1 in case there are floating point accumulated errors
 		if mp[i] > 1 {
 			mp[i] = 1
 		}
-		mp[i] = math.Sqrt(2 * float64(m) * (1 - mp[i]))
+		mp[i] = math.Sqrt(2 * float64(w) * (1 - mp[i]))
+	}
+}
+
+// E2P converts a slice of euclidean distances to pearson correlation values. This
+// is only valid for z-normalized time series. Negative pearson correlation values will not be
+// discovered
+func E2P(mp []float64, w int) {
+	for i := 0; i < len(mp); i++ {
+		mp[i] = 1 - mp[i]*mp[i]/(2*float64(w))
+		// caps pearson correlation to 1 in case there are floating point accumulated errors
+		if mp[i] > 1 {
+			mp[i] = 1
+		}
+		if mp[i] < 0 {
+			mp[i] = 0
+		}
 	}
 }

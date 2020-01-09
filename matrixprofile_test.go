@@ -41,37 +41,41 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestApplyAV(t *testing.T) {
-	mprof := []float64{4, 6, 10, 2, 1, 0, 1, 2, 0, 0, 1, 2, 6}
-
+func TestApplyAVDefault(t *testing.T) {
 	testdata := []struct {
-		a          []float64
-		w          int
-		av         av.AV
-		expectedMP []float64
+		a []float64
+		w int
 	}{
-		{[]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, 4, av.Default, mprof},
+		{[]float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, 4},
 	}
 
-	var mp MatrixProfile
+	var mp *MatrixProfile
 	var err error
 	var outab []float64
 	for _, d := range testdata {
-		newMP := make([]float64, len(mprof))
-		copy(newMP, mprof)
-		mp = MatrixProfile{A: d.a, W: d.w, MP: newMP, AV: d.av}
+		mp, err = New(d.a, nil, d.w)
+		if err != nil {
+			t.Errorf("%v", err)
+			break
+		}
+		if err = mp.Compute(NewMPOpts()); err != nil {
+			t.Errorf("%v", err)
+			break
+		}
+
+		mp.AV = av.Default
 		outab, _, err = mp.ApplyAV()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if len(outab) != len(d.expectedMP) {
-			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(outab), d)
+		if len(outab) != len(mp.MP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(mp.MP), len(outab), d)
 			break
 		}
 		for i := 0; i < len(outab); i++ {
-			if math.Abs(float64(outab[i]-d.expectedMP[i])) > 1e-7 {
-				t.Errorf("Expected %v,\nbut got\n%v for %+v", d.expectedMP, outab, d)
+			if math.Abs(float64(outab[i]-mp.MP[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for %+v", mp.MP, outab, d)
 				break
 			}
 		}
@@ -775,7 +779,7 @@ func TestDiscoverDiscords(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp := MatrixProfile{A: a, B: a, W: w, MP: d.mp, AV: av.Default}
+		mp := MatrixProfile{A: a, B: a, W: w, MP: d.mp, AV: av.Default, Opts: NewMPOpts()}
 		discords, err := mp.DiscoverDiscords(d.k, d.exzone)
 		if err != nil {
 			t.Errorf("Got error %v on %v", err, d)

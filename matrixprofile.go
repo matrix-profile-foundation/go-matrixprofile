@@ -122,20 +122,34 @@ func applySingleAV(mp, ts []float64, w int, a av.AV) ([]float64, error) {
 // values must be between 0 and 1.
 func (mp MatrixProfile) ApplyAV() ([]float64, []float64, error) {
 	var err error
-	var abmp, bamp []float64
+	abmp := make([]float64, len(mp.MP))
+	bamp := make([]float64, len(mp.MPB))
 
-	abmp, err = applySingleAV(mp.MP, mp.A, mp.W, mp.AV)
+	copy(abmp, mp.MP)
+	copy(bamp, mp.MPB)
+	if !mp.Opts.Euclidean {
+		util.P2E(abmp, mp.W)
+		util.P2E(bamp, mp.W)
+	}
+
+	abmp, err = applySingleAV(abmp, mp.A, mp.W, mp.AV)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	if mp.MPB != nil {
-		bamp, err = applySingleAV(mp.MPB, mp.B, mp.W, mp.AV)
+		bamp, err = applySingleAV(bamp, mp.B, mp.W, mp.AV)
 	}
 
 	if err != nil {
 		return nil, nil, err
 	}
+
+	if !mp.Opts.Euclidean {
+		util.E2P(abmp, mp.W)
+		util.E2P(bamp, mp.W)
+	}
+
 	return abmp, bamp, nil
 }
 
