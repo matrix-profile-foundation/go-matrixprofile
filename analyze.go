@@ -1,8 +1,8 @@
 package matrixprofile
 
-// AnalyzeOptions contains all the parameters needed for basic features to discover from
+// AnalyzeOpts contains all the parameters needed for basic features to discover from
 // a matrix profile. This is currently limited to motif, discord, and segmentation discovery.
-type AnalyzeOptions struct {
+type AnalyzeOpts struct {
 	KMotifs        int     // the top k motifs to find
 	RMotifs        float64 // the max radius to find motifs
 	KDiscords      int     // the top k discords to find
@@ -10,8 +10,8 @@ type AnalyzeOptions struct {
 }
 
 // NewAnalyzeOpts creates a default set of parameters to analyze the matrix profile.
-func NewAnalyzeOpts() *AnalyzeOptions {
-	return &AnalyzeOptions{
+func NewAnalyzeOpts() *AnalyzeOpts {
+	return &AnalyzeOpts{
 		KMotifs:        3,
 		RMotifs:        2,
 		KDiscords:      3,

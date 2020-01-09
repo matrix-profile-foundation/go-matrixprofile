@@ -19,7 +19,7 @@ type PMP struct {
 	PMP      [][]float64 `json:"pmp"`       // pan matrix profile
 	PIdx     [][]int     `json:"ppi"`       // pan matrix profile index
 	PWindows []int       `json:"windows"`   // pan matrix windows used and is aligned with PMP and PIdx
-	Opts     *PMPOptions `json:"options"`   // options used for the computation
+	Opts     *PMPOpts    `json:"options"`   // options used for the computation
 }
 
 // NewPMP creates a new Pan matrix profile
@@ -88,19 +88,19 @@ func (p *PMP) Load(filepath, format string) error {
 	return err
 }
 
-// PMPOptions are parameters to vary the algorithm to compute the pan matrix profile.
-type PMPOptions struct {
-	LowerM int        `json:"lower_m"` // used for pan matrix profile
-	UpperM int        `json:"upper_m"` // used for pan matrix profile
-	MPOpts *MPOptions `json:"mp_options"`
+// PMPOpts are parameters to vary the algorithm to compute the pan matrix profile.
+type PMPOpts struct {
+	LowerM int     `json:"lower_m"` // used for pan matrix profile
+	UpperM int     `json:"upper_m"` // used for pan matrix profile
+	MPOpts *MPOpts `json:"mp_options"`
 }
 
-// NewPMPOpts returns a default PMPOptions
-func NewPMPOpts(l, u int) *PMPOptions {
+// NewPMPOpts returns a default PMPOpts
+func NewPMPOpts(l, u int) *PMPOpts {
 	if l > u {
 		u = l
 	}
-	return &PMPOptions{
+	return &PMPOpts{
 		LowerM: l,
 		UpperM: u,
 		MPOpts: NewMPOpts(),
@@ -108,7 +108,7 @@ func NewPMPOpts(l, u int) *PMPOptions {
 }
 
 // Compute calculate the pan matrixprofile given a set of input options.
-func (p *PMP) Compute(o *PMPOptions) error {
+func (p *PMP) Compute(o *PMPOpts) error {
 	if o == nil {
 		return errors.New("Must provide PMP compute options")
 	}
@@ -161,7 +161,7 @@ func (p *PMP) pmp() error {
 }
 
 // Analyze has not been implemented yet
-func (p PMP) Analyze(co *MPOptions, ao *AnalyzeOptions) error {
+func (p PMP) Analyze(co *MPOpts, ao *AnalyzeOpts) error {
 	return errors.New("Analyze for PMP has not been implemented yet.")
 }
 

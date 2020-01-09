@@ -267,7 +267,7 @@ func (k KMP) columnWiseCumSum(D [][]float64) {
 }
 
 // Analyze has not been implemented yet
-func (k KMP) Analyze(mo *MPOptions, ao *AnalyzeOptions) error {
+func (k KMP) Analyze(mo *MPOpts, ao *AnalyzeOpts) error {
 	return errors.New("Analyze for KMP has not been implemented yet.")
 }
 

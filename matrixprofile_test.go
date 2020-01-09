@@ -45,7 +45,7 @@ func TestApplyAV(t *testing.T) {
 	mprof := []float64{4, 6, 10, 2, 1, 0, 1, 2, 0, 0, 1, 2, 6}
 
 	testdata := []struct {
-		b          []float64
+		a          []float64
 		w          int
 		av         av.AV
 		expectedMP []float64
@@ -55,23 +55,23 @@ func TestApplyAV(t *testing.T) {
 
 	var mp MatrixProfile
 	var err error
-	var out []float64
+	var outab []float64
 	for _, d := range testdata {
 		newMP := make([]float64, len(mprof))
 		copy(newMP, mprof)
-		mp = MatrixProfile{B: d.b, W: d.w, MP: newMP, AV: d.av}
-		out, err = mp.ApplyAV()
+		mp = MatrixProfile{A: d.a, W: d.w, MP: newMP, AV: d.av}
+		outab, _, err = mp.ApplyAV()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if len(out) != len(d.expectedMP) {
-			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(out), d)
+		if len(outab) != len(d.expectedMP) {
+			t.Errorf("Expected %d elements, but got %d, %+v", len(d.expectedMP), len(outab), d)
 			break
 		}
-		for i := 0; i < len(out); i++ {
-			if math.Abs(float64(out[i]-d.expectedMP[i])) > 1e-7 {
-				t.Errorf("Expected %v,\nbut got\n%v for %+v", d.expectedMP, out, d)
+		for i := 0; i < len(outab); i++ {
+			if math.Abs(float64(outab[i]-d.expectedMP[i])) > 1e-7 {
+				t.Errorf("Expected %v,\nbut got\n%v for %+v", d.expectedMP, outab, d)
 				break
 			}
 		}

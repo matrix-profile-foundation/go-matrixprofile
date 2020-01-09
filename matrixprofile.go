@@ -41,7 +41,7 @@ type MatrixProfile struct {
 	MPB      []float64    `json:"mp_ba"`             // matrix profile for the BA join
 	IdxB     []int        `json:"pi_ba"`             // matrix profile index for the BA join
 	AV       av.AV        `json:"annotation_vector"` // type of annotation vector which defaults to all ones
-	Opts     *MPOptions   `json:"options"`           // options used for the computation
+	Opts     *MPOpts      `json:"options"`           // options used for the computation
 }
 
 // New creates a matrix profile struct with a given timeseries length n and
@@ -83,21 +83,19 @@ func New(a, b []float64, w int) (*MatrixProfile, error) {
 	return &mp, nil
 }
 
-// ApplyAV applies an annotation vector to the current matrix profile. Annotation vector
-// values must be between 0 and 1.
-func (mp MatrixProfile) ApplyAV() ([]float64, error) {
-	avec, err := av.Create(mp.AV, mp.B, mp.W)
+func applySingleAV(mp, ts []float64, w int, a av.AV) ([]float64, error) {
+	avec, err := av.Create(a, ts, w)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(avec) != len(mp.MP) {
-		return nil, fmt.Errorf("annotation vector length, %d, does not match matrix profile length, %d", len(avec), len(mp.MP))
+	if len(avec) != len(mp) {
+		return nil, fmt.Errorf("annotation vector length, %d, does not match matrix profile length, %d", len(avec), len(mp))
 	}
 
 	// find the maximum matrix profile value
 	maxMP := 0.0
-	for _, val := range mp.MP {
+	for _, val := range mp {
 		if val > maxMP {
 			maxMP = val
 		}
@@ -112,12 +110,33 @@ func (mp MatrixProfile) ApplyAV() ([]float64, error) {
 
 	// applies the matrix profile correction. 1 results in no change to the matrix profile and
 	// 0 results in lifting the current matrix profile value by the maximum matrix profile value
-	out := make([]float64, len(mp.MP))
+	out := make([]float64, len(mp))
 	for idx, val := range avec {
-		out[idx] = mp.MP[idx] + (1-val)*maxMP
+		out[idx] = mp[idx] + (1-val)*maxMP
 	}
 
 	return out, nil
+}
+
+// ApplyAV applies an annotation vector to the current matrix profile. Annotation vector
+// values must be between 0 and 1.
+func (mp MatrixProfile) ApplyAV() ([]float64, []float64, error) {
+	var err error
+	var abmp, bamp []float64
+
+	abmp, err = applySingleAV(mp.MP, mp.A, mp.W, mp.AV)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if mp.MPB != nil {
+		bamp, err = applySingleAV(mp.MPB, mp.B, mp.W, mp.AV)
+	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+	return abmp, bamp, nil
 }
 
 // Save will save the current matrix profile struct to disk
@@ -191,25 +210,47 @@ func (m *mpVals) Pop() interface{} {
 	return x
 }
 
+type MPDistOpts struct {
+	AV   av.AV
+	Opts *MPOpts
+}
+
+func NewMPDistOpts() *MPDistOpts {
+	return &MPDistOpts{
+		AV:   av.Default,
+		Opts: NewMPOpts(),
+	}
+}
+
 // MPDist computes the matrix profile distance measure between a and b with a
 // subsequence window of m.
-func MPDist(a, b []float64, m int, o *MPOptions) (float64, error) {
-	mp, err := New(a, b, m)
+func MPDist(a, b []float64, w int, o *MPDistOpts) (float64, error) {
+	if o == nil {
+		o = NewMPDistOpts()
+	}
+
+	mp, err := New(a, b, w)
 	if err != nil {
 		return 0, err
 	}
 
-	if err = mp.Compute(o); err != nil {
+	if err = mp.Compute(o.Opts); err != nil {
 		return 0, nil
 	}
+
+	mpab, mpba, err := mp.ApplyAV()
+	if err != nil {
+		return 0, nil
+	}
+
 	thresh := 0.05
 	k := int(thresh * float64(len(a)+len(b)))
-	mpABBASize := len(mp.MP) + len(mp.MPB)
+	mpABBASize := len(mpab) + len(mpba)
 
 	if k < mpABBASize {
 		var lowestMPs mpVals
 		heap.Init(&lowestMPs)
-		for _, d := range mp.MP {
+		for _, d := range mpab {
 			// since this is a max heap and correlations go from 0-1 we need high correlations
 			// to stay in the heap with the poorest correlation at the root.
 			if !mp.Opts.Euclidean {
@@ -225,7 +266,7 @@ func MPDist(a, b []float64, m int, o *MPOptions) (float64, error) {
 			}
 		}
 
-		for _, d := range mp.MPB {
+		for _, d := range mpba {
 			// since this is a max heap and correlations go from 0-1 we need high correlations
 			// to stay in the heap with the poorest correlation at the root.
 			if !mp.Opts.Euclidean {
@@ -289,8 +330,8 @@ const (
 	AlgoMPX   Algo = "mpx"
 )
 
-// MPOptions are parameters to vary the algorithm to compute the matrix profile.
-type MPOptions struct {
+// MPOpts are parameters to vary the algorithm to compute the matrix profile.
+type MPOpts struct {
 	Algorithm    Algo    `json:"algorithm"`  // choose which algorithm to compute the matrix profile
 	Sample       float64 `json:"sample_pct"` // only applicable to algorithm STAMP
 	Parallelism  int     `json:"parallelism"`
@@ -298,13 +339,13 @@ type MPOptions struct {
 	RemapNegCorr bool    `json:"remap_negative_correlation"` // defaults to no remapping. This is used so that highly negatively correlated sequences will show a low distance as well.
 }
 
-// NewMPOpts returns a default MPOptions
-func NewMPOpts() *MPOptions {
+// NewMPOpts returns a default MPOpts
+func NewMPOpts() *MPOpts {
 	p := runtime.NumCPU() * 2
 	if p < 1 {
 		p = 1
 	}
-	return &MPOptions{
+	return &MPOpts{
 		Algorithm:   AlgoMPX,
 		Sample:      1.0,
 		Parallelism: p,
@@ -313,7 +354,7 @@ func NewMPOpts() *MPOptions {
 }
 
 // Compute calculate the matrixprofile given a set of input options.
-func (mp *MatrixProfile) Compute(o *MPOptions) error {
+func (mp *MatrixProfile) Compute(o *MPOpts) error {
 	if o == nil {
 		o = NewMPOpts()
 	}
@@ -1137,7 +1178,7 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 // Analyze performs the matrix profile computation and discovers various features
 // from the profile such as motifs, discords, and segmentation. The results are
 // visualized and saved into an output file.
-func (mp MatrixProfile) Analyze(mo *MPOptions, ao *AnalyzeOptions) error {
+func (mp MatrixProfile) Analyze(mo *MPOpts, ao *AnalyzeOpts) error {
 	var err error
 
 	if err = mp.Compute(mo); err != nil {
@@ -1174,7 +1215,7 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 
 	motifs := make([]MotifGroup, k)
 
-	mpCurrent, err := mp.ApplyAV()
+	mpCurrent, _, err := mp.ApplyAV()
 	if err != nil {
 		return nil, err
 	}
@@ -1265,7 +1306,7 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 // matrix profile. Each discovery of a discord will apply an exclusion zone around
 // the found index so that new discords can be discovered.
 func (mp MatrixProfile) DiscoverDiscords(k int, exclusionZone int) ([]int, error) {
-	mpCurrent, err := mp.ApplyAV()
+	mpCurrent, _, err := mp.ApplyAV()
 	if err != nil {
 		return nil, err
 	}
