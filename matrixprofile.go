@@ -23,7 +23,7 @@ import (
 )
 
 // MatrixProfile is a struct that tracks the current matrix profile computation
-// for a given timeseries of length N and subsequence length of M. The profile
+// for a given timeseries of length N and subsequence length of W. The profile
 // and the profile index are stored here.
 type MatrixProfile struct {
 	A        []float64    `json:"a"`                 // query time series
@@ -34,7 +34,7 @@ type MatrixProfile struct {
 	BStd     []float64    `json:"b_std"`             // sliding standard deviation of b with a window of m each
 	BF       []complex128 `json:"b_fft"`             // holds an existing calculation of the FFT of b timeseries
 	N        int          `json:"n"`                 // length of the timeseries
-	M        int          `json:"w"`                 // length of a subsequence
+	W        int          `json:"w"`                 // length of a subsequence
 	SelfJoin bool         `json:"self_join"`         // indicates whether a self join is performed with an exclusion zone
 	MP       []float64    `json:"mp"`                // matrix profile
 	Idx      []int        `json:"pi"`                // matrix profile index
@@ -48,7 +48,7 @@ type MatrixProfile struct {
 // subsequence length of m. The first slice, a, is used as the initial
 // timeseries to join with the second, b. If b is nil, then the matrix profile
 // assumes a self join on the first timeseries.
-func New(a, b []float64, m int) (*MatrixProfile, error) {
+func New(a, b []float64, w int) (*MatrixProfile, error) {
 	if a == nil || len(a) == 0 {
 		return nil, fmt.Errorf("first slice is nil or has a length of 0")
 	}
@@ -59,7 +59,7 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 
 	mp := MatrixProfile{
 		A: a,
-		M: m,
+		W: w,
 		N: len(b),
 	}
 	if b == nil {
@@ -70,11 +70,11 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 		mp.B = b
 	}
 
-	if mp.M > len(mp.A) || mp.M > len(mp.B) {
+	if mp.W > len(mp.A) || mp.W > len(mp.B) {
 		return nil, fmt.Errorf("subsequence length must be less than the timeseries")
 	}
 
-	if mp.M < 2 {
+	if mp.W < 2 {
 		return nil, fmt.Errorf("subsequence length must be at least 2")
 	}
 
@@ -86,7 +86,7 @@ func New(a, b []float64, m int) (*MatrixProfile, error) {
 // ApplyAV applies an annotation vector to the current matrix profile. Annotation vector
 // values must be between 0 and 1.
 func (mp MatrixProfile) ApplyAV() ([]float64, error) {
-	avec, err := av.Create(mp.AV, mp.B, mp.M)
+	avec, err := av.Create(mp.AV, mp.B, mp.W)
 	if err != nil {
 		return nil, err
 	}
@@ -338,12 +338,12 @@ func (mp *MatrixProfile) initCaches() error {
 	var err error
 	// precompute the mean and standard deviation for each window of size m for all
 	// sliding windows across the b timeseries
-	mp.BMean, mp.BStd, err = util.MovMeanStd(mp.B, mp.M)
+	mp.BMean, mp.BStd, err = util.MovMeanStd(mp.B, mp.W)
 	if err != nil {
 		return err
 	}
 
-	mp.AMean, mp.AStd, err = util.MovMeanStd(mp.A, mp.M)
+	mp.AMean, mp.AStd, err = util.MovMeanStd(mp.A, mp.W)
 	if err != nil {
 		return err
 	}
@@ -364,7 +364,7 @@ func (mp *MatrixProfile) initCaches() error {
 func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 {
 	qpad := make([]float64, mp.N)
 	for i := 0; i < len(q); i++ {
-		qpad[i] = q[mp.M-i-1]
+		qpad[i] = q[mp.W-i-1]
 	}
 	qf := fft.Coefficients(nil, qpad)
 
@@ -376,10 +376,10 @@ func (mp MatrixProfile) crossCorrelate(q []float64, fft *fourier.FFT) []float64 
 
 	dot := fft.Sequence(nil, qf)
 
-	for i := 0; i < mp.N-mp.M+1; i++ {
-		dot[mp.M-1+i] = dot[mp.M-1+i] / float64(mp.N)
+	for i := 0; i < mp.N-mp.W+1; i++ {
+		dot[mp.W-1+i] = dot[mp.W-1+i] / float64(mp.N)
 	}
-	return dot[mp.M-1:]
+	return dot[mp.W-1:]
 }
 
 // mass calculates the Mueen's algorithm for similarity search (MASS)
@@ -395,7 +395,7 @@ func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) e
 
 	// converting cross correlation value to euclidian distance
 	for i := 0; i < len(dot); i++ {
-		profile[i] = math.Sqrt(math.Abs(2 * (float64(mp.M) - (dot[i] / mp.BStd[i]))))
+		profile[i] = math.Sqrt(math.Abs(2 * (float64(mp.W) - (dot[i] / mp.BStd[i]))))
 	}
 	return nil
 }
@@ -405,17 +405,17 @@ func (mp MatrixProfile) mass(q []float64, profile []float64, fft *fourier.FFT) e
 // area for trivial nearest neighbors. Writes the euclidean distance between
 // the specified subsequence in mp.A with each subsequence in mp.B to profile
 func (mp MatrixProfile) distanceProfile(idx int, profile []float64, fft *fourier.FFT) error {
-	if idx > len(mp.A)-mp.M {
-		return fmt.Errorf("provided index  %d is beyond the length of timeseries %d minus the subsequence length %d", idx, len(mp.A), mp.M)
+	if idx > len(mp.A)-mp.W {
+		return fmt.Errorf("provided index  %d is beyond the length of timeseries %d minus the subsequence length %d", idx, len(mp.A), mp.W)
 	}
 
-	if err := mp.mass(mp.A[idx:idx+mp.M], profile, fft); err != nil {
+	if err := mp.mass(mp.A[idx:idx+mp.W], profile, fft); err != nil {
 		return err
 	}
 
 	// sets the distance in the exclusion zone to +Inf
 	if mp.SelfJoin {
-		util.ApplyExclusionZone(profile, idx, mp.M/2)
+		util.ApplyExclusionZone(profile, idx, mp.W/2)
 	}
 	return nil
 }
@@ -424,8 +424,8 @@ func (mp MatrixProfile) distanceProfile(idx int, profile []float64, fft *fourier
 // distances and normalizes the output. Writes results back into the profile slice
 // of floats representing the distance profile.
 func (mp MatrixProfile) calculateDistanceProfile(dot []float64, idx int, profile []float64) error {
-	if idx > len(mp.A)-mp.M {
-		return fmt.Errorf("provided index %d is beyond the length of timeseries a %d minus the subsequence length %d", idx, len(mp.A), mp.M)
+	if idx > len(mp.A)-mp.W {
+		return fmt.Errorf("provided index %d is beyond the length of timeseries a %d minus the subsequence length %d", idx, len(mp.A), mp.W)
 	}
 
 	if len(profile) != len(dot) {
@@ -434,12 +434,12 @@ func (mp MatrixProfile) calculateDistanceProfile(dot []float64, idx int, profile
 
 	// converting cross correlation value to euclidian distance
 	for i := 0; i < len(dot); i++ {
-		profile[i] = math.Sqrt(2 * float64(mp.M) * math.Abs(1-(dot[i]-float64(mp.M)*mp.BMean[i]*mp.AMean[idx])/(float64(mp.M)*mp.BStd[i]*mp.AStd[idx])))
+		profile[i] = math.Sqrt(2 * float64(mp.W) * math.Abs(1-(dot[i]-float64(mp.W)*mp.BMean[i]*mp.AMean[idx])/(float64(mp.W)*mp.BStd[i]*mp.AStd[idx])))
 	}
 
 	if mp.SelfJoin {
 		// sets the distance in the exclusion zone to +Inf
-		util.ApplyExclusionZone(profile, idx, mp.M/2)
+		util.ApplyExclusionZone(profile, idx, mp.W/2)
 	}
 	return nil
 }
@@ -453,18 +453,18 @@ func (mp *MatrixProfile) stmp() error {
 		return err
 	}
 
-	mp.MP = make([]float64, mp.N-mp.M+1)
-	mp.Idx = make([]int, mp.N-mp.M+1)
+	mp.MP = make([]float64, mp.N-mp.W+1)
+	mp.Idx = make([]int, mp.N-mp.W+1)
 	for i := 0; i < len(mp.MP); i++ {
 		mp.MP[i] = math.Inf(1)
 		mp.Idx[i] = math.MaxInt64
 	}
 
 	var err error
-	profile := make([]float64, mp.N-mp.M+1)
+	profile := make([]float64, mp.N-mp.W+1)
 
 	fft := fourier.NewFFT(mp.N)
-	for i := 0; i < mp.N-mp.M+1; i++ {
+	for i := 0; i < mp.N-mp.W+1; i++ {
 		if err = mp.distanceProfile(i, profile, fft); err != nil {
 			return err
 		}
@@ -507,7 +507,7 @@ func (mp *MatrixProfile) Update(newValues []float64) error {
 		// only compute the last distance profile
 		profile = make([]float64, len(mp.MP))
 		fft := fourier.NewFFT(mp.N)
-		if err = mp.distanceProfile(len(mp.A)-mp.M, profile, fft); err != nil {
+		if err = mp.distanceProfile(len(mp.A)-mp.W, profile, fft); err != nil {
 			return err
 		}
 
@@ -516,15 +516,15 @@ func (mp *MatrixProfile) Update(newValues []float64) error {
 		for j := 0; j < len(profile)-1; j++ {
 			if profile[j] <= mp.MP[j] {
 				mp.MP[j] = profile[j]
-				mp.Idx[j] = mp.N - mp.M
+				mp.Idx[j] = mp.N - mp.W
 			}
 			if profile[j] < minVal {
 				minVal = profile[j]
 				minIdx = j
 			}
 		}
-		mp.MP[mp.N-mp.M] = minVal
-		mp.Idx[mp.N-mp.M] = minIdx
+		mp.MP[mp.N-mp.W] = minVal
+		mp.Idx[mp.N-mp.W] = minIdx
 	}
 	return nil
 }
@@ -611,16 +611,16 @@ func (mp *MatrixProfile) stamp() error {
 		return err
 	}
 
-	mp.MP = make([]float64, mp.N-mp.M+1)
-	mp.Idx = make([]int, mp.N-mp.M+1)
+	mp.MP = make([]float64, mp.N-mp.W+1)
+	mp.Idx = make([]int, mp.N-mp.W+1)
 	for i := 0; i < len(mp.MP); i++ {
 		mp.MP[i] = math.Inf(1)
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	randIdx := rand.Perm(len(mp.A) - mp.M + 1)
+	randIdx := rand.Perm(len(mp.A) - mp.W + 1)
 
-	batchSize := (len(mp.A)-mp.M+1)/mp.Opts.Parallelism + 1
+	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.Parallelism + 1
 	results := make([]chan *mpResult, mp.Opts.Parallelism)
 	for i := 0; i < mp.Opts.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
@@ -657,15 +657,15 @@ func (mp *MatrixProfile) stamp() error {
 // stampBatch processes a batch set of rows in a matrix profile calculation
 func (mp MatrixProfile) stampBatch(idx, batchSize int, sample float64, randIdx []int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
-	if idx*batchSize+mp.M > len(mp.A) {
+	if idx*batchSize+mp.W > len(mp.A) {
 		// got an index larger than mp.A so ignore
 		return &mpResult{}
 	}
 
 	// initialize this batch's matrix profile results
 	result := &mpResult{
-		MP:  make([]float64, mp.N-mp.M+1),
-		Idx: make([]int, mp.N-mp.M+1),
+		MP:  make([]float64, mp.N-mp.W+1),
+		Idx: make([]int, mp.N-mp.W+1),
 	}
 	for i := 0; i < len(mp.MP); i++ {
 		result.MP[i] = math.Inf(1)
@@ -702,14 +702,14 @@ func (mp *MatrixProfile) stomp() error {
 		return err
 	}
 
-	mp.MP = make([]float64, mp.N-mp.M+1)
-	mp.Idx = make([]int, mp.N-mp.M+1)
+	mp.MP = make([]float64, mp.N-mp.W+1)
+	mp.Idx = make([]int, mp.N-mp.W+1)
 	for i := 0; i < len(mp.MP); i++ {
 		mp.MP[i] = math.Inf(1)
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	batchSize := (len(mp.A)-mp.M+1)/mp.Opts.Parallelism + 1
+	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.Parallelism + 1
 	results := make([]chan *mpResult, mp.Opts.Parallelism)
 	for i := 0; i < mp.Opts.Parallelism; i++ {
 		results[i] = make(chan *mpResult)
@@ -750,14 +750,14 @@ func (mp *MatrixProfile) stomp() error {
 // dot product.
 func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
-	if idx*batchSize+mp.M > len(mp.A) {
+	if idx*batchSize+mp.W > len(mp.A) {
 		// got an index larger than mp.A so ignore
 		return &mpResult{}
 	}
 
 	// compute for this batch the first row's sliding dot product
 	fft := fourier.NewFFT(mp.N)
-	dot := mp.crossCorrelate(mp.A[idx*batchSize:idx*batchSize+mp.M], fft)
+	dot := mp.crossCorrelate(mp.A[idx*batchSize:idx*batchSize+mp.W], fft)
 
 	profile := make([]float64, len(dot))
 	var err error
@@ -767,8 +767,8 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 
 	// initialize this batch's matrix profile results
 	result := &mpResult{
-		MP:  make([]float64, mp.N-mp.M+1),
-		Idx: make([]int, mp.N-mp.M+1),
+		MP:  make([]float64, mp.N-mp.W+1),
+		Idx: make([]int, mp.N-mp.W+1),
 	}
 
 	copy(result.MP, profile)
@@ -780,20 +780,20 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 	// profile index
 	var nextDotZero float64
 	for i := 1; i < batchSize; i++ {
-		if idx*batchSize+i-1 >= len(mp.A) || idx*batchSize+i+mp.M-1 >= len(mp.A) {
+		if idx*batchSize+i-1 >= len(mp.A) || idx*batchSize+i+mp.W-1 >= len(mp.A) {
 			// looking for an index beyond the length of mp.A so ignore and move one
 			// with the current processed matrix profile
 			break
 		}
-		for j := mp.N - mp.M; j > 0; j-- {
-			dot[j] = dot[j-1] - mp.B[j-1]*mp.A[idx*batchSize+i-1] + mp.B[j+mp.M-1]*mp.A[idx*batchSize+i+mp.M-1]
+		for j := mp.N - mp.W; j > 0; j-- {
+			dot[j] = dot[j-1] - mp.B[j-1]*mp.A[idx*batchSize+i-1] + mp.B[j+mp.W-1]*mp.A[idx*batchSize+i+mp.W-1]
 		}
 
 		// recompute the first cross correlation since the algorithm is only valid for
 		// points after it. Previous optimization of using a precomputed cache ONLY applies
 		// if we're doing a self-join and is invalidated with AB-joins of different time series
 		nextDotZero = 0
-		for k := 0; k < mp.M; k++ {
+		for k := 0; k < mp.W; k++ {
 			nextDotZero += mp.A[idx*batchSize+i+k] * mp.B[k]
 		}
 		dot[0] = nextDotZero
@@ -813,8 +813,8 @@ func (mp MatrixProfile) stompBatch(idx, batchSize int, wg *sync.WaitGroup) *mpRe
 }
 
 func (mp *MatrixProfile) mpx() error {
-	lenA := len(mp.A) - mp.M + 1
-	lenB := len(mp.B) - mp.M + 1
+	lenA := len(mp.A) - mp.W + 1
+	lenB := len(mp.B) - mp.W + 1
 
 	mp.MP = make([]float64, lenA)
 	mp.Idx = make([]int, lenA)
@@ -832,17 +832,17 @@ func (mp *MatrixProfile) mpx() error {
 		}
 	}
 
-	mua, siga := util.MuInvN(mp.A, mp.M)
+	mua, siga := util.MuInvN(mp.A, mp.W)
 	mub, sigb := mua, siga
 	if !mp.SelfJoin {
-		mub, sigb = util.MuInvN(mp.B, mp.M)
+		mub, sigb = util.MuInvN(mp.B, mp.W)
 	}
 
 	dfa := make([]float64, lenA)
 	dga := make([]float64, lenA)
 	for i := 0; i < lenA-1; i++ {
-		dfa[i+1] = 0.5 * (mp.A[mp.M+i] - mp.A[i])
-		dga[i+1] = (mp.A[mp.M+i] - mua[1+i]) + (mp.A[i] - mua[i])
+		dfa[i+1] = 0.5 * (mp.A[mp.W+i] - mp.A[i])
+		dga[i+1] = (mp.A[mp.W+i] - mua[1+i]) + (mp.A[i] - mua[i])
 	}
 
 	dfb, dgb := dfa, dga
@@ -850,8 +850,8 @@ func (mp *MatrixProfile) mpx() error {
 		dfb = make([]float64, lenB)
 		dgb = make([]float64, lenB)
 		for i := 0; i < lenB-1; i++ {
-			dfb[i+1] = 0.5 * (mp.B[mp.M+i] - mp.B[i])
-			dgb[i+1] = (mp.B[mp.M+i] - mub[1+i]) + (mp.B[i] - mub[i])
+			dfb[i+1] = 0.5 * (mp.B[mp.W+i] - mp.B[i])
+			dgb[i+1] = (mp.B[mp.W+i] - mub[1+i]) + (mp.B[i] - mub[i])
 		}
 	}
 
@@ -932,41 +932,41 @@ func (mp *MatrixProfile) mpx() error {
 // mpxBatch processes a batch set of rows in matrix profile calculation.
 func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
-	exclZone := 1
-	if mp.M/4 > exclZone {
-		exclZone = mp.M / 4
+	exclZone := 1 // for seljoin we should at least get rid of neighboring points
+	if mp.W/4 > exclZone {
+		exclZone = mp.W / 4
 	}
-	if idx+exclZone > len(mp.A)-mp.M+1 {
+	if idx+exclZone > len(mp.A)-mp.W+1 {
 		// got an index larger than max lag so ignore
 		return &mpResult{}
 	}
 
 	mpr := &mpResult{
-		MP:  make([]float64, len(mp.A)-mp.M+1),
-		Idx: make([]int, len(mp.A)-mp.M+1),
+		MP:  make([]float64, len(mp.A)-mp.W+1),
+		Idx: make([]int, len(mp.A)-mp.W+1),
 	}
 	for i := 0; i < len(mpr.MP); i++ {
 		mpr.MP[i] = -1
 	}
 
 	var c, c_cmp float64
-	s1 := make([]float64, mp.M)
-	s2 := make([]float64, mp.M)
+	s1 := make([]float64, mp.W)
+	s2 := make([]float64, mp.W)
 	for diag := idx + exclZone; diag < idx+batchSize+exclZone; diag++ {
-		if diag >= len(mp.A)-mp.M+1 {
+		if diag >= len(mp.A)-mp.W+1 {
 			break
 		}
 
-		//for i := 0; i < mp.M; i++ {
+		//for i := 0; i < mp.W; i++ {
 		//	c += (mp.A[diag+i] - mu[diag]) * (mp.A[i] - mu[0])
 		//}
-		copy(s1, mp.A[diag:diag+mp.M])
-		copy(s2, mp.A[:mp.M])
+		copy(s1, mp.A[diag:diag+mp.W])
+		copy(s2, mp.A[:mp.W])
 		floats.AddConst(-mu[diag], s1)
 		floats.AddConst(mu[0], s2)
 		c = floats.Dot(s1, s2)
 
-		for offset := 0; offset < len(mp.A)-mp.M-diag+1; offset++ {
+		for offset := 0; offset < len(mp.A)-mp.W-diag+1; offset++ {
 			c += df[offset]*dg[offset+diag] + df[offset+diag]*dg[offset]
 			c_cmp = c * (sig[offset] * sig[offset+diag])
 			if mp.Opts.RemapNegCorr && c_cmp < 0 {
@@ -984,7 +984,7 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize i
 	}
 
 	if mp.Opts.Euclidean {
-		util.P2E(mpr.MP, mp.M)
+		util.P2E(mpr.MP, mp.W)
 	}
 
 	return mpr
@@ -993,8 +993,8 @@ func (mp MatrixProfile) mpxBatch(idx int, mu, sig, df, dg []float64, batchSize i
 // mpxabBatch processes a batch set of rows in matrix profile AB join calculation.
 func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
-	lenA := len(mp.A) - mp.M + 1
-	lenB := len(mp.B) - mp.M + 1
+	lenA := len(mp.A) - mp.W + 1
+	lenB := len(mp.B) - mp.W + 1
 
 	if idx > lenA {
 		// got an index larger than max lag so ignore
@@ -1016,18 +1016,18 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 
 	var c, c_cmp float64
 	var offsetMax int
-	s1 := make([]float64, mp.M)
-	s2 := make([]float64, mp.M)
+	s1 := make([]float64, mp.W)
+	s2 := make([]float64, mp.W)
 	for diag := idx; diag < idx+batchSize; diag++ {
 		if diag >= lenA {
 			break
 		}
 
-		//for i := 0; i < mp.M; i++ {
+		//for i := 0; i < mp.W; i++ {
 		//	c += (mp.A[diag+i] - mua[diag]) * (mp.B[i] - mub[0])
 		//}
-		copy(s1, mp.A[diag:diag+mp.M])
-		copy(s2, mp.B[:mp.M])
+		copy(s1, mp.A[diag:diag+mp.W])
+		copy(s2, mp.B[:mp.W])
 		floats.AddConst(-mua[diag], s1)
 		floats.AddConst(mub[0], s2)
 		c = floats.Dot(s1, s2)
@@ -1055,8 +1055,8 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	}
 
 	if mp.Opts.Euclidean {
-		util.P2E(mpr.MP, mp.M)
-		util.P2E(mpr.MPB, mp.M)
+		util.P2E(mpr.MP, mp.W)
+		util.P2E(mpr.MPB, mp.W)
 	}
 
 	return mpr
@@ -1065,8 +1065,8 @@ func (mp MatrixProfile) mpxabBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 // mpxbaBatch processes a batch set of rows in matrix profile calculation.
 func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb, dgb []float64, batchSize int, wg *sync.WaitGroup) *mpResult {
 	defer wg.Done()
-	lenA := len(mp.A) - mp.M + 1
-	lenB := len(mp.B) - mp.M + 1
+	lenA := len(mp.A) - mp.W + 1
+	lenB := len(mp.B) - mp.W + 1
 
 	if idx > lenA {
 		// got an index larger than max lag so ignore
@@ -1088,18 +1088,18 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 
 	var c, c_cmp float64
 	var offsetMax int
-	s1 := make([]float64, mp.M)
-	s2 := make([]float64, mp.M)
+	s1 := make([]float64, mp.W)
+	s2 := make([]float64, mp.W)
 	for diag := idx; diag < idx+batchSize; diag++ {
 		if diag >= lenB {
 			break
 		}
 
-		//for i := 0; i < mp.M; i++ {
+		//for i := 0; i < mp.W; i++ {
 		//	c += (mp.B[diag+i] - mub[diag]) * (mp.A[i] - mua[0])
 		//}
-		copy(s1, mp.B[diag:diag+mp.M])
-		copy(s2, mp.A[:mp.M])
+		copy(s1, mp.B[diag:diag+mp.W])
+		copy(s2, mp.A[:mp.W])
 		floats.AddConst(-mub[diag], s1)
 		floats.AddConst(mua[0], s2)
 		c = floats.Dot(s1, s2)
@@ -1127,8 +1127,8 @@ func (mp MatrixProfile) mpxbaBatch(idx int, mua, siga, dfa, dga, mub, sigb, dfb,
 	}
 
 	if mp.Opts.Euclidean {
-		util.P2E(mpr.MP, mp.M)
-		util.P2E(mpr.MPB, mp.M)
+		util.P2E(mpr.MP, mp.W)
+		util.P2E(mpr.MPB, mp.W)
 	}
 
 	return mpr
@@ -1155,7 +1155,7 @@ func (mp MatrixProfile) Analyze(mo *MPOptions, ao *AnalyzeOptions) error {
 		return err
 	}
 
-	discords, err := mp.DiscoverDiscords(ao.KDiscords, mp.M/2)
+	discords, err := mp.DiscoverDiscords(ao.KDiscords, mp.W/2)
 	if err != nil {
 		return err
 	}
@@ -1217,12 +1217,12 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 
 		// kill off any indices around the initial motif pair since they are
 		// trivial solutions
-		util.ApplyExclusionZone(prof, initialMotif[0], mp.M/2)
-		util.ApplyExclusionZone(prof, initialMotif[1], mp.M/2)
+		util.ApplyExclusionZone(prof, initialMotif[0], mp.W/2)
+		util.ApplyExclusionZone(prof, initialMotif[1], mp.W/2)
 		if j > 0 {
 			for k := j; k >= 0; k-- {
 				for _, idx := range motifs[k].Idx {
-					util.ApplyExclusionZone(prof, idx, mp.M/2)
+					util.ApplyExclusionZone(prof, idx, mp.W/2)
 				}
 			}
 		}
@@ -1235,7 +1235,7 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 
 			if prof[minDistIdx] < motifDistance*r {
 				motifSet[minDistIdx] = struct{}{}
-				util.ApplyExclusionZone(prof, minDistIdx, mp.M/2)
+				util.ApplyExclusionZone(prof, minDistIdx, mp.W/2)
 			} else {
 				// the closest distance in the profile is greater than the desired
 				// distance so break
@@ -1251,7 +1251,7 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 		}
 		for idx := range motifSet {
 			motifs[j].Idx = append(motifs[j].Idx, idx)
-			util.ApplyExclusionZone(mpCurrent, idx, mp.M/2)
+			util.ApplyExclusionZone(mpCurrent, idx, mp.W/2)
 		}
 
 		// sorts the indices in ascending order
@@ -1344,12 +1344,12 @@ func (mp MatrixProfile) Visualize(fn string, motifs []MotifGroup, discords []int
 
 	for i := 0; i < len(motifs); i++ {
 		for j, idx := range motifs[i].Idx {
-			motifPts[i][j] = points(mp.A[idx:idx+mp.M], mp.M)
+			motifPts[i][j] = points(mp.A[idx:idx+mp.W], mp.W)
 		}
 	}
 
 	for i, idx := range discords {
-		discordPts[i] = points(mp.A[idx:idx+mp.M], mp.M)
+		discordPts[i] = points(mp.A[idx:idx+mp.W], mp.W)
 		discordLabels[i] = strconv.Itoa(idx)
 	}
 

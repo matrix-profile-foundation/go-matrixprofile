@@ -46,7 +46,7 @@ func TestApplyAV(t *testing.T) {
 
 	testdata := []struct {
 		b          []float64
-		m          int
+		w          int
 		av         av.AV
 		expectedMP []float64
 	}{
@@ -59,7 +59,7 @@ func TestApplyAV(t *testing.T) {
 	for _, d := range testdata {
 		newMP := make([]float64, len(mprof))
 		copy(newMP, mprof)
-		mp = MatrixProfile{B: d.b, M: d.m, MP: newMP, AV: d.av}
+		mp = MatrixProfile{B: d.b, W: d.w, MP: newMP, AV: d.av}
 		out, err = mp.ApplyAV()
 		if err != nil {
 			t.Fatal(err)
@@ -80,8 +80,8 @@ func TestApplyAV(t *testing.T) {
 
 func TestSave(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	m := 3
-	p, err := New(ts, nil, m)
+	w := 3
+	p, err := New(ts, nil, w)
 	p.Compute(NewMPOpts())
 	filepath := "./mp.json"
 	err = p.Save(filepath, "json")
@@ -95,8 +95,8 @@ func TestSave(t *testing.T) {
 
 func TestLoad(t *testing.T) {
 	ts := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	m := 3
-	p, err := New(ts, nil, m)
+	w := 3
+	p, err := New(ts, nil, w)
 	p.Compute(NewMPOpts())
 	filepath := "./mp.json"
 	if err = p.Save(filepath, "json"); err != nil {
@@ -112,8 +112,8 @@ func TestLoad(t *testing.T) {
 		t.Errorf("Could not remove file, %s, %v", filepath, err)
 	}
 
-	if newP.M != m {
-		t.Errorf("Expected m of %d, but got %d", m, newP.M)
+	if newP.W != w {
+		t.Errorf("Expected window of %d, but got %d", w, newP.W)
 	}
 	if len(newP.A) != len(ts) {
 		t.Errorf("Expected timeseries length of %d, but got %d", len(ts), len(newP.A))
@@ -241,7 +241,7 @@ func TestMass(t *testing.T) {
 		if err = mp.initCaches(); err != nil {
 			t.Errorf("Failed to initialize cache, %v", err)
 		}
-		out = make([]float64, mp.N-mp.M+1)
+		out = make([]float64, mp.N-mp.W+1)
 		fft := fourier.NewFFT(mp.N)
 		err = mp.mass(d.q, out, fft)
 		if err != nil && d.expected == nil {
@@ -303,7 +303,7 @@ func TestDistanceProfile(t *testing.T) {
 			t.Errorf("Failed to initialize cache, %v", err)
 		}
 
-		mprof = make([]float64, mp.N-mp.M+1)
+		mprof = make([]float64, mp.N-mp.W+1)
 		fft := fourier.NewFFT(mp.N)
 		err = mp.distanceProfile(d.idx, mprof, fft)
 		if err != nil && d.expectedMP == nil {
@@ -362,9 +362,9 @@ func TestCalculateDistanceProfile(t *testing.T) {
 		}
 
 		fft := fourier.NewFFT(mp.N)
-		dot := mp.crossCorrelate(mp.A[:mp.M], fft)
+		dot := mp.crossCorrelate(mp.A[:mp.W], fft)
 
-		mprof = make([]float64, mp.N-mp.M+1)
+		mprof = make([]float64, mp.N-mp.W+1)
 		err = mp.calculateDistanceProfile(dot, d.idx, mprof)
 		if err != nil {
 			if d.expectedMP == nil {
@@ -760,7 +760,7 @@ func TestUpdate(t *testing.T) {
 func TestDiscoverDiscords(t *testing.T) {
 	mprof := []float64{1, 2, 3, 4}
 	a := []float64{1, 2, 3, 4, 5, 6}
-	m := 3
+	w := 3
 
 	testdata := []struct {
 		mp               []float64
@@ -775,7 +775,7 @@ func TestDiscoverDiscords(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp := MatrixProfile{A: a, B: a, M: m, MP: d.mp, AV: av.Default}
+		mp := MatrixProfile{A: a, B: a, W: w, MP: d.mp, AV: av.Default}
 		discords, err := mp.DiscoverDiscords(d.k, d.exzone)
 		if err != nil {
 			t.Errorf("Got error %v on %v", err, d)

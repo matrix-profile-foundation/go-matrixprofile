@@ -148,13 +148,13 @@ func (p *PMP) pmp() error {
 		return err
 	}
 
-	for _, m := range windows {
-		mp.M = m
+	for _, w := range windows {
+		mp.W = w
 		if err := mp.Compute(p.Opts.MPOpts); err != nil {
 			return err
 		}
-		copy(p.PMP[m-p.Opts.LowerM], mp.MP)
-		copy(p.PIdx[m-p.Opts.LowerM], mp.Idx)
+		copy(p.PMP[w-p.Opts.LowerM], mp.MP)
+		copy(p.PIdx[w-p.Opts.LowerM], mp.Idx)
 	}
 
 	return nil

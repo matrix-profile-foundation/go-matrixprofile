@@ -94,7 +94,7 @@ func BenchmarkMass(b *testing.B) {
 		b.Error(err)
 	}
 
-	mprof := make([]float64, mp.N-mp.M+1)
+	mprof := make([]float64, mp.N-mp.W+1)
 	fft := fourier.NewFFT(mp.N)
 	for i := 0; i < b.N; i++ {
 		q = sig[:32]
@@ -121,7 +121,7 @@ func BenchmarkDistanceProfile(b *testing.B) {
 		b.Error(err)
 	}
 
-	mprof := make([]float64, mp.N-mp.M+1)
+	mprof := make([]float64, mp.N-mp.W+1)
 	fft := fourier.NewFFT(mp.N)
 	for i := 0; i < b.N; i++ {
 		err = mp.distanceProfile(0, mprof, fft)
@@ -148,7 +148,7 @@ func BenchmarkCalculateDistanceProfile(b *testing.B) {
 	}
 
 	fft := fourier.NewFFT(mp.N)
-	dot := mp.crossCorrelate(mp.A[:mp.M], fft)
+	dot := mp.crossCorrelate(mp.A[:mp.W], fft)
 
 	mprof := make([]float64, len(dot))
 

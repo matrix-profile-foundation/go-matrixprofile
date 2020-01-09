@@ -23,7 +23,7 @@ type KMP struct {
 	tStd  [][]float64    // sliding standard deviation of each timeseries with a window of m each
 	tF    [][]complex128 // holds an existing calculation of the FFT for each timeseries
 	n     int            // length of the timeseries
-	M     int            // length of a subsequence
+	W     int            // length of a subsequence
 	MP    [][]float64    // matrix profile
 	Idx   [][]int        // matrix profile index
 }
@@ -31,14 +31,14 @@ type KMP struct {
 // NewKMP creates a matrix profile struct specifically to be used with the k dimensional
 // matrix profile computation. The number of rows represents the number of dimensions,
 // and each row holds a series of points of equal length as each other.
-func NewKMP(t [][]float64, m int) (*KMP, error) {
+func NewKMP(t [][]float64, w int) (*KMP, error) {
 	if t == nil || len(t) == 0 {
 		return nil, fmt.Errorf("slice is nil or has a length of 0 dimensions")
 	}
 
 	k := KMP{
 		T: t,
-		M: m,
+		W: w,
 		n: len(t[0]),
 	}
 
@@ -49,11 +49,11 @@ func NewKMP(t [][]float64, m int) (*KMP, error) {
 		}
 	}
 
-	if k.M*2 >= k.n {
+	if k.W*2 >= k.n {
 		return nil, fmt.Errorf("subsequence length must be less than half the timeseries")
 	}
 
-	if k.M < 2 {
+	if k.W < 2 {
 		return nil, fmt.Errorf("subsequence length must be at least 2")
 	}
 
@@ -63,15 +63,15 @@ func NewKMP(t [][]float64, m int) (*KMP, error) {
 	k.MP = make([][]float64, len(t))
 	k.Idx = make([][]int, len(t))
 	for d := 0; d < len(t); d++ {
-		k.tMean[d] = make([]float64, k.n-k.M+1)
-		k.tStd[d] = make([]float64, k.n-k.M+1)
-		k.tF[d] = make([]complex128, k.n-k.M+1)
-		k.MP[d] = make([]float64, k.n-k.M+1)
-		k.Idx[d] = make([]int, k.n-k.M+1)
+		k.tMean[d] = make([]float64, k.n-k.W+1)
+		k.tStd[d] = make([]float64, k.n-k.W+1)
+		k.tF[d] = make([]complex128, k.n-k.W+1)
+		k.MP[d] = make([]float64, k.n-k.W+1)
+		k.Idx[d] = make([]int, k.n-k.W+1)
 	}
 
 	for d := 0; d < len(t); d++ {
-		for i := 0; i < k.n-k.M+1; i++ {
+		for i := 0; i < k.n-k.W+1; i++ {
 			k.MP[d][i] = math.Inf(1)
 			k.Idx[d][i] = math.MaxInt64
 		}
@@ -136,7 +136,7 @@ func (k *KMP) initCaches() error {
 	// precompute the mean and standard deviation for each window of size m for all
 	// sliding windows across the b timeseries
 	for d := 0; d < len(k.T); d++ {
-		k.tMean[d], k.tStd[d], err = util.MovMeanStd(k.T[d], k.M)
+		k.tMean[d], k.tStd[d], err = util.MovMeanStd(k.T[d], k.W)
 		if err != nil {
 			return err
 		}
@@ -170,36 +170,36 @@ func (k *KMP) mStomp() error {
 	var D [][]float64
 	D = make([][]float64, len(k.T))
 	for d := 0; d < len(D); d++ {
-		D[d] = make([]float64, k.n-k.M+1)
+		D[d] = make([]float64, k.n-k.W+1)
 	}
 
 	dots := make([][]float64, len(k.T))
 	for d := 0; d < len(dots); d++ {
-		dots[d] = make([]float64, k.n-k.M+1)
+		dots[d] = make([]float64, k.n-k.W+1)
 		copy(dots[d], cachedDots[d])
 	}
 
-	for idx := 0; idx < k.n-k.M+1; idx++ {
+	for idx := 0; idx < k.n-k.W+1; idx++ {
 		for d := 0; d < len(dots); d++ {
 			if idx > 0 {
-				for j := k.n - k.M; j > 0; j-- {
-					dots[d][j] = dots[d][j-1] - k.T[d][j-1]*k.T[d][idx-1] + k.T[d][j+k.M-1]*k.T[d][idx+k.M-1]
+				for j := k.n - k.W; j > 0; j-- {
+					dots[d][j] = dots[d][j-1] - k.T[d][j-1]*k.T[d][idx-1] + k.T[d][j+k.W-1]*k.T[d][idx+k.W-1]
 				}
 				dots[d][0] = cachedDots[d][idx]
 			}
 
-			for i := 0; i < k.n-k.M+1; i++ {
-				D[d][i] = math.Sqrt(2 * float64(k.M) * math.Abs(1-(dots[d][i]-float64(k.M)*k.tMean[d][i]*k.tMean[d][idx])/(float64(k.M)*k.tStd[d][i]*k.tStd[d][idx])))
+			for i := 0; i < k.n-k.W+1; i++ {
+				D[d][i] = math.Sqrt(2 * float64(k.W) * math.Abs(1-(dots[d][i]-float64(k.W)*k.tMean[d][i]*k.tMean[d][idx])/(float64(k.W)*k.tStd[d][i]*k.tStd[d][idx])))
 			}
 			// sets the distance in the exclusion zone to +Inf
-			util.ApplyExclusionZone(D[d], idx, k.M/2)
+			util.ApplyExclusionZone(D[d], idx, k.W/2)
 		}
 
 		k.columnWiseSort(D)
 		k.columnWiseCumSum(D)
 
 		for d := 0; d < len(D); d++ {
-			for i := 0; i < k.n-k.M+1; i++ {
+			for i := 0; i < k.n-k.W+1; i++ {
 				if D[d][i]/(float64(d)+1) < k.MP[d][i] {
 					k.MP[d][i] = D[d][i] / (float64(d) + 1)
 					k.Idx[d][i] = idx
@@ -222,8 +222,8 @@ func (k KMP) crossCorrelate(idx int, fft *fourier.FFT, D [][]float64) {
 	var dot []float64
 
 	for d := 0; d < len(D); d++ {
-		for i := 0; i < k.M; i++ {
-			qpad[i] = k.T[d][idx+k.M-i-1]
+		for i := 0; i < k.W; i++ {
+			qpad[i] = k.T[d][idx+k.W-i-1]
 		}
 		qf = fft.Coefficients(nil, qpad)
 
@@ -235,16 +235,16 @@ func (k KMP) crossCorrelate(idx int, fft *fourier.FFT, D [][]float64) {
 
 		dot = fft.Sequence(nil, qf)
 
-		for i := 0; i < k.n-k.M+1; i++ {
-			dot[k.M-1+i] = dot[k.M-1+i] / float64(k.n)
+		for i := 0; i < k.n-k.W+1; i++ {
+			dot[k.W-1+i] = dot[k.W-1+i] / float64(k.n)
 		}
-		D[d] = dot[k.M-1:]
+		D[d] = dot[k.W-1:]
 	}
 }
 
 func (k KMP) columnWiseSort(D [][]float64) {
 	dist := make([]float64, len(D))
-	for i := 0; i < k.n-k.M+1; i++ {
+	for i := 0; i < k.n-k.W+1; i++ {
 		for d := 0; d < len(D); d++ {
 			dist[d] = D[d][i]
 		}
@@ -259,7 +259,7 @@ func (k KMP) columnWiseCumSum(D [][]float64) {
 	for d := 0; d < len(D); d++ {
 		// change D to be a cumulative sum of distances across dimensions
 		if d > 0 {
-			for i := 0; i < k.n-k.M+1; i++ {
+			for i := 0; i < k.n-k.W+1; i++ {
 				D[d][i] += D[d-1][i]
 			}
 		}

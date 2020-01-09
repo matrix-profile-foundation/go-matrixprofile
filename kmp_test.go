@@ -11,7 +11,7 @@ import (
 func TestNewKMP(t *testing.T) {
 	testdata := []struct {
 		t           [][]float64
-		m           int
+		w           int
 		expectedErr bool
 	}{
 		{[][]float64{}, 2, true},
@@ -22,7 +22,7 @@ func TestNewKMP(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		_, err := NewKMP(d.t, d.m)
+		_, err := NewKMP(d.t, d.w)
 		if d.expectedErr && err == nil {
 			t.Errorf("Expected an error, but got none for %v", d)
 		}
@@ -38,7 +38,7 @@ func TestKCrossCorrelate(t *testing.T) {
 
 	testdata := []struct {
 		t        [][]float64
-		m        int
+		w        int
 		expected [][]float64
 	}{
 		{[][]float64{{1, 1, 1, 1, 1}}, 2, [][]float64{{2, 2, 2, 2}}},
@@ -55,7 +55,7 @@ func TestKCrossCorrelate(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp, err = NewKMP(d.t, d.m)
+		mp, err = NewKMP(d.t, d.w)
 		if err != nil {
 			if d.expected == nil {
 				// Got an error while creating a new matrix profile
@@ -113,7 +113,7 @@ func TestColumnWiseSort(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		mp := &KMP{M: 5, n: 7}
+		mp := &KMP{W: 5, n: 7}
 		mp.columnWiseSort(d.d)
 
 		if len(d.d) != len(d.expectedD) {
@@ -121,7 +121,7 @@ func TestColumnWiseSort(t *testing.T) {
 			break
 		}
 		for dim := 0; dim < len(d.d); dim++ {
-			for i := 0; i < mp.n-mp.M-1; i++ {
+			for i := 0; i < mp.n-mp.W-1; i++ {
 				if math.Abs(d.d[dim][i]-d.expectedD[dim][i]) > 1e-7 {
 					t.Errorf("Expected\n%.4f, but got\n%.4f for\n%+v", d.expectedD[dim], d.d[dim], d)
 					break
@@ -183,7 +183,7 @@ func TestMStomp(t *testing.T) {
 			t.Errorf("Expected %d dimensions, but got %d, %+v", len(d.expectedMP), len(mp.MP), d)
 		}
 		for dim := 0; dim < len(d.t); dim++ {
-			for i := 0; i < mp.n-mp.M-1; i++ {
+			for i := 0; i < mp.n-mp.W-1; i++ {
 				if math.Abs(mp.MP[dim][i]-d.expectedMP[dim][i]) > 1e-7 {
 					for dd := 0; dd < len(d.t); dd++ {
 						t.Errorf("Expected\n%.12f, but got\n%.12f for\n%+v", d.expectedMP[dd], mp.MP[dd], d)
@@ -212,8 +212,8 @@ func TestKMPSave(t *testing.T) {
 
 func TestKMPLoad(t *testing.T) {
 	ts := [][]float64{{1, 2, 3, 4, 5, 6, 7, 8, 9}}
-	m := 3
-	p, err := NewKMP(ts, m)
+	w := 3
+	p, err := NewKMP(ts, w)
 	p.Compute()
 	filepath := "./kmp.json"
 	if err = p.Save(filepath, "json"); err != nil {
@@ -229,8 +229,8 @@ func TestKMPLoad(t *testing.T) {
 		t.Errorf("Could not remove file, %s, %v", filepath, err)
 	}
 
-	if newP.M != m {
-		t.Errorf("Expected m of %d, but got %d", m, newP.M)
+	if newP.W != w {
+		t.Errorf("Expected window of %d, but got %d", w, newP.W)
 	}
 	if len(newP.T) != len(ts) {
 		t.Errorf("Expected timeseries length of %d, but got %d", len(ts), len(newP.T))
