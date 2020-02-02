@@ -350,7 +350,7 @@ const (
 type MPOpts struct {
 	Algorithm    Algo    `json:"algorithm"`  // choose which algorithm to compute the matrix profile
 	SamplePct    float64 `json:"sample_pct"` // only applicable to algorithm STAMP
-	NumJobs      int     `json:"num_jobs"`
+	NJobs        int     `json:"n_jobs"`
 	Euclidean    bool    `json:"euclidean"`                  // defaults to using euclidean distance instead of pearson correlation for matrix profile
 	RemapNegCorr bool    `json:"remap_negative_correlation"` // defaults to no remapping. This is used so that highly negatively correlated sequences will show a low distance as well.
 }
@@ -364,7 +364,7 @@ func NewMPOpts() *MPOpts {
 	return &MPOpts{
 		Algorithm: AlgoMPX,
 		SamplePct: 1.0,
-		NumJobs:   p,
+		NJobs:     p,
 		Euclidean: true,
 	}
 }
@@ -683,9 +683,9 @@ func (mp *MatrixProfile) stamp() error {
 
 	randIdx := rand.Perm(len(mp.A) - mp.W + 1)
 
-	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.NumJobs + 1
-	results := make([]chan *mpResult, mp.Opts.NumJobs)
-	for i := 0; i < mp.Opts.NumJobs; i++ {
+	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.NJobs + 1
+	results := make([]chan *mpResult, mp.Opts.NJobs)
+	for i := 0; i < mp.Opts.NJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -703,8 +703,8 @@ func (mp *MatrixProfile) stamp() error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(mp.Opts.NumJobs)
-	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
+	wg.Add(mp.Opts.NJobs)
+	for batch := 0; batch < mp.Opts.NJobs; batch++ {
 		go func(idx int) {
 			results[idx] <- mp.stampBatch(idx, batchSize, mp.Opts.SamplePct, randIdx, &wg)
 		}(batch)
@@ -772,9 +772,9 @@ func (mp *MatrixProfile) stomp() error {
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.NumJobs + 1
-	results := make([]chan *mpResult, mp.Opts.NumJobs)
-	for i := 0; i < mp.Opts.NumJobs; i++ {
+	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.NJobs + 1
+	results := make([]chan *mpResult, mp.Opts.NJobs)
+	for i := 0; i < mp.Opts.NJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -792,8 +792,8 @@ func (mp *MatrixProfile) stomp() error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(mp.Opts.NumJobs)
-	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
+	wg.Add(mp.Opts.NJobs)
+	for batch := 0; batch < mp.Opts.NJobs; batch++ {
 		go func(idx int) {
 			results[idx] <- mp.stompBatch(idx, batchSize, &wg)
 		}(batch)
@@ -919,9 +919,9 @@ func (mp *MatrixProfile) mpx() error {
 	}
 
 	// setup for AB join
-	batchScheme := util.DiagBatchingScheme(lenA, mp.Opts.NumJobs)
-	results := make([]chan *mpResult, mp.Opts.NumJobs)
-	for i := 0; i < mp.Opts.NumJobs; i++ {
+	batchScheme := util.DiagBatchingScheme(lenA, mp.Opts.NJobs)
+	results := make([]chan *mpResult, mp.Opts.NJobs)
+	for i := 0; i < mp.Opts.NJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -939,8 +939,8 @@ func (mp *MatrixProfile) mpx() error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(mp.Opts.NumJobs)
-	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
+	wg.Add(mp.Opts.NJobs)
+	for batch := 0; batch < mp.Opts.NJobs; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			if mp.SelfJoin {
@@ -960,9 +960,9 @@ func (mp *MatrixProfile) mpx() error {
 	}
 
 	// setup for BA join
-	batchScheme = util.DiagBatchingScheme(lenB, mp.Opts.NumJobs)
-	results = make([]chan *mpResult, mp.Opts.NumJobs)
-	for i := 0; i < mp.Opts.NumJobs; i++ {
+	batchScheme = util.DiagBatchingScheme(lenB, mp.Opts.NJobs)
+	results = make([]chan *mpResult, mp.Opts.NJobs)
+	for i := 0; i < mp.Opts.NJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -977,8 +977,8 @@ func (mp *MatrixProfile) mpx() error {
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
-	wg.Add(mp.Opts.NumJobs)
-	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
+	wg.Add(mp.Opts.NJobs)
+	for batch := 0; batch < mp.Opts.NJobs; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			results[batchNum] <- mp.mpxbaBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
@@ -1226,10 +1226,15 @@ func (mp MatrixProfile) Analyze(mo *MPOpts, ao *AnalyzeOpts) error {
 
 // DiscoverMotifs will iteratively go through the matrix profile to find the
 // top k motifs with a given radius. Only applies to self joins.
-func (mp *MatrixProfile) DiscoverMotifs(k int, r float64, neighborCount, exclusionZone int) ([]MotifGroup, error) {
+func (mp *MatrixProfile) DiscoverMotifs(k int, radius float64, neighborCount, exclusionZone int) ([]MotifGroup, error) {
 	if !mp.SelfJoin {
 		return nil, errors.New("can only find top motifs if a self join is performed")
 	}
+
+	if neighborCount == 0 {
+		neighborCount = 10
+	}
+
 	var err error
 	var minDistIdx int
 
@@ -1294,7 +1299,7 @@ func (mp *MatrixProfile) DiscoverMotifs(k int, r float64, neighborCount, exclusi
 		for {
 			minDistIdx = floats.MinIdx(prof)
 
-			if prof[minDistIdx] < motifDistance*r {
+			if prof[minDistIdx] < motifDistance*radius {
 				motifSet[minDistIdx] = struct{}{}
 				util.ApplyExclusionZone(prof, minDistIdx, exclusionZone)
 			} else {

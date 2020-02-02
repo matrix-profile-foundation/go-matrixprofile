@@ -208,7 +208,7 @@ func BenchmarkStamp(b *testing.B) {
 	o := NewMPOpts()
 	o.Algorithm = AlgoSTAMP
 	o.SamplePct = 1.0
-	o.NumJobs = 2
+	o.NJobs = 2
 
 	b.Run("m32_p2_pts1k", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -248,7 +248,7 @@ func BenchmarkStomp(b *testing.B) {
 				b.Error(err)
 			}
 
-			o.NumJobs = bm.parallelism
+			o.NJobs = bm.parallelism
 			for i := 0; i < b.N; i++ {
 				err = mp.Compute(o)
 				if err != nil {
@@ -287,7 +287,7 @@ func BenchmarkMpx(b *testing.B) {
 				b.Error(err)
 			}
 
-			o.NumJobs = bm.parallelism
+			o.NJobs = bm.parallelism
 			for i := 0; i < b.N; i++ {
 				err = mp.Compute(o)
 				if err != nil {

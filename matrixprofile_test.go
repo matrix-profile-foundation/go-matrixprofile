@@ -667,7 +667,7 @@ func TestComputeMpx(t *testing.T) {
 
 		o := NewMPOpts()
 		o.Algorithm = AlgoMPX
-		o.NumJobs = d.p
+		o.NJobs = d.p
 		o.RemapNegCorr = d.remap
 		err = mp.Compute(o)
 		if err != nil {
