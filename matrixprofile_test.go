@@ -494,7 +494,7 @@ func TestComputeStamp(t *testing.T) {
 
 		o := NewMPOpts()
 		o.Algorithm = AlgoSTAMP
-		o.Sample = d.sample
+		o.SamplePct = d.sample
 
 		err = mp.Compute(o)
 
@@ -667,7 +667,7 @@ func TestComputeMpx(t *testing.T) {
 
 		o := NewMPOpts()
 		o.Algorithm = AlgoMPX
-		o.Parallelism = d.p
+		o.NumJobs = d.p
 		o.RemapNegCorr = d.remap
 		err = mp.Compute(o)
 		if err != nil {
@@ -844,7 +844,7 @@ func TestDiscoverMotifs(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		motifs, err := mp.DiscoverMotifs(d.k, 2)
+		motifs, err := mp.DiscoverMotifs(d.k, 2, 10, mp.W/2)
 		if err != nil {
 			if d.expectedMotifs == nil {
 				continue

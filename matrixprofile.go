@@ -42,6 +42,8 @@ type MatrixProfile struct {
 	IdxB     []int        `json:"pi_ba"`             // matrix profile index for the BA join
 	AV       av.AV        `json:"annotation_vector"` // type of annotation vector which defaults to all ones
 	Opts     *MPOpts      `json:"options"`           // options used for the computation
+	Motifs   []MotifGroup
+	Discords []int
 }
 
 // New creates a matrix profile struct with a given timeseries length n and
@@ -347,8 +349,8 @@ const (
 // MPOpts are parameters to vary the algorithm to compute the matrix profile.
 type MPOpts struct {
 	Algorithm    Algo    `json:"algorithm"`  // choose which algorithm to compute the matrix profile
-	Sample       float64 `json:"sample_pct"` // only applicable to algorithm STAMP
-	Parallelism  int     `json:"parallelism"`
+	SamplePct    float64 `json:"sample_pct"` // only applicable to algorithm STAMP
+	NumJobs      int     `json:"num_jobs"`
 	Euclidean    bool    `json:"euclidean"`                  // defaults to using euclidean distance instead of pearson correlation for matrix profile
 	RemapNegCorr bool    `json:"remap_negative_correlation"` // defaults to no remapping. This is used so that highly negatively correlated sequences will show a low distance as well.
 }
@@ -360,10 +362,10 @@ func NewMPOpts() *MPOpts {
 		p = 1
 	}
 	return &MPOpts{
-		Algorithm:   AlgoMPX,
-		Sample:      1.0,
-		Parallelism: p,
-		Euclidean:   true,
+		Algorithm: AlgoMPX,
+		SamplePct: 1.0,
+		NumJobs:   p,
+		Euclidean: true,
 	}
 }
 
@@ -374,6 +376,10 @@ func (mp *MatrixProfile) Compute(o *MPOpts) error {
 	}
 	mp.Opts = o
 
+	if o.SamplePct < 1 {
+		return mp.stamp()
+	}
+
 	switch o.Algorithm {
 	case AlgoSTOMP:
 		return mp.stomp()
@@ -383,6 +389,8 @@ func (mp *MatrixProfile) Compute(o *MPOpts) error {
 		return mp.stmp()
 	case AlgoMPX:
 		return mp.mpx()
+	default:
+		return fmt.Errorf("Unsupported algorithm for matrix profile, %s", o.Algorithm)
 	}
 	return nil
 }
@@ -658,8 +666,8 @@ func (mp *MatrixProfile) mergeMPResults(results []chan *mpResult, euclidean bool
 // profile. This should compute far faster at the cost of an approximation of the
 // matrix profile. Stores the matrix profile and matrix profile index in the struct.
 func (mp *MatrixProfile) stamp() error {
-	if mp.Opts.Sample <= 0.0 {
-		return fmt.Errorf("must provide a sampling greater than 0 and at most 1, sample: %.3f", mp.Opts.Sample)
+	if mp.Opts.SamplePct <= 0.0 {
+		return fmt.Errorf("must provide a sampling greater than 0 and at most 1, sample: %.3f", mp.Opts.SamplePct)
 	}
 
 	if err := mp.initCaches(); err != nil {
@@ -675,9 +683,9 @@ func (mp *MatrixProfile) stamp() error {
 
 	randIdx := rand.Perm(len(mp.A) - mp.W + 1)
 
-	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.Parallelism + 1
-	results := make([]chan *mpResult, mp.Opts.Parallelism)
-	for i := 0; i < mp.Opts.Parallelism; i++ {
+	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.NumJobs + 1
+	results := make([]chan *mpResult, mp.Opts.NumJobs)
+	for i := 0; i < mp.Opts.NumJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -695,10 +703,10 @@ func (mp *MatrixProfile) stamp() error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(mp.Opts.Parallelism)
-	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
+	wg.Add(mp.Opts.NumJobs)
+	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
 		go func(idx int) {
-			results[idx] <- mp.stampBatch(idx, batchSize, mp.Opts.Sample, randIdx, &wg)
+			results[idx] <- mp.stampBatch(idx, batchSize, mp.Opts.SamplePct, randIdx, &wg)
 		}(batch)
 	}
 	wg.Wait()
@@ -764,9 +772,9 @@ func (mp *MatrixProfile) stomp() error {
 		mp.Idx[i] = math.MaxInt64
 	}
 
-	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.Parallelism + 1
-	results := make([]chan *mpResult, mp.Opts.Parallelism)
-	for i := 0; i < mp.Opts.Parallelism; i++ {
+	batchSize := (len(mp.A)-mp.W+1)/mp.Opts.NumJobs + 1
+	results := make([]chan *mpResult, mp.Opts.NumJobs)
+	for i := 0; i < mp.Opts.NumJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -784,8 +792,8 @@ func (mp *MatrixProfile) stomp() error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(mp.Opts.Parallelism)
-	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
+	wg.Add(mp.Opts.NumJobs)
+	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
 		go func(idx int) {
 			results[idx] <- mp.stompBatch(idx, batchSize, &wg)
 		}(batch)
@@ -911,9 +919,9 @@ func (mp *MatrixProfile) mpx() error {
 	}
 
 	// setup for AB join
-	batchScheme := util.DiagBatchingScheme(lenA, mp.Opts.Parallelism)
-	results := make([]chan *mpResult, mp.Opts.Parallelism)
-	for i := 0; i < mp.Opts.Parallelism; i++ {
+	batchScheme := util.DiagBatchingScheme(lenA, mp.Opts.NumJobs)
+	results := make([]chan *mpResult, mp.Opts.NumJobs)
+	for i := 0; i < mp.Opts.NumJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -931,8 +939,8 @@ func (mp *MatrixProfile) mpx() error {
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
 	var wg sync.WaitGroup
-	wg.Add(mp.Opts.Parallelism)
-	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
+	wg.Add(mp.Opts.NumJobs)
+	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			if mp.SelfJoin {
@@ -952,9 +960,9 @@ func (mp *MatrixProfile) mpx() error {
 	}
 
 	// setup for BA join
-	batchScheme = util.DiagBatchingScheme(lenB, mp.Opts.Parallelism)
-	results = make([]chan *mpResult, mp.Opts.Parallelism)
-	for i := 0; i < mp.Opts.Parallelism; i++ {
+	batchScheme = util.DiagBatchingScheme(lenB, mp.Opts.NumJobs)
+	results = make([]chan *mpResult, mp.Opts.NumJobs)
+	for i := 0; i < mp.Opts.NumJobs; i++ {
 		results[i] = make(chan *mpResult)
 	}
 
@@ -969,8 +977,8 @@ func (mp *MatrixProfile) mpx() error {
 
 	// kick off multiple go routines to process a batch of rows returning back
 	// the matrix profile for that batch and any error encountered
-	wg.Add(mp.Opts.Parallelism)
-	for batch := 0; batch < mp.Opts.Parallelism; batch++ {
+	wg.Add(mp.Opts.NumJobs)
+	for batch := 0; batch < mp.Opts.NumJobs; batch++ {
 		go func(batchNum int) {
 			b := batchScheme[batchNum]
 			results[batchNum] <- mp.mpxbaBatch(b.Idx, mua, siga, dfa, dga, mub, sigb, dfb, dgb, b.Size, &wg)
@@ -1203,24 +1211,22 @@ func (mp MatrixProfile) Analyze(mo *MPOpts, ao *AnalyzeOpts) error {
 		ao = NewAnalyzeOpts()
 	}
 
-	_, _, cac := mp.DiscoverSegments()
-
-	motifs, err := mp.DiscoverMotifs(ao.KMotifs, ao.RMotifs)
+	_, err = mp.DiscoverMotifs(ao.kMotifs, ao.rMotifs, 10, mp.W/2)
 	if err != nil {
 		return err
 	}
 
-	discords, err := mp.DiscoverDiscords(ao.KDiscords, mp.W/2)
+	_, err = mp.DiscoverDiscords(ao.kDiscords, mp.W/2)
 	if err != nil {
 		return err
 	}
 
-	return mp.Visualize(ao.OutputFilename, motifs, discords, cac)
+	return mp.Visualize(ao.OutputFilename)
 }
 
 // DiscoverMotifs will iteratively go through the matrix profile to find the
 // top k motifs with a given radius. Only applies to self joins.
-func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
+func (mp *MatrixProfile) DiscoverMotifs(k int, r float64, neighborCount, exclusionZone int) ([]MotifGroup, error) {
 	if !mp.SelfJoin {
 		return nil, errors.New("can only find top motifs if a self join is performed")
 	}
@@ -1272,12 +1278,12 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 
 		// kill off any indices around the initial motif pair since they are
 		// trivial solutions
-		util.ApplyExclusionZone(prof, initialMotif[0], mp.W/2)
-		util.ApplyExclusionZone(prof, initialMotif[1], mp.W/2)
+		util.ApplyExclusionZone(prof, initialMotif[0], exclusionZone)
+		util.ApplyExclusionZone(prof, initialMotif[1], exclusionZone)
 		if j > 0 {
 			for k := j; k >= 0; k-- {
 				for _, idx := range motifs[k].Idx {
-					util.ApplyExclusionZone(prof, idx, mp.W/2)
+					util.ApplyExclusionZone(prof, idx, exclusionZone)
 				}
 			}
 		}
@@ -1290,10 +1296,14 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 
 			if prof[minDistIdx] < motifDistance*r {
 				motifSet[minDistIdx] = struct{}{}
-				util.ApplyExclusionZone(prof, minDistIdx, mp.W/2)
+				util.ApplyExclusionZone(prof, minDistIdx, exclusionZone)
 			} else {
 				// the closest distance in the profile is greater than the desired
 				// distance so break
+				break
+			}
+			// we hit our limit of neighborCount so stop searching
+			if len(motifSet) == neighborCount {
 				break
 			}
 		}
@@ -1306,12 +1316,13 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 		}
 		for idx := range motifSet {
 			motifs[j].Idx = append(motifs[j].Idx, idx)
-			util.ApplyExclusionZone(mpCurrent, idx, mp.W/2)
+			util.ApplyExclusionZone(mpCurrent, idx, exclusionZone)
 		}
 
 		// sorts the indices in ascending order
 		sort.IntSlice(motifs[j].Idx).Sort()
 	}
+	mp.Motifs = motifs[:j]
 
 	return motifs[:j], nil
 }
@@ -1319,7 +1330,7 @@ func (mp MatrixProfile) DiscoverMotifs(k int, r float64) ([]MotifGroup, error) {
 // DiscoverDiscords finds the top k time series discords starting indexes from a computed
 // matrix profile. Each discovery of a discord will apply an exclusion zone around
 // the found index so that new discords can be discovered.
-func (mp MatrixProfile) DiscoverDiscords(k int, exclusionZone int) ([]int, error) {
+func (mp *MatrixProfile) DiscoverDiscords(k int, exclusionZone int) ([]int, error) {
 	mpCurrent, _, err := mp.ApplyAV()
 	if err != nil {
 		return nil, err
@@ -1352,6 +1363,8 @@ func (mp MatrixProfile) DiscoverDiscords(k int, exclusionZone int) ([]int, error
 		discords[i] = maxIdx
 		util.ApplyExclusionZone(mpCurrent, maxIdx, exclusionZone)
 	}
+	mp.Discords = discords[:i]
+
 	return discords[:i], nil
 }
 
@@ -1385,28 +1398,27 @@ func (mp MatrixProfile) DiscoverSegments() (int, float64, []float64) {
 }
 
 // Visualize creates a png of the matrix profile given a matrix profile.
-func (mp MatrixProfile) Visualize(fn string, motifs []MotifGroup, discords []int, cac []float64) error {
+func (mp MatrixProfile) Visualize(fn string) error {
 	sigPts := points(mp.A, len(mp.A))
 	mpPts := points(mp.MP, len(mp.A))
-	cacPts := points(cac, len(mp.A))
-	motifPts := make([][]plotter.XYs, len(motifs))
-	discordPts := make([]plotter.XYs, len(discords))
-	discordLabels := make([]string, len(discords))
+	motifPts := make([][]plotter.XYs, len(mp.Motifs))
+	discordPts := make([]plotter.XYs, len(mp.Discords))
+	discordLabels := make([]string, len(mp.Discords))
 
-	for i := 0; i < len(motifs); i++ {
-		motifPts[i] = make([]plotter.XYs, len(motifs[i].Idx))
+	for i := 0; i < len(mp.Motifs); i++ {
+		motifPts[i] = make([]plotter.XYs, len(mp.Motifs[i].Idx))
 	}
 
-	for i := 0; i < len(motifs); i++ {
-		for j, idx := range motifs[i].Idx {
+	for i := 0; i < len(mp.Motifs); i++ {
+		for j, idx := range mp.Motifs[i].Idx {
 			motifPts[i][j] = points(mp.A[idx:idx+mp.W], mp.W)
 		}
 	}
 
-	for i, idx := range discords {
+	for i, idx := range mp.Discords {
 		discordPts[i] = points(mp.A[idx:idx+mp.W], mp.W)
 		discordLabels[i] = strconv.Itoa(idx)
 	}
 
-	return plotMP(sigPts, mpPts, cacPts, motifPts, discordPts, discordLabels, fn)
+	return plotMP(sigPts, mpPts, motifPts, discordPts, discordLabels, fn)
 }

@@ -86,7 +86,7 @@ func ExampleMatrixProfile_DiscoverMotifs() {
 	// finds the top 3 motifs in the signal. Motif groups include
 	// all subsequences that are within 2 times the distance of the
 	// original motif pair
-	motifs, err := mp.DiscoverMotifs(2, 2)
+	motifs, err := mp.DiscoverMotifs(2, 2, 10, mp.W/2)
 	if err != nil {
 		panic(err)
 	}

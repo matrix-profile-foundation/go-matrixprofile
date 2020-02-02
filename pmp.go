@@ -118,7 +118,7 @@ func (p *PMP) Compute(o *PMPOpts) error {
 
 func (p *PMP) pmp() error {
 	windows := util.BinarySplit(p.Opts.LowerM, p.Opts.UpperM)
-	windows = windows[:int(float64(len(windows))*p.Opts.MPOpts.Sample)]
+	windows = windows[:int(float64(len(windows))*p.Opts.MPOpts.SamplePct)]
 	if len(windows) < 1 {
 		return errors.New("Need more than one subsequence window for pmp")
 	}

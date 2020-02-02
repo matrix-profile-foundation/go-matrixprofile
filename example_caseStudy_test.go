@@ -16,19 +16,14 @@ func Example_caseStudy() {
 	noise := siggen.Noise(0.1, len(sig))
 	sig = siggen.Add(sig, noise)
 
-	var m, k int
-	var r float64
+	var m int
 	m = 32
-	k = 6
-	r = 3
 	mp, err := New(sig, nil, m)
 	if err != nil {
 		panic(err)
 	}
 
 	ao := NewAnalyzeOpts()
-	ao.KMotifs = k
-	ao.RMotifs = r
 	ao.OutputFilename = "mp_sine.png"
 
 	if err = mp.Analyze(nil, ao); err != nil {

@@ -50,7 +50,7 @@ func createPlot(pts []plotter.XYs, labels []string, title string) (*plot.Plot, e
 	return p, err
 }
 
-func plotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discordPts []plotter.XYs, discordLabels []string, filename string) error {
+func plotMP(sigPts, mpPts plotter.XYs, motifPts [][]plotter.XYs, discordPts []plotter.XYs, discordLabels []string, filename string) error {
 	var err error
 	rows, cols := len(motifPts), 2
 	if rows < 4 {
@@ -72,12 +72,7 @@ func plotMP(sigPts, mpPts, cacPts plotter.XYs, motifPts [][]plotter.XYs, discord
 		return err
 	}
 
-	plots[2][0], err = createPlot([]plotter.XYs{cacPts}, nil, "corrected arc curve")
-	if err != nil {
-		return err
-	}
-
-	plots[3][0], err = createPlot(discordPts, discordLabels, "discords")
+	plots[2][0], err = createPlot(discordPts, discordLabels, "discords")
 	if err != nil {
 		return err
 	}

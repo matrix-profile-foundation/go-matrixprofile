@@ -106,7 +106,7 @@ func TestComputePmp(t *testing.T) {
 		}
 
 		o := NewPMPOpts(d.lb, d.ub)
-		o.MPOpts.Parallelism = d.p
+		o.MPOpts.NumJobs = d.p
 		err = p.Compute(o)
 		if err != nil {
 			if d.expectedPMP == nil {
