@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"gonum.org/v1/gonum/fourier"
+	"gonum.org/v1/gonum/dsp/fourier"
 )
 
 func TestNewKMP(t *testing.T) {

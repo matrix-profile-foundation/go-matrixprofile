@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/util"
-	"gonum.org/v1/gonum/fourier"
+	"gonum.org/v1/gonum/dsp/fourier"
 	"gonum.org/v1/plot/plotter"
 )
 

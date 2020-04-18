@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/matrix-profile-foundation/go-matrixprofile/av"
-	"gonum.org/v1/gonum/fourier"
+	"gonum.org/v1/gonum/dsp/fourier"
 )
 
 func TestNew(t *testing.T) {
