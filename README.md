@@ -157,8 +157,8 @@ $ make test
 ```
 
 ## Other libraries
-* R: [github.com/franzbischoff/tsmp](https://github.com/franzbischoff/tsmp)
-* Python: [github.com/target/matrixprofile-ts](https://github.com/target/matrixprofile-ts)
+* R: [github.com/matrix-profile-foundation/tsmp](https://github.com/matrix-profile-foundation/tsmp)
+* Python: [github.com/matrix-profile-foundation/matrixprofile](https://github.com/matrix-profile-foundation/matrixprofile)
 
 ## Contact
 * Austin Ouyang (aouyang1@gmail.com)
