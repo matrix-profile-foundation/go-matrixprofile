@@ -76,7 +76,7 @@ subsequence length: 32
 * discords: The discords graph shows the top 3 potential discords of the defined subsequence length, m, based on the 3 highest peaks in the matrix profile. This is mostly composed of noise.
 * motifs: These represent the top 6 motifs found from the time series. The first being the initial sine wave pattern. The second is during the pulsed sequence on a fall of the pulse to the noise. The third is during the pulsed sequence on the rise from the noise to the pulse. The fourth and fifth are the sawtooth patterns.
 
-The code to generate the graph can be found in [this example](https://https://github.com/matrix-profile-foundation/go-matrixprofile/blob/master/example_caseStudy_test.go#L104).
+The code to generate the graph can be found in [this example](https://github.com/matrix-profile-foundation/go-matrixprofile/blob/master/example_caseStudy_test.go#L104).
 
 ### Multi-Dimensional Matrix Profile
 Based on [4] we can extend the matrix profile algorithm to multi-dimensional scenario.
