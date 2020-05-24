@@ -168,6 +168,12 @@ The Apache 2.0 License. See [LICENSE](https://github.com/matrix-profile-foundati
 
 Copyright (c) 2020 Matrix Profile Foundation and contributors.
 
+## Citing this work
+
+Please cite this work using our Journal of Open Source Software article
+
+Van Benschoten et al., (2020). MPA: a novel cross-language API for time series analysis. Journal of Open Source Software, 5(49), 2179, https://doi.org/10.21105/joss.02179
+
 ## Citations
 [1] Chin-Chia Michael Yeh, Yan Zhu, Liudmila Ulanova, Nurjahan Begum, Yifei Ding, Hoang Anh Dau, Diego Furtado Silva, Abdullah Mueen, Eamonn Keogh (2016). [Matrix Profile I: All Pairs Similarity Joins for Time Series: A Unifying View that Includes Motifs, Discords and Shapelets](https://www.cs.ucr.edu/~eamonn/PID4481997_extend_Matrix%20Profile_I.pdf). IEEE ICDM 2016.
 
